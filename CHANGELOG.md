@@ -8,6 +8,8 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
   your token, and the app checks it, saves it in Windows Credential Manager or the Linux
   keyring and starts the statistics service that ships with the app. **Disconnect STRATZ**
   removes the token. On Linux the flow has not been tried on a desktop yet.
+- **Profile:** removed the Bracket column from match history. A current MMR reading no longer
+  shows a leaderboard position from cached public profile data.
 
 ## 0.5.0 — October 28, 2026
 
