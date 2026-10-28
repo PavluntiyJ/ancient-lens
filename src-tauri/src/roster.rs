@@ -325,7 +325,7 @@ where
             }
             if debug {
                 eprintln!(
-                    "{} Linux roster attempt #{}: roster={} draft={} {}ms counts={{ok:{},waiting:{},retry:{},incomplete:{},mismatch:{},error:{},total:{}}}",
+                    "{} Native roster attempt #{}: roster={} draft={} {}ms counts={{ok:{},waiting:{},retry:{},incomplete:{},mismatch:{},error:{},total:{}}}",
                     chrono::Local::now().format("%H:%M:%S%.3f"),
                     attempts,
                     result.as_ref().map(|_| "ok").unwrap_or_else(|e| *e),
@@ -403,7 +403,7 @@ where
             let notes = picks::take_notes();
             if !notes.is_empty() && notes != last_notes {
                 eprintln!(
-                    "{} Linux roster note: {}",
+                    "{} Native roster note: {}",
                     chrono::Local::now().format("%H:%M:%S%.3f"),
                     notes.join("; ")
                 );
@@ -412,7 +412,7 @@ where
             if last_diagnostic.as_ref() != Some(&diagnostic) {
                 // Never log player IDs, names, GSI auth or API keys.
                 eprintln!(
-                    "{} Linux roster: state={} status={} players={}/10 draft={}{} picks={}/10 data={} counts={{ok:{},waiting:{},retry:{},incomplete:{},mismatch:{},error:{},total:{}}}",
+                    "{} Native roster: state={} status={} players={}/10 draft={}{} picks={}/10 data={} counts={{ok:{},waiting:{},retry:{},incomplete:{},mismatch:{},error:{},total:{}}}",
                     chrono::Local::now().format("%H:%M:%S%.3f"),
                     diagnostic.5,
                     diagnostic.1,
