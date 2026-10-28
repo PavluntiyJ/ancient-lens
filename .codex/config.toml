@@ -1,0 +1,7 @@
+# Project MCP servers; start Codex from the repository root after npm ci.
+[mcp_servers.context7]
+command = "node"
+args = ["node_modules/@upstash/context7-mcp/dist/index.js"]
+env = { OTEL_SDK_DISABLED = "true" }
+env_vars = ["CONTEXT7_API_KEY"]
+startup_timeout_sec = 30

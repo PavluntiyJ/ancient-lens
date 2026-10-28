@@ -1,0 +1,60 @@
+[package]
+name = "ancient-lens"
+version = "0.5.0"
+edition = "2021"
+default-run = "ancient-lens"
+
+[lib]
+name = "ancient_lens"
+
+[features]
+default = ["desktop"]
+desktop = ["dep:tauri", "dep:tauri-build", "dep:tauri-plugin-single-instance", "dep:tauri-plugin-global-shortcut", "dep:rfd", "dep:open", "dep:zbus"]
+
+[[bin]]
+name = "ancient-lens"
+path = "src/main.rs"
+required-features = ["desktop"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [], optional = true }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"], optional = true }
+tauri-plugin-single-instance = { version = "2", optional = true }
+tauri-plugin-global-shortcut = { version = "2", optional = true }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
+axum = "0.8"
+tower-http = { version = "0.6", features = ["timeout", "limit"] }
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4"] }
+rand = "0.8"
+sha2 = "0.10"
+subtle = "2"
+dirs = "6"
+futures = "0.3"
+rfd = { version = "0.15", optional = true }
+tempfile = "3"
+open = { version = "5", optional = true }
+
+# Roster reader: ELF and PE parsing are plain file work, so both build and are tested on every system.
+object = { version = "0.37", default-features = false, features = ["read", "elf", "pe", "std"] }
+iced-x86 = { version = "1.21", default-features = false, features = ["std", "decoder"] }
+memchr = "2"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2"
+# Already in the tree via single-instance/rfd; used to detect a tray host before hiding to it.
+zbus = { version = "5.9", optional = true }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+winreg = "0.55"
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Diagnostics_ToolHelp", "Win32_System_Diagnostics_Debug", "Win32_System_Threading", "Win32_Security_Credentials"] }
+
+[profile.release]
+strip = true
+lto = "thin"
+codegen-units = 1

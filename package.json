@@ -1,0 +1,52 @@
+{
+  "name": "ancient-lens",
+  "version": "0.5.0",
+  "private": true,
+  "type": "module",
+  "description": "Open-source Dota 2 companion for Windows and Linux, without ads or telemetry",
+  "author": "Ancient Lens contributors",
+  "license": "MIT",
+  "desktopName": "org.ancientlens.desktop",
+  "scripts": {
+    "dev": "npm run build:web && tauri dev",
+    "build": "tauri build --no-bundle",
+    "test": "vitest run",
+    "pack": "tauri build --no-bundle",
+    "dist:linux": "tauri build --bundles appimage,deb",
+    "dist:win": "tauri build --bundles nsis",
+    "dist:win:zip": "tauri build --no-bundle && node scripts/package-native.mjs",
+    "check": "tsc --noEmit && tsc --noEmit -p tests && vitest run",
+    "build:web": "tsc --noEmit && vite build",
+    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "test:native": "node scripts/smoke-native.mjs",
+    "docs:screenshots": "node scripts/docs-screenshots.mjs",
+    "format": "prettier --write src tests scripts vite.config.ts",
+    "format:check": "prettier --check src tests scripts vite.config.ts",
+    "check:public": "node scripts/check-public.mjs",
+    "export:public": "node scripts/export-public.mjs"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.12.4",
+    "lucide-react": "1.59.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.0",
+    "@tauri-apps/cli": "^2.12.4",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@upstash/context7-mcp": "4.4.4",
+    "@vitejs/plugin-react": "6.1.2",
+    "fflate": "^0.8.3",
+    "prettier": "3.9.10",
+    "typescript": "7.0.2",
+    "vite": "8.3.4",
+    "vitest": "5.0.5"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
+}

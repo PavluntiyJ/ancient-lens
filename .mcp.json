@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "context7": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["node_modules/@upstash/context7-mcp/dist/index.js"],
+      "env": {
+        "OTEL_SDK_DISABLED": "true"
+      }
+    }
+  }
+}
