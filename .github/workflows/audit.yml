@@ -1,0 +1,27 @@
+name: Dependency audit
+
+# Weekly and on demand, not per push: advisories change without code changes.
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+      # Both audits read the lockfiles only; no dependency install or build is needed.
+      - name: npm audit
+        run: npm audit --audit-level=high
+      - name: cargo audit
+        run: cargo audit --file src-tauri/Cargo.lock

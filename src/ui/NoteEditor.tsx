@@ -1,0 +1,102 @@
+import { useEffect, useState, type FormEvent } from 'react';
+import { Pencil, Plus } from 'lucide-react';
+import type { LocalState, Note } from '../shared/domain';
+import { api, errorMessage } from './App';
+
+export const noteTags: [Note['tag'], string][] = [
+  ['neutral', 'Observation'],
+  ['teammate', 'Good teammate'],
+  ['avoid', 'Watch out'],
+];
+
+/**
+ * The note of one player, written from the player card or the hover preview during a match;
+ * keyed by account. Saving or deleting updates the app state, so the table and the chime
+ * follow. The saved result shows at once: a hover card keeps the props it opened with.
+ */
+export function NoteEditor({ accountId, name, note: given }: { accountId: string; name: string; note?: Note }) {
+  const [saved, setSaved] = useState<{ note?: Note }>();
+  useEffect(() => setSaved(undefined), [given]);
+  const note = saved ? saved.note : given;
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState('');
+  const [tag, setTag] = useState<Note['tag']>('neutral');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const open = () => {
+    setText(note?.text ?? '');
+    setTag(note?.tag ?? 'neutral');
+    setError('');
+    setEditing(true);
+  };
+  const run = async (action: () => Promise<LocalState>) => {
+    setBusy(true);
+    setError('');
+    try {
+      const state = await action();
+      setSaved({ note: state.notes.find((item) => item.accountId === accountId) });
+      setEditing(false);
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const save = (event: FormEvent) => {
+    event.preventDefault();
+    void run(() => api.saveNote({ accountId, name, text, tag }));
+  };
+  if (!editing)
+    return (
+      <div className="card-note">
+        {note && <p className={`player-note tag-${note.tag}`}>{note.text}</p>}
+        <button type="button" className="text-button" onClick={open}>
+          {note ? <Pencil size={14} /> : <Plus size={14} />}
+          {note ? 'Edit note' : 'Add note'}
+        </button>
+      </div>
+    );
+  return (
+    <form className="card-note card-note-form" onSubmit={save}>
+      <textarea
+        aria-label="Note"
+        autoFocus
+        maxLength={2000}
+        rows={3}
+        placeholder="What should you remember about this player?"
+        value={text}
+        onChange={(event) => setText(event.target.value)}
+      />
+      <div className="card-note-actions">
+        <select aria-label="Note type" value={tag} onChange={(event) => setTag(event.target.value as Note['tag'])}>
+          {noteTags.map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+        <button className="primary" disabled={busy || !text.trim()}>
+          Save
+        </button>
+        <button type="button" className="text-button" disabled={busy} onClick={() => setEditing(false)}>
+          Cancel
+        </button>
+        {note && (
+          <button
+            type="button"
+            className="danger-button"
+            disabled={busy}
+            onClick={() => void run(() => api.deleteNote(accountId))}
+          >
+            Delete
+          </button>
+        )}
+      </div>
+      {error && (
+        <p className="error-text" role="alert">
+          {error}
+        </p>
+      )}
+    </form>
+  );
+}

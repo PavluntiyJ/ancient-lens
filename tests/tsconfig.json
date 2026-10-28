@@ -1,0 +1,6 @@
+{
+  // Tests index fixed fixtures; unchecked index access would only add "!" noise there.
+  "extends": "../tsconfig.json",
+  "compilerOptions": { "noUncheckedIndexedAccess": false },
+  "include": [".", "../src"]
+}

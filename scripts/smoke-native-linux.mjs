@@ -1,0 +1,2167 @@
+// Exercise the actual WebKitGTK window and Rust IPC, with isolated data and GSI.
+// WebKitWebDriver is the native Linux driver used by tauri-driver:
+// https://github.com/tauri-apps/tauri/tree/dev/crates/tauri-driver
+import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { createServer } from 'node:http';
+import { mkdtemp, mkdir, readFile, writeFile, access, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+
+const binary = resolve(process.env.ANCIENT_NATIVE_BINARY || 'src-tauri/target/release/ancient-lens');
+await access(binary);
+const directory = await mkdtemp(join(tmpdir(), 'ancient-native-linux-'));
+const cache = join(directory, 'cache');
+await mkdir(cache);
+const token = 'a'.repeat(64);
+await writeFile(
+  join(directory, 'state.json'),
+  JSON.stringify({
+    version: 1,
+    accountId: '1',
+    token,
+    notes: [
+      {
+        accountId: '1',
+        name: 'Migration fixture',
+        text: 'Keep this note',
+        tag: 'teammate',
+        updatedAt: new Date().toISOString(),
+      },
+    ],
+    // Game measurements five minutes after fixture matches 1003, 1002 and 1001 ended.
+    mmr: [
+      [3000, 3],
+      [3025, 2],
+      [3010, 1],
+    ].map(([value, hours], i) => ({
+      id: `mmr-${i}`,
+      accountId: '1',
+      value,
+      source: 'dota-memory',
+      confidence: 100,
+      createdAt: new Date(Date.now() - hours * 3600000 + 300000).toISOString(),
+    })),
+  }),
+);
+const portraitSlugs = [
+  'antimage',
+  'axe',
+  'bane',
+  'bloodseeker',
+  'crystal_maiden',
+  'drow_ranger',
+  'earthshaker',
+  'juggernaut',
+  'mirana',
+  'morphling',
+  'nevermore',
+  'phantom_lancer',
+  'puck',
+  'pudge',
+  'razor',
+  'sand_king',
+  'storm_spirit',
+  'sven',
+  'tiny',
+  'vengefulspirit',
+  'windrunner',
+  'zuus',
+  'kunkka',
+  'lina',
+  'lion',
+  'shadow_shaman',
+  'slardar',
+  'tidehunter',
+  'witch_doctor',
+  'lich',
+  'riki',
+  'enigma',
+];
+const heroes = Array.from({ length: 32 }, (_, i) => ({
+  id: i + 1,
+  name: `npc_dota_hero_${portraitSlugs[i]}`,
+  localized_name: `Hero ${i + 1}`,
+  primary_attr: 'str',
+  attack_type: 'Melee',
+  roles: ['Initiator'],
+}));
+async function resource(endpoint, data) {
+  await writeFile(
+    join(cache, `resource-${createHash('sha256').update(endpoint).digest('hex')}.json`),
+    JSON.stringify({ endpoint, at: Date.now(), data }),
+  );
+}
+await resource('heroes', heroes);
+for (let id = 1; id <= 10; id++)
+  await resource(
+    `heroes/${id}/matchups`,
+    heroes.map((h) => ({ hero_id: h.id, games_played: 100, wins: 40 })),
+  );
+await resource('players/1', { rank_tier: 50, profile: { account_id: 1, personaname: 'My fixture profile' } });
+await resource('players/1/wl', { win: 60, lose: 40 });
+await resource('players/1/recentMatches', []);
+await resource('players/1/heroes', []);
+// OpenDota profiles for the country fallback: only player 4 has a location there, and every
+// shown player is cached so the fallback makes no network request.
+for (let id = 2; id <= 10; id++)
+  await resource(`players/${id}`, { profile: { account_id: id, loccountrycode: id === 4 ? 'FI' : null } });
+const batches = [];
+const totalBatches = [];
+let draftRequests = 0;
+const draftBatches = [];
+// The match screen warms every hero at the draft start (draftWarmBatches) and then asks
+// only for missing heroes. A refused warm-up, as on a STRATZ quota, ends it, so the
+// per-pick request path stays testable; refused requests are not counted as draft requests.
+let refuseWarmUp = false;
+const refusedDrafts = [];
+let delayDraft = false;
+let malformedDraft = false;
+let neutralDraft = false;
+let hoverDraft = false;
+const pendingDrafts = [];
+let historyRequests = 0;
+let failHistory = false;
+let privateHistory = false;
+let delaySummaries = false;
+const pendingSummaries = [];
+const service = createServer(async (req, res) => {
+  try {
+    let body = '';
+    for await (const chunk of req) body += chunk;
+    const { ids, days, filter, id, offset, bracket = 'ALL' } = JSON.parse(body);
+    if (req.url === '/v1/history') {
+      historyRequests++;
+      if (failHistory) {
+        res.writeHead(503).end('{}');
+        return;
+      }
+      const start = offset ? 24 : 0;
+      const matches = privateHistory
+        ? []
+        : Array.from({ length: 25 }, (_, i) => ({
+            match_id: 1000 + start + i,
+            hero_id: (i % 2) + 1,
+            start_time: Math.floor(Date.now() / 1000) - (start + i) * 3600 - 1800,
+            duration: 1800,
+            radiant_win: i % 2 === 0,
+            player_slot: 0,
+            kills: i % 2 ? null : 5,
+            deaths: i % 4 === 0 ? null : 2,
+            assists: 8,
+            position: i % 6 === 0 ? null : `POSITION_${(i % 5) + 1}`,
+            game_mode: i % 5 === 0 ? 23 : 22,
+            lobby_type: 7,
+            // The latest match carries all ten players for the ten-player card.
+            ...(start + i === 0 && {
+              position: 'POSITION_1',
+              average_rank: 65,
+              gold_per_min: 450,
+              lineup: Array.from({ length: 10 }, (_, slot) => ({
+                radiant: slot < 5,
+                ...(slot === 0 ? { own: true } : slot === 3 ? {} : { id: 500 + slot }),
+                hero_id: slot === 0 ? 1 : (slot % 2) + 1,
+                ...(slot !== 7 && { gold_per_min: slot === 0 ? 450 : 300 + slot * 40 }),
+                position: `POSITION_${(slot % 5) + 1}`,
+              })),
+            }),
+          }));
+      res.writeHead(200, { 'content-type': 'application/json' }).end(
+        JSON.stringify({
+          accountId: id,
+          source: 'STRATZ',
+          fetchedAt: new Date().toISOString(),
+          profile: { rank_tier: 65, profile: { account_id: Number(id), personaname: 'My STRATZ profile' } },
+          matches,
+          hasMore: !offset && !privateHistory,
+          nextOffset: offset ? 50 : 25,
+          stale: false,
+          historyUnavailable: privateHistory,
+          warning: privateHistory ? 'STRATZ history is private. Showing previously saved matches.' : null,
+        }),
+      );
+      return;
+    }
+    if (req.url === '/v1/averages') {
+      // Averages of the hero on each position: the latest match's 450 GPM is below 600.
+      res.writeHead(200, { 'content-type': 'application/json' }).end(
+        JSON.stringify({
+          source: 'STRATZ',
+          fetchedAt: new Date().toISOString(),
+          bracket,
+          rows: ids.map((heroId) => ({
+            heroId,
+            position: 1,
+            time: 30,
+            matchCount: 400,
+            kills: 5,
+            deaths: 2,
+            assists: 8,
+            goldPerMinute: 600,
+            xp: 18000,
+            cs: 150,
+            heroDamage: 20000,
+            networth: 15000,
+            killContribution: 60,
+          })),
+        }),
+      );
+      return;
+    }
+    if (req.url === '/v1/summaries' && delaySummaries) await new Promise((resolve) => pendingSummaries.push(resolve));
+    if (req.url === '/v1/draft' && refuseWarmUp && ids.length) {
+      refuseWarmUp = false;
+      refusedDrafts.push(ids);
+      res.writeHead(429, { 'content-type': 'application/json' }).end('{"error":"STRATZ quota reached"}');
+      return;
+    }
+    if (req.url === '/v1/draft') {
+      draftRequests++;
+      draftBatches.push(ids);
+      if (delayDraft) await new Promise((resolve) => pendingDrafts.push(resolve));
+      const positions = heroes.flatMap((hero) =>
+        [1, 2, 3, 4, 5].map((position) => ({
+          heroId: hero.id,
+          position: `POSITION_${position}`,
+          week: 1,
+          matchCount: 1000,
+          winCount: 500,
+        })),
+      );
+      const matchups = ids.map((id) => ({
+        heroId: id,
+        vs: heroes.map((hero) => ({
+          heroId1: id,
+          heroId2: hero.id,
+          matchCount: 1000,
+          winCount: 400,
+          synergy: hoverDraft && hero.id === 2 ? -20 : (id < hero.id ? 1 : -1) * ((id + hero.id) % 2 ? 4 : -6),
+        })),
+        with: heroes.map((hero) => ({
+          heroId1: id,
+          heroId2: hero.id,
+          matchCount: 1000,
+          winCount: 550,
+          synergy: hoverDraft ? (id % 2 ? (hero.id % 2 ? 8 : -4) : hero.id % 2 ? -6 : 10) : 2,
+        })),
+      }));
+      // A huge sample keeps shrinkage negligible: the check is about showing a small known value.
+      if (neutralDraft)
+        matchups.forEach((row) =>
+          row.vs.forEach((pair) => {
+            pair.synergy = pair.heroId1 < pair.heroId2 ? 0.4 : -0.4;
+            pair.matchCount = 100000000;
+            pair.winCount = 50000000;
+          }),
+        );
+      if (malformedDraft) matchups[0].vs = null;
+      res
+        .writeHead(200, { 'content-type': 'application/json' })
+        .end(JSON.stringify({ source: 'STRATZ', bracket, fetchedAt: new Date().toISOString(), positions, matchups }));
+      return;
+    }
+    if (req.url === '/v1/totals') totalBatches.push(ids);
+    else batches.push(ids);
+    const summaries = [...ids].reverse().map((id) => ({
+      accountId: id,
+      days,
+      filter,
+      source: 'STRATZ',
+      isPublic: id !== '3',
+      fetchedAt: new Date().toISOString(),
+      profile: {
+        rank_tier: 80,
+        leaderboard_rank: Number(id),
+        profile: {
+          account_id: Number(id),
+          personaname: `Fixture ${id}`,
+          ...(id === '2' ? { loccountrycode: 'DE' } : {}),
+        },
+      },
+      ...(req.url === '/v1/totals'
+        ? { total: { games: (Number(id) <= 3 ? 1000 : 6000) + Number(id), wins: Number(id) <= 3 ? 600 : 2940 } }
+        : {}),
+      matches: [],
+      heroes: [{ hero_id: Number(id), games: 20, win: Number(id) % 2 ? 12 : 6 }],
+      limited: false,
+      stale: false,
+    }));
+    res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ summaries }));
+  } catch (error) {
+    res.writeHead(500).end(String(error));
+  }
+});
+await new Promise((resolve) => service.listen(0, '127.0.0.1', resolve));
+const probe = createServer();
+await new Promise((resolve) => probe.listen(0, '127.0.0.1', resolve));
+const port = probe.address().port;
+await new Promise((resolve) => probe.close(resolve));
+const driver = spawn(process.env.WEBKIT_WEBDRIVER || 'WebKitWebDriver', [`--port=${port}`, '--host=127.0.0.1'], {
+  detached: true,
+  env: {
+    ...process.env,
+    TAURI_WEBVIEW_AUTOMATION: 'true',
+    ANCIENT_TEST_DATA: directory,
+    ANCIENT_GSI_DRAFT_DIAGNOSTICS: '1',
+    XDG_DATA_HOME: join(directory, 'xdg-data'),
+    XDG_CACHE_HOME: join(directory, 'xdg-cache'),
+    ANCIENT_STATS_URL: `http://127.0.0.1:${service.address().port}`,
+  },
+  stdio: ['ignore', 'pipe', 'pipe'],
+});
+let driverError;
+driver.on('error', (error) => {
+  driverError = error;
+});
+driver.stderr.on('data', (data) => process.stderr.write(data));
+driver.stdout.resume();
+let session;
+async function request(path, data, method = data ? 'POST' : 'GET') {
+  const response = await fetch(`http://127.0.0.1:${port}${path}`, {
+    method,
+    headers: { 'content-type': 'application/json' },
+    body: data ? JSON.stringify(data) : undefined,
+    signal: AbortSignal.timeout(30000),
+  });
+  const { value } = await response.json();
+  if (!response.ok || value?.error) throw new Error(JSON.stringify(value));
+  return value;
+}
+async function waitFor(check, message, timeout = 15000) {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    if (await check()) return;
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  throw new Error(message);
+}
+const execute = (script, args = []) => request(`/session/${session}/execute/sync`, { script, args });
+async function call(name, ...args) {
+  const result = await request(`/session/${session}/execute/async`, {
+    script:
+      'const done = arguments[arguments.length - 1]; window.ancient[arguments[0]](...arguments[1]).then(value => done({value}), error => done({error: String(error)}));',
+    args: [name, args],
+  });
+  if (result.error) throw new Error(result.error);
+  return result.value;
+}
+/** Moves the WebDriver pointer onto the centre of an element (hover states, cards), or off to
+ * a corner. Viewport coordinates, because the zoomed match screen moves element-origin moves.
+ * WebKitWebDriver hangs on pointer actions while the window lacks focus (another app is in
+ * front); hover checks then dispatch the pointer events React listens to instead. */
+let pointed = null;
+let syntheticPointer = false;
+async function pointAt(element) {
+  const [x, y] = element
+    ? await execute(
+        'const r=arguments[0].getBoundingClientRect(); return [Math.round(r.left+r.width/2), Math.round(r.top+r.height/2)]',
+        [element],
+      )
+    : [2, 2];
+  if (!(await execute('return document.hasFocus()'))) {
+    if (!syntheticPointer) console.log('Window not focused: hover checks use dispatched pointer events.');
+    syntheticPointer = true;
+    await execute(
+      `const [from, to, x, y] = arguments;
+      const mouse = (type, target, related) => target?.dispatchEvent(new MouseEvent(type, {bubbles: true, clientX: x, clientY: y, relatedTarget: related ?? null}));
+      const pointer = (type, target, related) => target?.dispatchEvent(new PointerEvent(type, {bubbles: true, clientX: x, clientY: y, pointerType: 'mouse', relatedTarget: related ?? null}));
+      pointer('pointerout', from, to); mouse('mouseout', from, to);
+      pointer('pointerover', to, from); mouse('mouseover', to, from);
+      pointer('pointermove', to); mouse('mousemove', to);`,
+      [pointed, element ?? null, x, y],
+    );
+    pointed = element ?? null;
+    return;
+  }
+  pointed = element ?? null;
+  await request(`/session/${session}/actions`, {
+    actions: [
+      {
+        type: 'pointer',
+        id: 'mouse',
+        parameters: { pointerType: 'mouse' },
+        actions: [{ type: 'pointerMove', duration: 0, origin: 'viewport', x, y }],
+      },
+    ],
+  });
+}
+/** Every header ⓘ of a table opens its own card under the real pointer, one card at a time. */
+async function checkHeaderInfo(table, count) {
+  const headers = await execute('return [...document.querySelectorAll(arguments[0] + " .column-info")]', [table]);
+  assert.equal(headers.length, count, `${table} header explanations`);
+  for (const header of headers) {
+    await execute('arguments[0].scrollIntoView({block:"center",inline:"center",behavior:"instant"})', [header]);
+    await pointAt(header);
+    await waitFor(
+      () =>
+        execute(
+          'return document.querySelector(".tooltip .tip-title")?.textContent === arguments[0].getAttribute("aria-label")',
+          [header],
+        ),
+      `Header card did not open: ${table}`,
+    );
+    assert.equal(await execute('return document.querySelectorAll(".tooltip").length'), 1);
+    assert.ok(await execute('return !!document.querySelector(".tooltip .tip-source")'));
+  }
+  await pointAt();
+}
+async function clickButton(text) {
+  const element = await execute(
+    'return [...document.querySelectorAll("button")].find(b => (b.textContent.trim() === arguments[0] || b.getAttribute("aria-label") === arguments[0]))',
+    [text],
+  );
+  assert.ok(element, `Missing button: ${text}`);
+  // WebKit may click a partially visible button inside the window resize edge.
+  await execute('arguments[0].scrollIntoView({block: "center", inline: "nearest", behavior: "instant"})', [element]);
+  await request(`/session/${session}/element/${element['element-6066-11e4-a52e-4f735466cecf']}/click`, {});
+}
+try {
+  await waitFor(async () => {
+    if (driverError) throw new Error(`Install WebKitWebDriver for Linux native tests: ${driverError.message}`);
+    if (driver.exitCode !== null) throw new Error(`WebKitWebDriver exited: ${driver.exitCode}`);
+    return request('/status').then(
+      () => true,
+      () => false,
+    );
+  }, 'WebKitWebDriver did not start');
+  session = (await request('/session', { capabilities: { alwaysMatch: { 'webkitgtk:browserOptions': { binary } } } }))
+    .sessionId;
+  await waitFor(
+    () => execute('return !!window.ancient && document.body.innerText.includes("Match players")'),
+    'Native UI did not load',
+  );
+  await execute(
+    'window.smokeErrors = []; addEventListener("error", e => window.smokeErrors.push(e.message)); addEventListener("unhandledrejection", e => window.smokeErrors.push(String(e.reason)));',
+  );
+  // Draft request counts below assume one rank bracket for the whole match; automatic
+  // brackets are covered by tests/rank-bracket.test.ts.
+  await execute(
+    'localStorage.setItem("ancient-rank-bracket", "ALL"); window.dispatchEvent(new Event("stats-preferences"));',
+  );
+  const info = await call('getInfo');
+  assert.equal(info.runtime, 'Tauri + Rust');
+  assert.equal(info.dataPath, directory);
+  assert.ok(info.gsiPort > 0 && info.gsiPort !== 32123);
+  const state = await call('getState');
+  assert.equal(state.nativeRosterReader, 'off');
+  assert.equal(state.notes[0].text, 'Keep this note');
+  assert.ok(!JSON.stringify(state).includes(token));
+  const matchFits = () =>
+    execute(`
+    const page = document.querySelector('.match-page');
+    const host = page.getBoundingClientRect();
+    const fit = document.querySelector('.match-fit');
+    const content = fit.getBoundingClientRect();
+    const panels = [...document.querySelectorAll('.analysis-panel')].map(el => el.getBoundingClientRect());
+    // Below the 90% floor the page scrolls instead of shrinking further.
+    if (page.classList.contains('match-scroll')) return host.height > 0 && Math.abs(Number(fit.style.zoom) - 0.9) < 0.002;
+    return host.height > 0 && content.bottom <= host.bottom + 2 && content.right <= host.right + 2
+      && panels.every(box => box.bottom <= innerHeight && box.top >= host.top);
+  `);
+  await waitFor(matchFits, 'Waiting screen does not fit the window');
+  assert.ok(
+    await execute(`
+    const select = document.querySelector('.toolbar-scale'), style = getComputedStyle(select);
+    const canvas = document.createElement('canvas'), context = canvas.getContext('2d');
+    context.font = style.font;
+    return style.appearance === 'none' && select.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+      >= context.measureText('100%').width && select.clientHeight >= parseFloat(style.lineHeight) + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+  `),
+    'Scale label is clipped',
+  );
+  const payload = {
+    auth: { token },
+    provider: { appid: 570 },
+    map: { matchid: 'native-linux-fixture', game_state: 'DOTA_GAMERULES_STATE_GAME_IN_PROGRESS', clock_time: 123 },
+    player: { team2: {}, team3: {} },
+    hero: { team2: {}, team3: {} },
+  };
+  for (let i = 0; i < 10; i++) {
+    const team = i < 5 ? 'team2' : 'team3';
+    const key = `player${i}`;
+    payload.player[team][key] = { steamid: String(76561197960265728n + BigInt(i + 1)), name: `Fixture ${i + 1}` };
+    payload.hero[team][key] = { id: i + 1, name: heroes[i].name };
+  }
+  const post = (value, headers = {}) =>
+    fetch(`http://127.0.0.1:${info.gsiPort}/gsi`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...headers },
+      body: JSON.stringify(value),
+    });
+  assert.equal((await post({ ...payload, auth: { token: 'wrong' } })).status, 403);
+  assert.equal((await post(payload, { origin: 'https://untrusted.example' })).status, 403);
+  const diagnosticPath = join(directory, 'gsi-draft-diagnostics.jsonl');
+  await assert.rejects(access(diagnosticPath), 'Rejected packets reached diagnostics');
+  payload.draft = {
+    team2: { pick0_id: 1, ban0_id: 2, steamid: '76561197960265729', name: 'PrivateFixture', token },
+    team3: { picks: [{ hero_id: 3 }], bans: [] },
+  };
+  assert.equal((await post(payload)).status, 200);
+  const diagnostic = await readFile(diagnosticPath, 'utf8');
+  const draftShape = JSON.parse(diagnostic.trim().split('\n').at(-1));
+  assert.equal(draftShape.teams.team2.picks.withHeroId, 1);
+  assert.equal(draftShape.teams.team2.bans.withHeroId, 1);
+  assert.equal(draftShape.teams.team3.picks.withHeroId, 1);
+  assert.equal((await call('getLive')).draft, undefined, 'Raw GSI draft leaked into UI');
+  for (const secret of [token, '76561197960265729', 'PrivateFixture', 'steamid', 'name'])
+    assert.ok(!diagnostic.includes(secret));
+  await waitFor(
+    () => execute('return document.body.innerText.includes("Profiles · 10/10 loaded")'),
+    'Ten profiles did not load',
+  );
+  assert.equal(batches.length, 2);
+  assert.ok(batches.every((ids) => ids.length === 5));
+  await waitFor(
+    () => execute('return [...document.querySelectorAll(".all-time")].every(cell => cell.textContent.includes("%"))'),
+    'Lifetime totals did not arrive',
+  );
+  assert.equal(totalBatches.length, 2);
+  const rows = await execute(
+    'return [...document.querySelectorAll("tr")].filter(r => r.querySelector(".all-time")).map(r => ({name: [...r.querySelectorAll("button")].find(b => b.textContent.startsWith("Fixture"))?.textContent, total: r.querySelector(".all-time").textContent}))',
+  );
+  assert.equal(rows.length, 10);
+  // Spectator GSI keys carry the player IDs, so every avatar gets its scoreboard colour.
+  assert.deepEqual(
+    await execute(
+      'return [...document.querySelectorAll(".match-table .player-avatar")].map(a => a.classList.contains("slot-frame") ? getComputedStyle(a).getPropertyValue("--slot-colour").trim() : null)',
+    ),
+    ['#3375ff', '#66ffbf', '#bf00bf', '#f3f00b', '#ff6b00', '#fe86c2', '#a1b447', '#65d9f7', '#008321', '#a46900'],
+  );
+  for (let id = 1; id <= 10; id++)
+    assert.ok(
+      rows
+        .find((r) => r.name === `Fixture ${id}`)
+        ?.total.replace(/[\s,]/g, '')
+        .includes(String((id <= 3 ? 1000 : 6000) + id)),
+      `Wrong identity mapping for ${id}`,
+    );
+  await waitFor(
+    () => execute('return document.querySelectorAll(".suggestion-tile").length === 12'),
+    'Draft suggestions did not load',
+  );
+  assert.equal(await execute('return document.querySelectorAll("[role=alert]").length'), 0);
+  assert.equal(await execute('return document.querySelectorAll(".suggestion-category").length'), 2);
+  await waitFor(matchFits, 'Populated match does not fit');
+  const assertPanelContentsFit = async () => {
+    const overflow = await execute(`
+      return [...document.querySelectorAll('.analysis-content')].flatMap(content => {
+        const box = content.getBoundingClientRect();
+        return [...content.querySelectorAll('.suggestion-tile, .suggestion-category h3, .page-arrow, .meta-tile, .meta-roles, .matrix-panel, .counter-legend')]
+          .filter(el => { const r = el.getBoundingClientRect(); return r.top < box.top - 1 || r.bottom > box.bottom + 1 || r.left < box.left - 1 || r.right > box.right + 1; })
+          .map(el => ({ page: content.closest('.analysis-panel').dataset.page, element: el.className, top: el.getBoundingClientRect().top, bottom: el.getBoundingClientRect().bottom, bounds: [box.top, box.bottom] }));
+      });
+    `);
+    assert.deepEqual(overflow, [], 'Carousel content is clipped');
+    assert.ok(
+      await execute(`
+      return [...document.querySelectorAll('.counter-rows')].every(list => {
+        list.scrollTop = list.scrollHeight;
+        const last = list.lastElementChild?.getBoundingClientRect();
+        const box = list.getBoundingClientRect();
+        const reachable = !last || last.bottom <= box.bottom + 1;
+        list.scrollTop = 0;
+        return reachable;
+      });
+    `),
+      'Last counter row cannot be reached',
+    );
+  };
+  const panelGeometry = () =>
+    execute(`
+    return [...document.querySelectorAll('.match-roster, .analysis-panel')].map(el => {
+      const r = el.getBoundingClientRect(); return [r.x, r.y, r.width, r.height];
+    });
+  `);
+  const stablePanels = await panelGeometry();
+  for (const label of ['Left panel', 'Right panel']) {
+    for (const direction of ['next', 'previous']) {
+      const count = await execute(
+        'return document.querySelectorAll(`[aria-label="${arguments[0]}: panels"] button`).length',
+        [label],
+      );
+      for (let page = 0; page < count; page++) {
+        await post(payload);
+        await clickButton(`${label}: ${direction} panel`);
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        await waitFor(matchFits, `${label} overflows after paging`);
+        assert.ok(
+          await execute(
+            'return [...document.querySelectorAll(".analysis-content")].every(el=>el.scrollWidth<=el.clientWidth+1)',
+          ),
+          'Carousel has horizontal overflow',
+        );
+        await assertPanelContentsFit();
+        const changed = await panelGeometry();
+        assert.ok(
+          changed.every((rect, i) => rect.every((value, j) => Math.abs(value - stablePanels[i][j]) <= 1)),
+          `${label} jumps on ${direction}: ${JSON.stringify({ stablePanels, changed })}`,
+        );
+      }
+    }
+  }
+  // 49% over ~6000 games is neutral under the four-tone lifetime rule.
+  assert.equal(await execute('return document.querySelectorAll(".all-time .win-rate.neutral").length'), 7);
+  assert.equal(await execute('return document.querySelectorAll(".match-footnote, .rail-caption").length'), 0);
+  assert.equal(await execute('return document.querySelectorAll(".match-table .player-sites a").length'), 30);
+  await checkHeaderInfo('.match-table', 7);
+  await waitFor(
+    () =>
+      execute(
+        'return [...document.querySelectorAll(".match-table .player-site img")].length === 30 && [...document.querySelectorAll(".match-table .player-site img")].every(img => img.complete && img.naturalWidth > 0)',
+      ),
+    'Local site icons failed to load',
+  );
+  // Player 2's country comes with its STRATZ summary, player 4's from the OpenDota fallback.
+  await waitFor(
+    () =>
+      execute(
+        'const flags=[...document.querySelectorAll(".match-table .country-flag")]; return flags.length === 2 && flags.every(img => img.complete && img.naturalWidth > 0)',
+      ),
+    'Country flags did not load',
+  );
+  assert.deepEqual(
+    await execute(
+      'return [...document.querySelectorAll(".match-table .country-flag")].map(img => [img.getAttribute("src"), img.title]).sort()',
+    ),
+    [
+      ['./flags/DE.svg', 'Country: Germany · Steam profile via STRATZ'],
+      ['./flags/FI.svg', 'Country: Finland · Steam profile via OpenDota'],
+    ],
+  );
+  assert.equal(
+    await execute(
+      'return [...document.querySelectorAll(".match-table .player-sites a")].every(a => a.textContent.trim() === "" && a.getAttribute("aria-label"))',
+    ),
+    true,
+  );
+  assert.ok(
+    await execute('return document.querySelector(".app-toolbar").getBoundingClientRect().height <= 33'),
+    'Title bar is not compact',
+  );
+  assert.equal(await execute('return document.querySelectorAll(".window-controls button").length'), 3);
+  await assert.rejects(() => call('windowAction', 'unsupported'));
+  await assert.rejects(() => call('resizeWindow', 'unsupported'));
+  assert.equal(await execute('return document.querySelectorAll(".window-resize-edge").length'), 8);
+  await execute('document.querySelector(`[aria-label="Maximize or restore window"]`).click();');
+  await waitFor(() => execute('return innerWidth > 1740'), 'Maximize button did not expand the native window');
+  await call('windowAction', 'maximize');
+  await waitFor(() => execute('return innerWidth <= 1740'), 'Native window did not restore');
+  assert.equal(await execute('return document.querySelectorAll(".hero-performance.positive").length'), 5);
+  assert.equal(await execute('return document.querySelectorAll(".hero-performance.negative").length'), 5);
+  assert.ok(
+    await execute(`
+    const el = document.querySelector('.hero-performance.positive');
+    const saved = el.style.getPropertyValue('--hero-strength');
+    el.style.setProperty('--hero-strength', '0.2');
+    const weak = getComputedStyle(el.querySelector('.portrait')).backgroundColor;
+    el.style.setProperty('--hero-strength', '0.8');
+    const strong = getComputedStyle(el.querySelector('.portrait')).backgroundColor;
+    el.style.setProperty('--hero-strength', saved);
+    return weak !== strong;
+  `),
+    'Hero intensity is ignored by CSS',
+  );
+  assert.ok(
+    await execute(`
+    const el = document.querySelector('.player-site');
+    const before = [getComputedStyle(el).filter, getComputedStyle(el).opacity];
+    el.focus();
+    const after = [getComputedStyle(el).filter, getComputedStyle(el).opacity];
+    el.blur();
+    return before[0] === 'none' && before[1] === '1' && JSON.stringify(before) === JSON.stringify(after);
+  `),
+    'Site icon colors change on focus',
+  );
+  assert.equal(
+    await execute('return document.querySelector(".match-table .site-dotabuff").getAttribute("href")'),
+    'https://www.dotabuff.com/players/1',
+  );
+  assert.equal(await call('openPlayerSite', '76561197960265729', 'stratz'), 'https://stratz.com/players/1');
+  await assert.rejects(() => call('openPlayerSite', '1', 'https://untrusted.example'));
+  await execute(
+    'window.linkOpened = null; const original = window.ancient.openPlayerSite; window.ancient.openPlayerSite = async (...args) => { const url = await original(...args); window.linkOpened = url; return url; }; document.querySelector(".match-table .site-opendota").click();',
+  );
+  await waitFor(
+    () => execute('return window.linkOpened === "https://www.opendota.com/players/1"'),
+    'Direct link did not reach native opener',
+  );
+  await waitFor(
+    () => execute('return document.querySelectorAll(".smurf-badge").length === 1'),
+    'Lifetime smurf heuristic did not settle',
+  );
+  assert.equal(
+    await execute(
+      'return document.querySelector(".smurf-badge").closest(".player-name").querySelector("button").textContent',
+    ),
+    'Fixture 2',
+    'Self/private profiles must not be labelled',
+  );
+  assert.ok(
+    await execute(
+      'return (document.querySelector(".smurf-badge").title || document.querySelector(".smurf-badge").dataset.title).includes("a heuristic, not proof")',
+    ),
+  );
+  await clickButton('Fixture 2');
+  assert.equal(
+    await execute('return document.querySelector("dialog[open]")?.textContent.includes("Full profile")'),
+    false,
+  );
+  // The player card loads the player's own history page; the profile below counts its own.
+  await waitFor(
+    () => execute('return document.querySelectorAll("dialog[open] .card-match-row").length === 25'),
+    'Player card history did not load',
+  );
+  const cardHistoryRequests = historyRequests;
+  assert.equal(cardHistoryRequests, 1);
+  await clickButton('Close');
+  await execute('document.querySelector(".suggestion-tile img")?.dispatchEvent(new Event("error"));');
+  await waitFor(
+    () => execute('return !!document.querySelector(".suggestion-tile .portrait-fallback")?.textContent'),
+    'Missing image left an anonymous suggestion',
+  );
+  const carouselCalls = draftRequests;
+  const tileIds = (name) =>
+    execute(
+      'return [...document.querySelectorAll(`.suggestion-category[aria-label="${arguments[0]}"] .suggestion-tile`)].map(e=>e.dataset.heroId)',
+      [name],
+    );
+  const firstCore = await tileIds('Core');
+  const firstSupport = await tileIds('Support');
+  await clickButton('Next Core heroes');
+  const secondCore = await tileIds('Core');
+  assert.equal(secondCore.length, 6);
+  assert.ok(
+    secondCore.every((id) => !firstCore.includes(id)),
+    'Hero pages overlap',
+  );
+  assert.deepEqual(await tileIds('Support'), firstSupport, 'Core paging changed Support');
+  await clickButton('Next Support heroes');
+  assert.deepEqual(await tileIds('Core'), secondCore, 'Support paging changed Core');
+  assert.equal(await execute('return document.querySelector(`[aria-label="Next Core heroes"]`).disabled'), true);
+  const altArrow = (key) =>
+    execute(
+      'window.dispatchEvent(new KeyboardEvent("keydown", {key:arguments[0],altKey:true,bubbles:true,cancelable:true}));',
+      [key],
+    );
+  // The lane is shared by both panels and cycles with Alt+↑/↓.
+  for (const lane of ['Safe Lane', 'Off Lane', 'Mid Lane', 'All Lanes']) {
+    await altArrow('ArrowDown');
+    assert.equal(await execute('return document.querySelector(".lane-heading").textContent'), lane);
+    assert.equal(
+      await execute('return document.querySelectorAll(".suggestion-category").length'),
+      lane === 'Mid Lane' ? 1 : 2,
+    );
+    const names =
+      lane === 'Safe Lane'
+        ? ['Safe Lane', 'Hard Support']
+        : lane === 'Off Lane'
+          ? ['Off Lane', 'Soft Support']
+          : lane === 'Mid Lane'
+            ? ['Mid Lane']
+            : ['Core', 'Support'];
+    assert.deepEqual(
+      await execute(
+        'return [...document.querySelectorAll(".suggestion-category")].map(el=>el.getAttribute("aria-label"))',
+      ),
+      names,
+    );
+    await waitFor(
+      () =>
+        execute(
+          'return [...document.querySelectorAll(".suggestion-category h3 .role-icon")].every(img=>img.complete && img.naturalWidth===100)',
+        ),
+      'Draft role icons did not load',
+    );
+  }
+  await altArrow('ArrowUp');
+  assert.equal(await execute('return document.querySelector(".lane-heading").textContent'), 'Mid Lane');
+  await execute(
+    'const select=document.querySelector(".lane-select"); select.value = "0"; select.dispatchEvent(new Event("change", {bubbles:true}));',
+  );
+  await waitFor(
+    () => execute('return document.querySelector(".lane-heading").textContent === "All Lanes"'),
+    'Lane select did not change the lane',
+  );
+  assert.deepEqual(await tileIds('Core'), firstCore, 'Changing lane should reset hero pages');
+  await execute(
+    'const select=document.querySelector(`select[aria-label="Statistics period"]`); select.dispatchEvent(new KeyboardEvent("keydown",{key:"ArrowDown",altKey:true,bubbles:true}));',
+  );
+  assert.equal(
+    await execute('return document.querySelector(".lane-heading").textContent'),
+    'All Lanes',
+    'Shortcut interfered with a form control',
+  );
+  await clickButton('Settings');
+  await altArrow('ArrowDown');
+  await clickButton('Match and draft');
+  assert.equal(
+    await execute('return document.querySelector(".lane-heading").textContent'),
+    'All Lanes',
+    'Hidden carousel consumed shortcut',
+  );
+  assert.equal(draftRequests, carouselCalls, 'Paging or lanes refetched draft data');
+  assert.equal(await execute('return document.querySelectorAll(".matchup-cell").length'), 25);
+  assert.ok(
+    await execute(
+      'return document.querySelectorAll(".matchup-cell.radiant").length > 0 && document.querySelectorAll(".matchup-cell.dire").length > 0',
+    ),
+  );
+  assert.equal(await execute('return document.body.innerText.includes("Bans are not")'), false);
+  // Left panel: matchups; right panel: suggestions of a side. Panels move independently.
+  const panelPage = (label) =>
+    execute('return document.querySelector(`.analysis-panel[aria-label="${arguments[0]}"]`)?.dataset.page', [label]);
+  assert.equal(await panelPage('Left panel'), 'matchups');
+  assert.equal(await panelPage('Right panel'), 'suggest-radiant');
+  const matrixBefore = await execute('return document.querySelector(".advantage-matrix").innerHTML');
+  const callsBefore = draftRequests;
+  const switched = Date.now();
+  await clickButton('Right panel: Picks for Dire');
+  assert.equal(await panelPage('Right panel'), 'suggest-dire');
+  assert.equal(await panelPage('Left panel'), 'matchups', 'Right panel moved the left one');
+  assert.equal(
+    await execute('return document.querySelector(".advantage-matrix").innerHTML'),
+    matrixBefore,
+    'Matchup team colors changed with recommendation side',
+  );
+  await clickButton('Right panel: Picks for Radiant');
+  assert.ok(Date.now() - switched < 2000, 'Side switching should not wait for network');
+  assert.equal(draftRequests, callsBefore, 'Side switching refetched draft data');
+  // Shift+→ moves only the right panel; Alt+→ only the left one; both wrap.
+  const arrow = (key, modifier) =>
+    execute(
+      'window.dispatchEvent(new KeyboardEvent("keydown", {key:arguments[0],[arguments[1]]:true,bubbles:true,cancelable:true}));',
+      [key, modifier],
+    );
+  await arrow('ArrowRight', 'shiftKey');
+  assert.equal(await panelPage('Right panel'), 'suggest-dire');
+  await arrow('ArrowLeft', 'altKey');
+  assert.equal(await panelPage('Left panel'), 'counters-radiant', 'Left panel did not wrap backwards');
+  await arrow('ArrowRight', 'altKey');
+  assert.equal(await panelPage('Left panel'), 'matchups');
+  // Lane summary: three lanes of both sides' heroes, in the panel's own height.
+  const panelHeight = () =>
+    execute(
+      'return Math.round(document.querySelector(`.analysis-panel[aria-label="Right panel"]`).getBoundingClientRect().height)',
+    );
+  const suggestionHeight = await panelHeight();
+  await clickButton('Right panel: Lanes');
+  await waitFor(
+    () => execute('return document.querySelectorAll(`.analysis-panel[data-page="lanes"] .lane-row`).length === 3'),
+    'Lane page did not render',
+  );
+  assert.equal(await panelHeight(), suggestionHeight, 'Lane page changed the panel height');
+  assert.deepEqual(
+    await execute(
+      'return [...document.querySelectorAll(".lane-row")].map(row => [row.dataset.lane, row.querySelectorAll(".lane-hero").length]).concat([[document.querySelectorAll(".lane-total").length]])',
+    ),
+    [['safe', 4], ['mid', 2], ['off', 4], [3]],
+  );
+  await clickButton('Right panel: Counter picks against Dire');
+  await waitFor(
+    () => execute('return !!document.querySelector(`.analysis-panel[data-page="counters-dire"] .counter-panel`)'),
+    'Counter page did not open',
+  );
+  assert.deepEqual(
+    await execute('return [...document.querySelectorAll(".counter-row")].map(row=>Number(row.dataset.enemyId))'),
+    [6, 7, 8, 9, 10],
+  );
+  assert.ok(
+    await execute(
+      'return [...document.querySelectorAll(".counter-row")].every(row=>row.querySelectorAll(".counter-tile").length===10)',
+    ),
+  );
+  assert.ok(
+    await execute('return [...document.querySelectorAll(".counter-tile")].every(tile=>Number(tile.dataset.heroId)>10)'),
+  );
+  assert.ok(
+    await execute(
+      'return !!document.querySelector(".counter-tile.multiple") && document.querySelector(".counter-legend").textContent.includes("against multiple heroes")',
+    ),
+  );
+  assert.ok(
+    await execute(
+      'const panel=document.querySelector(".counter-panel").getBoundingClientRect(); const card=document.querySelector(`.analysis-panel[data-page="counters-dire"]`).getBoundingClientRect(); return panel.right <= card.right + 1 && panel.bottom <= card.bottom + 1',
+    ),
+    'Counter list overflows its panel',
+  );
+  await clickButton('Right panel: Counter picks against Radiant');
+  await waitFor(
+    () => execute('return document.querySelector(".counter-row")?.dataset.enemyId === "1"'),
+    'Counter side did not change',
+  );
+  await clickButton('Right panel: Counter picks against Dire');
+  await mkdir('test-results', { recursive: true });
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  await writeFile(
+    'test-results/native-linux-counters.png',
+    Buffer.from(await request(`/session/${session}/screenshot`), 'base64'),
+  );
+  await clickButton('Right panel: Picks for Radiant');
+  assert.equal(draftRequests, callsBefore, 'Counter tab requested new draft data');
+  await clickButton('Right panel: Meta');
+  await waitFor(
+    () => execute('return !!document.querySelector(`.analysis-panel[data-page="meta"] .meta-panel`)'),
+    'Meta tab did not open',
+  );
+  for (const role of ['Safe Lane', 'Mid Lane', 'Off Lane', 'Soft Support', 'Hard Support']) {
+    await execute(
+      'document.querySelector(`.analysis-panel[aria-label^=Right] .meta-roles button[aria-label="${arguments[0]}"]`).click()',
+      [role],
+    );
+    await waitFor(
+      () =>
+        execute(
+          'return document.querySelector(".analysis-panel[aria-label^=Right] .meta-roles [aria-pressed=true]")?.getAttribute("aria-label") === arguments[0]',
+          [role],
+        ),
+      'Meta role did not switch',
+    );
+    assert.equal(
+      await execute('return document.querySelector(".analysis-panel[aria-label^=Right] .meta-panel h3").textContent'),
+      role,
+    );
+    assert.deepEqual(
+      await execute(
+        'return [...document.querySelectorAll(".analysis-panel[aria-label^=Right] .meta-tile")].map(el=>Number(el.dataset.heroId))',
+      ),
+      [11, 12, 13, 14, 15, 16],
+    );
+    assert.ok(
+      await execute(
+        'return [...document.querySelectorAll(".analysis-panel[aria-label^=Right] .meta-tile b")].every(el=>el.textContent==="50%")',
+      ),
+    );
+  }
+  await waitFor(
+    () =>
+      execute(
+        'return [...document.querySelectorAll(".analysis-panel[aria-label^=Right] .meta-roles .role-icon")].every(img=>img.complete && img.naturalWidth===100)',
+      ),
+    'Meta role icons failed to load',
+  );
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  await writeFile(
+    'test-results/native-linux-meta.png',
+    Buffer.from(await request(`/session/${session}/screenshot`), 'base64'),
+  );
+  await clickButton('Right panel: Picks for Radiant');
+  assert.equal(draftRequests, callsBefore, 'Meta tab or role switching requested draft data');
+  // A slow period refresh must retain rows and identify the old selection.
+  delaySummaries = true;
+  await execute(
+    'const select = document.querySelector(`select[aria-label="Statistics period"]`); select.value = "30"; select.dispatchEvent(new Event("change", {bubbles:true}));',
+  );
+  await waitFor(
+    () => execute('return document.querySelectorAll(".previous-selection").length === 10'),
+    'Prior period was not retained and marked',
+  );
+  assert.equal(
+    await execute('return [...document.querySelectorAll(".all-time")].every(cell => cell.textContent.includes("%"))'),
+    true,
+  );
+  await waitFor(async () => pendingSummaries.length === 2, 'Refresh batches were not dispatched');
+  delaySummaries = false;
+  pendingSummaries.splice(0).forEach((resolve) => resolve());
+  await waitFor(
+    () =>
+      execute(
+        'return document.querySelectorAll(".previous-selection").length === 0 && ![...document.querySelectorAll("[role=status]")].some(e=>e.textContent === "Updating…")',
+      ),
+    'Period did not refresh',
+  );
+  await mkdir('test-results', { recursive: true });
+  const screenshot = await request(`/session/${session}/screenshot`);
+  await writeFile('test-results/native-linux.png', Buffer.from(screenshot, 'base64'));
+  // Player-mode GSI supplies only self: unavailable rows must not look like pending API calls.
+  const selfPayload = {
+    ...payload,
+    player: { steamid: String(76561197960265729n), name: 'Fixture 1', team_name: 'dire' },
+    hero: { id: 1, name: heroes[0].name },
+  };
+  assert.equal((await post(selfPayload)).status, 200);
+  await waitFor(
+    () =>
+      execute(
+        'return document.body.innerText.includes("Players available: 1/10") && document.querySelector(".draft-scope")?.textContent.includes("1/10")',
+      ),
+    'Player-mode coverage was not shown',
+  );
+  await waitFor(
+    () => execute('return document.querySelectorAll(".suggestion-tile").length === 12'),
+    'Partial draft recommendations missing',
+  );
+  await assertPanelContentsFit();
+  for (const scale of [80, 90, 100, 110, 120]) {
+    await execute(
+      'const select=document.querySelector(".toolbar-scale"); select.value=String(arguments[0]); select.dispatchEvent(new Event("change", {bubbles:true}));',
+      [scale],
+    );
+    for (const lane of [0, 1, 2, 3]) {
+      await post(selfPayload);
+      await execute(
+        'const select=document.querySelector(`select[aria-label="Recommendation lane"]`); select.value=String(arguments[0]); select.dispatchEvent(new Event("change", {bubbles:true}));',
+        [lane],
+      );
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      await waitFor(matchFits, 'Partial draft does not fit');
+      await assertPanelContentsFit();
+    }
+  }
+  await execute(
+    'const select=document.querySelector(".toolbar-scale"); select.value="100"; select.dispatchEvent(new Event("change", {bubbles:true}));',
+  );
+  await execute(
+    'const select=document.querySelector(`select[aria-label="Recommendation lane"]`); select.value="0"; select.dispatchEvent(new Event("change", {bubbles:true}));',
+  );
+  assert.equal(await execute('return document.querySelectorAll("tr.unavailable").length'), 9);
+  assert.deepEqual(
+    await execute(
+      'return [...document.querySelectorAll(`[aria-label="Left panel: panels"] button`)].map(b=>b.getAttribute("aria-label"))',
+    ),
+    [
+      'Left panel: Hero matchups',
+      'Left panel: Lanes',
+      'Left panel: Picks for your team',
+      'Left panel: Picks for Radiant',
+      'Left panel: Meta',
+      'Left panel: Counter picks against Radiant',
+    ],
+    'Own side should come first and a player should only get counters to the enemy',
+  );
+  assert.equal(
+    await execute(
+      'return [...document.querySelectorAll("tr.unavailable .all-time")].every(cell => cell.textContent === "—")',
+    ),
+    true,
+  );
+  assert.equal(
+    await execute(
+      'return [...document.querySelectorAll("tr.unavailable")].every(row => row.textContent.includes("Not provided by the game") && !row.textContent.includes("Waiting for player"))',
+    ),
+    true,
+  );
+  assert.equal(await execute('return document.querySelectorAll("tr.unavailable .rank-medal").length'), 0);
+  await waitFor(() => execute('return !!document.querySelector(".reader-notice")'), 'Disabled reader banner missing');
+  await execute('document.querySelector(".reader-notice summary").click()');
+  const riskText = await execute('return document.querySelector(".reader-notice p").textContent');
+  assert.ok(riskText.includes('The anti-cheat response is unknown'));
+  await clickButton('Enable in Settings');
+  await waitFor(
+    () => execute('return !!document.querySelector(".reader-settings")'),
+    'Banner did not navigate to settings',
+  );
+  assert.equal(await execute('return document.querySelector(".reader-settings .muted").textContent'), riskText);
+  assert.equal(
+    await execute('return document.querySelector(".reader-settings input").checked'),
+    false,
+    'Banner enabled reading without consent',
+  );
+  await clickButton('Match and draft');
+  await waitFor(
+    () => execute('return document.querySelector("nav button.active")?.textContent === "Match and draft"'),
+    'Match did not reopen after reader settings',
+  );
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  const partialScreenshot = await request(`/session/${session}/screenshot`);
+  await writeFile('test-results/native-linux-player.png', Buffer.from(partialScreenshot, 'base64'));
+  assert.equal((await post(payload)).status, 200);
+  await waitFor(
+    () =>
+      execute(
+        'return document.querySelectorAll("tr.unavailable").length === 0 && !document.querySelector(".draft-scope")',
+      ),
+    'Full spectator roster did not recover',
+  );
+  await waitFor(
+    () =>
+      execute('return !!document.querySelector(".suggestion-tile") && !document.querySelector(".carousel-loading")'),
+    'Debounced spectator draft did not settle before settings checks',
+  );
+  assert.equal(
+    await execute('return !!document.querySelector(".reader-notice")'),
+    false,
+    'Spectator saw reader banner',
+  );
+  await clickButton('Settings');
+  await waitFor(() => execute('return document.body.innerText.includes("Include Turbo")'), 'Settings did not load');
+  await waitFor(
+    () => execute('return document.querySelector(".provider-settings h2")?.textContent.includes("STRATZ")'),
+    'Provider settings did not load',
+  );
+  assert.equal(await execute('return document.querySelectorAll("input[type=password]").length'), 0);
+  assert.equal(await execute('return document.querySelector(".stats-preferences input").checked'), false);
+  const beforeTurboBatches = batches.length;
+  const toggle = await execute('return document.querySelector(".stats-preferences input")');
+  await request(`/session/${session}/element/${toggle['element-6066-11e4-a52e-4f735466cecf']}/click`, {});
+  await waitFor(
+    () => execute('return localStorage.getItem("ancient-include-turbo") === "true"'),
+    'Turbo setting was not saved',
+  );
+  // Settings polish: section list, keycaps, labelled synergy stops, ranked-only, tray state.
+  assert.deepEqual(
+    await execute('return [...document.querySelectorAll(".settings-sections button")].map(b=>b.textContent)'),
+    [
+      'Appearance',
+      'Sound',
+      'Player history',
+      'Memory reading',
+      'Match statistics',
+      'Connect Dota 2',
+      'Your data',
+      'Window',
+    ],
+  );
+  await clickButton('Window');
+  await waitFor(
+    () =>
+      execute(
+        'const r=document.getElementById("settings-window").getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight + 1',
+      ),
+    'Section list did not scroll to the window settings',
+  );
+  const appInfo = await call('getInfo');
+  if (appInfo.shortcut)
+    assert.ok(
+      await execute('return document.querySelectorAll("#settings-window kbd").length >= 2'),
+      'Shortcut keycaps',
+    );
+  assert.equal(
+    await execute('return document.querySelector("#settings-window input[type=checkbox]")?.disabled ?? null'),
+    appInfo.tray ? false : true,
+    'Tray option must be disabled exactly when no tray host exists',
+  );
+  assert.deepEqual(
+    await execute(
+      'return [...document.getElementById("synergy-weight").parentElement.querySelectorAll(".range-stops button")].map(b=>b.textContent)',
+    ),
+    ['0%', '25%', '50%', '75%', '100%'],
+  );
+  assert.equal(await execute('return document.getElementById("synergy-weight").disabled'), false);
+  await execute(
+    '[...document.getElementById("synergy-weight").parentElement.querySelectorAll(".range-stops button")].find(b=>b.textContent==="25%").click()',
+  );
+  await waitFor(
+    () =>
+      execute(
+        'return localStorage.getItem("ancient-synergy-weight") === "25" && document.getElementById("synergy-weight").value === "25"',
+      ),
+    'Synergy stop was not saved',
+  );
+  await execute(
+    '[...document.getElementById("synergy-weight").parentElement.querySelectorAll(".range-stops button")].find(b=>b.textContent==="50%").click()',
+  );
+  // Minimum win rate for suggestions: off by default at 50%, stops only while enabled.
+  const minWinRate = (script) =>
+    execute(
+      `const box=document.querySelector("[aria-label='Minimum hero win rate for suggestions']").parentElement;${script}`,
+    );
+  assert.deepEqual(
+    await minWinRate(
+      'return [box.querySelector("input[type=checkbox]").checked, box.querySelector("input[type=range]").disabled, [...box.querySelectorAll(".range-stops button")].map(b=>b.textContent)]',
+    ),
+    [false, true, ['40%', '45%', '50%', '55%']],
+  );
+  await minWinRate('box.querySelector("input[type=checkbox]").click()');
+  await waitFor(
+    () => execute('return localStorage.getItem("ancient-min-win-rate") === "on:50"'),
+    'Minimum win rate was not enabled',
+  );
+  await minWinRate('[...box.querySelectorAll(".range-stops button")].find(b=>b.textContent==="45%").click()');
+  await waitFor(
+    () => execute('return localStorage.getItem("ancient-min-win-rate") === "on:45"'),
+    'Minimum win rate stop was not saved',
+  );
+  await minWinRate('box.querySelector("input[type=checkbox]").click()');
+  await waitFor(
+    () => execute('return localStorage.getItem("ancient-min-win-rate") === "off:45"'),
+    'Minimum win rate was not disabled',
+  );
+  await execute(
+    'localStorage.removeItem("ancient-min-win-rate"); window.dispatchEvent(new Event("stats-preferences"))',
+  );
+  const ranked = await execute(
+    'return [...document.querySelectorAll(".stats-preferences label")].find(l=>l.textContent.includes("Ranked statistics only")).querySelector("input")',
+  );
+  await request(`/session/${session}/element/${ranked['element-6066-11e4-a52e-4f735466cecf']}/click`, {});
+  await waitFor(
+    () => execute('return localStorage.getItem("ancient-ranked-only") === "true"'),
+    'Ranked-only setting was not saved',
+  );
+  await request(`/session/${session}/element/${ranked['element-6066-11e4-a52e-4f735466cecf']}/click`, {});
+  await waitFor(
+    () => execute('return localStorage.getItem("ancient-ranked-only") === "false"'),
+    'Ranked-only setting was not restored',
+  );
+  await execute('document.querySelector("main")?.scrollTo(0, 0); window.scrollTo(0, 0);');
+
+  await waitFor(
+    async () =>
+      batches.length >= beforeTurboBatches + 2 &&
+      (await execute(
+        'return !document.querySelector(".match-toolbar [role=status]") && !document.querySelector(".previous-selection")',
+      )),
+    'Turbo refresh did not finish before scale checks',
+  );
+  const scaleBatches = batches.length;
+  const scaleDraftRequests = draftRequests;
+  const toolbarHeights = [];
+  for (const scale of [80, 90, 100, 110, 120]) {
+    await clickButton(`${scale}%`);
+    await waitFor(
+      () =>
+        execute(
+          'return Number(document.querySelector(".app-shell").style.zoom) === arguments[0] / 100 && document.querySelector(".toolbar-scale").value === String(arguments[0])',
+          [scale],
+        ),
+      'Scale controls did not stay in sync',
+    );
+    assert.equal(await execute('return JSON.parse(localStorage.getItem("ancient-display")).scale'), scale);
+    await clickButton('Match and draft');
+    await waitFor(
+      () => execute('return document.querySelector("nav button.active")?.textContent === "Match and draft"'),
+      'Match tab did not render',
+    );
+    const geometry = await execute(
+      'const shell = document.querySelector(".app-shell").getBoundingClientRect(); return {right:shell.right,width:innerWidth,toolbar:document.querySelector(".app-toolbar").getBoundingClientRect().height,bottom:document.querySelector(".match-roster").getBoundingClientRect().bottom,stripTop:document.querySelector(".analysis-strip").getBoundingClientRect().top,overflow:document.documentElement.scrollWidth > innerWidth + 2};',
+    );
+    await waitFor(matchFits, `Match does not fit at ${scale}%`).catch(async (error) => {
+      const boxes = await execute(
+        'const box = (s) => { const r = document.querySelector(s)?.getBoundingClientRect(); return r && [Math.round(r.top), Math.round(r.bottom), Math.round(r.right)]; }; return {page: box(".match-page"), fit: box(".match-fit"), zoom: document.querySelector(".match-fit").style.zoom, scroll: document.querySelector(".match-page").className, panels: [...document.querySelectorAll(".analysis-panel")].map(el => { const r = el.getBoundingClientRect(); return [Math.round(r.top), Math.round(r.bottom)]; }), innerHeight, thead: box(".match-table thead"), headRows: [...document.querySelectorAll(".match-table thead tr")].map(r => Math.round(r.getBoundingClientRect().height)), tall: [...document.querySelectorAll(".match-table thead .column-info")].map(c => Math.round(c.getBoundingClientRect().height)), panelCss: (() => { const st = getComputedStyle(document.querySelector(".analysis-panel")); return [st.height, st.minHeight]; })(), roster: box(".match-roster"), strip: box(".analysis-strip"), parts: [...document.querySelectorAll(".analysis-panel")].map(p => [p.dataset.page, ...[...p.children].map(c => c.className + ":" + Math.round(c.getBoundingClientRect().height))])}',
+      );
+      throw new Error(`${error.message}: ${JSON.stringify(boxes)}`);
+    });
+    assert.ok(geometry.right <= geometry.width + 2, `Scale ${scale}% escapes the window`);
+    assert.equal(
+      geometry.overflow,
+      false,
+      `Scale ${scale}% causes horizontal page overflow: ${JSON.stringify(geometry)}`,
+    );
+    // Both carousels stay directly below the roster and inside the viewport.
+    assert.ok(
+      geometry.stripTop >= geometry.bottom && geometry.stripTop - geometry.bottom <= 20,
+      `Scale ${scale}% separates the carousels from the roster: ${JSON.stringify(geometry)}`,
+    );
+    for (const page of ['Counter picks against Dire', 'Meta', 'Lanes', 'Picks for Radiant']) {
+      await clickButton(`Right panel: ${page}`);
+      await waitFor(matchFits, `${page} does not fit at ${scale}%`);
+      await assertPanelContentsFit();
+      assert.ok(
+        await execute(
+          'const card=document.querySelector(`.analysis-panel[aria-label="Right panel"]`); const content=card.querySelector(".analysis-content").getBoundingClientRect(); const box=card.getBoundingClientRect(); return content.right <= box.right + 1 && content.bottom <= box.bottom + 1',
+        ),
+        `${page} overflows its panel at ${scale}%`,
+      );
+    }
+    toolbarHeights.push(geometry.toolbar);
+    if (scale === 80 || scale === 120) {
+      await new Promise((resolve) => setTimeout(resolve, 250)); // Let WebKit present the new scale before capture.
+      const screenshot = await request(`/session/${session}/screenshot`);
+      await writeFile(`test-results/native-linux-scale-${scale}.png`, Buffer.from(screenshot, 'base64'));
+    }
+    await clickButton('Settings');
+    await waitFor(() => execute('return !!document.querySelector(".scale-options")'), 'Scale settings did not render');
+  }
+  assert.ok(
+    toolbarHeights[4] > toolbarHeights[0] * 1.4,
+    'Scale must change rendered controls, while rows adapt to available height',
+  );
+  assert.equal(batches.length, scaleBatches, 'Scaling must not reload player statistics');
+  assert.equal(draftRequests, scaleDraftRequests, 'Scaling must not recalculate remote draft data');
+  const setScale = await execute('return document.querySelector(`select[aria-label="Interface scale"]`)');
+  await execute('arguments[0].value="90"; arguments[0].dispatchEvent(new Event("change",{bubbles:true}));', [setScale]);
+  await waitFor(
+    () =>
+      execute(
+        'return document.querySelector(".app-shell").style.zoom === "0.9" && document.querySelector(".scale-options button[aria-pressed=true]").textContent === "90%"',
+      ),
+    'Toolbar scale did not update settings',
+  );
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  const scaleScreenshot = await request(`/session/${session}/screenshot`);
+  await writeFile('test-results/native-linux-scale-settings.png', Buffer.from(scaleScreenshot, 'base64'));
+  await execute('document.querySelector(".display-settings fieldset input").click();');
+  await waitFor(
+    () => execute('return getComputedStyle(document.querySelector(".rank-cell")).display === "none"'),
+    'Rank column did not hide',
+  );
+  await clickButton('Reset appearance');
+  await waitFor(
+    () => execute('return getComputedStyle(document.querySelector(".rank-cell")).display === "table-cell"'),
+    'Display reset did not restore rank column',
+  );
+  await clickButton('Match and draft');
+  const resizeFits = [];
+  for (const [width, height] of [
+    [800, 600],
+    [1280, 800],
+    [1740, 1100],
+  ]) {
+    await request(`/session/${session}/window/rect`, { width, height });
+    await waitFor(matchFits, `Match does not fit ${width}×${height}`);
+    if (width === 800) {
+      // The window stops at the size that shows the whole match screen at 100%: no scrolling.
+      await waitFor(
+        () =>
+          execute(
+            'return innerWidth >= 1029 && innerHeight >= 919 && !document.querySelector(".match-page").classList.contains("match-scroll") && document.documentElement.scrollWidth <= innerWidth + 2',
+          ),
+        'Window shrank below the match minimum or the match scrolls',
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    await assertPanelContentsFit();
+    resizeFits.push(await execute('return Number(document.querySelector(".match-fit").style.zoom)'));
+    await writeFile(
+      `test-results/native-linux-fit-${width}.png`,
+      Buffer.from(await request(`/session/${session}/screenshot`), 'base64'),
+    );
+  }
+  assert.ok(resizeFits[2] > resizeFits[0], 'Match did not grow back after enlarging the window');
+  await request(`/session/${session}/window/rect`, { width: 1710, height: 927 });
+  await waitFor(() => execute('return innerHeight <= 940 && innerWidth <= 1720'), 'Native window did not resize');
+  await waitFor(matchFits, 'Match does not fit screenshot-sized window');
+  const fitted = await execute(
+    'const panels=[...document.querySelectorAll(".analysis-panel")].map(p=>p.getBoundingClientRect()); return {roster:document.querySelector(".match-roster").getBoundingClientRect().bottom,tops:panels.map(p=>p.top),lefts:panels.map(p=>p.left),overflow:document.documentElement.scrollWidth > innerWidth+2}',
+  );
+  assert.ok(
+    !fitted.overflow &&
+      Math.abs(fitted.tops[0] - fitted.tops[1]) < 3 &&
+      fitted.lefts[1] > fitted.lefts[0] &&
+      fitted.tops[0] >= fitted.roster,
+    `Screenshot-sized window does not fit: ${JSON.stringify(fitted)}`,
+  );
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  await writeFile(
+    'test-results/native-linux-fit-927.png',
+    Buffer.from(await request(`/session/${session}/screenshot`), 'base64'),
+  );
+  await clickButton('My profile');
+  assert.equal(
+    await execute(
+      'return [...document.querySelectorAll("nav button")].some(b => ["Player profile", "My rating"].includes(b.textContent.trim()))',
+    ),
+    false,
+  );
+  assert.equal(
+    (await call('getState')).accountId,
+    '1',
+    'Spectating or opening another player must not replace my account',
+  );
+  const profileRows = () => execute('return document.querySelectorAll(".profile-table tbody tr").length');
+  await waitFor(
+    async () =>
+      (await execute('return document.querySelector(".own-profile .profile-name-text")?.textContent')) ===
+        'My STRATZ profile' && (await profileRows()) === 25,
+    'STRATZ profile did not load',
+  );
+  assert.equal(historyRequests, cardHistoryRequests + 1);
+  // GPM of the latest match against the bracket average of its hero on the safe lane (600),
+  // with the ten players of the match in its card.
+  const gpmCell = await execute(
+    'const cell=document.querySelector(`.profile-table tbody tr:first-child td[data-column="gold_per_min"] [data-tip]`); cell?.scrollIntoView({block:"center",inline:"center",behavior:"instant"}); return cell',
+  );
+  assert.ok(gpmCell, 'GPM of a match with a lineup has no card');
+  await waitFor(
+    () =>
+      execute(
+        'return document.querySelector(`.profile-table tbody tr:first-child td[data-column="gold_per_min"] span`)?.className === "stat-band-2"',
+      ),
+    'GPM was not coloured against the bracket average',
+  );
+  await pointAt(gpmCell);
+  await waitFor(
+    () => execute('return document.querySelectorAll(".tooltip .match-rank li").length === 10'),
+    'Ten-player card did not open on hover',
+  );
+  assert.deepEqual(
+    await execute(
+      'return [document.querySelectorAll(".tooltip").length, document.querySelector(".tooltip .tip-verdict")?.textContent, [...document.querySelectorAll(".tooltip .match-rank b")].map(b=>b.textContent), document.querySelector(".tooltip .match-rank li.own b")?.textContent]',
+    ),
+    [
+      1,
+      'Below typical · 450 vs 600 avg Hero 1 Safe Lane',
+      ['660', '620', '540', '500', '460', '450', '420', '380', '340', '—'],
+      '450',
+    ],
+  );
+  await pointAt();
+  await waitFor(() => execute('return !document.querySelector(".tooltip")'), 'Ten-player card stayed open');
+  assert.ok(
+    await execute(
+      'return !!document.querySelector(`.profile-table tbody tr:first-child td[data-column="bracket"] .rank-medal`)',
+    ),
+    'The match bracket has no medal',
+  );
+  // MMR chart: hovering opens the card of a measured match; Enter opens its details.
+  const plot = await execute(
+    'const plot=document.querySelector(".mmr-plot"); plot?.scrollIntoView({block:"center",behavior:"instant"}); return plot',
+  );
+  if (plot) {
+    await pointAt(plot);
+    await waitFor(
+      () => execute('return !!document.querySelector(".tooltip .tip-match")'),
+      'MMR point card did not open',
+    );
+    await pointAt();
+    await request(`/session/${session}/element/${plot['element-6066-11e4-a52e-4f735466cecf']}/value`, {
+      text: '',
+    });
+    await waitFor(
+      () => execute('return !!document.querySelector(".profile-aside.open .profile-match")'),
+      'A chart point did not open its match',
+    );
+    await clickButton('Close match details');
+    await execute('document.activeElement.blur()');
+  }
+  assert.ok(
+    (await execute('return document.querySelector(".profile-score").textContent')).includes('1 W'),
+    'Current streak is missing from the summary',
+  );
+  const pick = (group, label) =>
+    execute(
+      'const b=[...document.querySelectorAll(`[aria-label="${arguments[0]}"] button`)].find(b=>b.textContent===arguments[1]); b.click();',
+      [group, label],
+    );
+  for (const [label, count] of [
+    ['Wins', 13],
+    ['Losses', 12],
+    ['All', 25],
+  ]) {
+    await pick('Result', label);
+    await waitFor(async () => (await profileRows()) === count, `Result ${label} did not re-select history`);
+    assert.ok(
+      (await execute('return document.querySelector(".profile-score").textContent')).includes('1 W'),
+      'Outcome filter changed the current streak',
+    );
+  }
+
+  // Filters re-select loaded history; every active filter is a chip that clears itself.
+  const choose = (label, value) =>
+    execute(
+      'const select=document.querySelector(`[aria-label="${arguments[0]}"]`); select.value=arguments[1]; select.dispatchEvent(new Event("change",{bubbles:true}));',
+      [label, value],
+    );
+  const chips = () => execute('return [...document.querySelectorAll(".filter-chip")].map(c=>c.textContent)');
+  const requestsBeforeFilters = historyRequests;
+  const tableTop = () => execute('return document.querySelector(".profile-table").getBoundingClientRect().top');
+  const before = await tableTop();
+  await clickButton('Filter Safe Lane');
+  await clickButton('More');
+  assert.ok(Math.abs((await tableTop()) - before) < 1, 'Opening More moved the table');
+  await choose('Profile duration', 'medium');
+  await waitFor(async () => (await profileRows()) === 5, 'Position filter did not re-select history');
+  assert.deepEqual(await chips(), ['Safe Lane', '25–40 min']);
+  await choose('Profile duration', 'short');
+  await waitFor(async () => (await profileRows()) === 0, 'Duration filter did not re-select history');
+  await clickButton('Close more');
+  await execute('document.querySelector(`[aria-label="Clear filter: Under 25 min"]`).click()');
+  await waitFor(async () => (await chips()).join() === 'Safe Lane', 'Chip × did not clear its filter');
+  await execute('document.querySelector(`[aria-label="Clear filter: Safe Lane"]`).click()');
+  await waitFor(async () => (await profileRows()) === 25, 'Clearing the last chip did not restore the history');
+  assert.deepEqual(await chips(), []);
+  assert.equal(historyRequests, requestsBeforeFilters, 'Filters must not reload history');
+  assert.equal(await execute('return document.querySelectorAll(".profile-position").length'), 5);
+  await waitFor(
+    () =>
+      execute(
+        'const icons=[...document.querySelectorAll(".profile-position .role-icon")]; return icons.length===5 && icons.every(img=>img.complete && img.naturalWidth===100)',
+      ),
+    'Profile role icons did not load',
+  );
+  // Match details replace the Heroes panel and close again.
+  await execute('document.querySelector(".profile-table tbody tr").click()');
+  await waitFor(
+    () => execute('return document.querySelector(".profile-aside .profile-match")?.textContent.includes("Radiant")'),
+    'Match details did not open',
+  );
+  await clickButton('Close match details');
+  await waitFor(
+    () => execute('return !!document.querySelector(".profile-aside .profile-heroes")'),
+    'Heroes did not return',
+  );
+
+  assert.ok(
+    await execute('return document.querySelector(".profile-table").getBoundingClientRect().top < 560'),
+    'Profile header pushes match history too far down',
+  );
+  await clickButton('Load older matches');
+  await waitFor(
+    () => execute('return document.querySelector(".profile-more")?.textContent.includes("49 saved matches")'),
+    'History pages were not merged without duplicates',
+  );
+  assert.equal((await call('getHistory', '1', 0, true)).matches.length, 49);
+  assert.equal(await profileRows(), 49);
+  // One page scroll: the filter bar and the table header stick under each other.
+  assert.ok(
+    await execute(
+      'const main=document.querySelector("main"); main.scrollTop=600; const bar=document.querySelector(".profile-bar").getBoundingClientRect(), th=document.querySelector(".profile-table th").getBoundingClientRect(), top=main.getBoundingClientRect().top; return Math.abs(bar.top-top)<2 && Math.abs(th.top-bar.bottom)<3',
+    ),
+    'Filter bar and table header did not stick',
+  );
+  await execute('document.querySelector("main").scrollTo(0,0); window.scrollTo(0,0);');
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  const ownScreenshot = await request(`/session/${session}/screenshot`);
+  await writeFile('test-results/native-linux-profile.png', Buffer.from(ownScreenshot, 'base64'));
+  privateHistory = true;
+  const privateResponse = await call('getHistory', '1', 0, false, true);
+  assert.ok(privateResponse?.warning?.includes('STRATZ history is private'), 'Private response status was lost');
+  await clickButton('Refresh');
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  await waitFor(
+    () => execute('return !document.querySelector(".own-profile .loading-icon")'),
+    'Private refresh did not finish',
+  );
+  // Saved matches stay on screen; the provider note takes no room while they show.
+  assert.equal(await execute('return document.querySelectorAll(".profile-table tbody tr").length'), 49);
+  assert.ok(
+    !(await execute('return document.querySelector(".own-profile").textContent.includes("STRATZ history is private")')),
+    'Private history note shown over saved matches',
+  );
+  failHistory = true;
+  const failedResponse = await call('getHistory', '1', 0, false, true);
+  assert.ok(
+    JSON.stringify(failedResponse).includes('503') && failedResponse.matches.length === 49,
+    'Cached history was not used after network failure',
+  );
+  await clickButton('Refresh');
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  await waitFor(
+    () => execute('return !document.querySelector(".own-profile .loading-icon")'),
+    'Failed refresh did not finish',
+  );
+  assert.equal(await execute('return document.querySelectorAll(".profile-table tbody tr").length'), 49);
+  assert.equal(await call('getHistory', '3', 0, true), null, 'Another account must not inherit cached history');
+  // Account 2 was opened in the player card: its cache is its own page, not account 1's.
+  const otherHistory = await call('getHistory', '2', 0, true);
+  assert.ok(
+    otherHistory?.accountId === '2' && otherHistory.matches.length === 25,
+    'Player card history mixed accounts',
+  );
+  const savedHistory = JSON.parse(await readFile(join(cache, 'history-STRATZ-1.json'), 'utf8'));
+  assert.equal(savedHistory.matches.length, 49);
+  assert.equal(savedHistory.source, 'STRATZ');
+
+  // Deliver draft fixtures to the native event listener; keep frontend emit ACL closed.
+  // The memory reader/worker are exercised separately by Rust fixtures, never Dota.
+  await clickButton('Match and draft');
+  const draftMatches = new Set();
+  async function emitDraft(
+    matchId,
+    picks,
+    gameState = 'DOTA_GAMERULES_STATE_HERO_SELECTION',
+    bans = [],
+    hovers = [],
+    lanes = [],
+    draftStatus = 'ready',
+    { warmUp = false, ...extra } = {},
+  ) {
+    if (!draftMatches.has(matchId)) {
+      draftMatches.add(matchId);
+      refuseWarmUp = !warmUp;
+    }
+    const now = Date.now();
+    const slots = Array.from({ length: 10 }, (_, slot) => ({
+      slot,
+      team: slot < 5 ? 'radiant' : 'dire',
+      teamSlot: ((slot % 5) + 2) % 5,
+    }));
+    const frame = {
+      status: 'connected',
+      receivedAt: now,
+      matchId,
+      gameState,
+      mode: 'player',
+      players: [{ key: 'self', team: 'dire' }],
+      selfTeamSlot: 3,
+      draftStatus,
+      draft: { matchId, gameState, source: 'linux', observedAt: now, picks, bans, hovers, lanes, slots },
+      ...extra,
+    };
+    const count = await execute(
+      'const listeners=window.__internal_unstable_listeners_object_id__?.["live:update"]; const ids=Object.getOwnPropertyNames(listeners ?? {}); window.__internal_unstable_listeners_function_id__({event:"live:update",payload:arguments[0]},ids); return ids.length;',
+      [frame],
+    );
+    assert.ok(count > 0, 'Native live event listener was not registered');
+  }
+  const beforeAnonymous = batches.length;
+  const beforeTotals = totalBatches.length;
+  const beforeDraft = draftRequests;
+  const picks = [
+    { slot: 0, team: 'radiant', heroId: 11 },
+    { slot: 5, team: 'dire', heroId: 12 },
+  ];
+  await emitDraft('800001', picks, undefined, [], [], [], 'ready', {
+    players: [{ key: 'self', team: 'dire', accountId: '42', name: 'Hidden self' }],
+  });
+  await waitFor(
+    () =>
+      execute(
+        'return document.querySelectorAll(".suggestion-tile").length > 0 && document.querySelectorAll(".matchup-cell").length === 25 && document.querySelectorAll(".matchup-cell .portrait").length === 1',
+      ),
+    'Anonymous picks did not load recommendations/matchups',
+  );
+  assert.equal(await execute('return document.querySelectorAll(".match-table .player-sites a").length'), 0);
+  // Linux draft slots give the colour of each row's player ID; rows without a slot get none.
+  assert.ok(
+    await execute(
+      'const colours=["#3375ff","#66ffbf","#bf00bf","#f3f00b","#ff6b00","#fe86c2","#a1b447","#65d9f7","#008321","#a46900"]; const rows=[...document.querySelectorAll(".match-table tbody tr[data-team-slot]")]; return rows.length === 10 && rows.every(r => { const a=r.querySelector(".player-avatar"); const slot=r.dataset.slot; return slot === undefined ? !a.classList.contains("slot-frame") : getComputedStyle(a).getPropertyValue("--slot-colour").trim() === colours[Number(slot)]; })',
+    ),
+    `Slot colours do not follow the Linux draft slots: ${JSON.stringify(
+      await execute(
+        'return [...document.querySelectorAll(".match-table tbody tr[data-team-slot]")].map(r => [r.dataset.slot, r.querySelector(".player-avatar")?.className, r.querySelector(".player-avatar") && getComputedStyle(r.querySelector(".player-avatar")).getPropertyValue("--slot-colour")])',
+      ),
+    )}`,
+  );
+  assert.equal(await execute('return document.querySelectorAll(".anonymous-draft-row").length'), 10);
+  assert.equal(
+    await execute(
+      'return document.querySelectorAll(".match-table .win-rate, .match-table .player-link, .match-table .rank-medal").length',
+    ),
+    0,
+  );
+  assert.equal(
+    await execute('return document.querySelector(".match-table").textContent.includes("Hidden self")'),
+    false,
+  );
+  assert.ok(
+    await execute(
+      'return !!document.querySelector(`.team-radiant [data-team-slot="2"] .selected-hero[data-hero-id="11"]`)',
+    ),
+  );
+  assert.equal(
+    await execute('return document.querySelector(`.team-dire [data-team-slot="3"] .player-name`).textContent'),
+    'You',
+  );
+  assert.equal(
+    await execute(
+      'return !!document.querySelector(".draft-intentions") || document.body.innerText.includes("Player intentions")',
+    ),
+    false,
+  );
+  // Relative to the panel content: the grid must not depend on how many heroes are known,
+  // while the whole screen may zoom when a status line above the roster comes and goes.
+  const matrixShape = () =>
+    execute(
+      'const m=document.querySelector(".advantage-matrix"); const w=m.closest(".analysis-content").getBoundingClientRect().width; const matrix=m.getBoundingClientRect(); const cell=document.querySelector(".matchup-cell").getBoundingClientRect(); return [matrix.width,matrix.height,cell.width,cell.height].map(v=>Math.round(v/w*100)/100)',
+    );
+  const twoHeroShape = await matrixShape();
+  assert.equal(draftRequests, beforeDraft + 1);
+  assert.equal(refusedDrafts.length, 1, 'The warm-up of the first draft match was not attempted');
+  assert.deepEqual(draftBatches.at(-1), [11, 12]);
+  delayDraft = true;
+  picks[1].heroId = 13;
+  await emitDraft('800001', picks);
+  await waitFor(
+    // Only the hero this match has not asked for yet is requested.
+    () => Promise.resolve(pendingDrafts.length === 1 && draftBatches.at(-1)?.join(',') === '13'),
+    'Changed pick did not reach draft provider',
+  );
+  // While the new hero loads, the panels keep the match's data instead of a loading state.
+  assert.ok(
+    await execute('return document.querySelectorAll(".suggestion-tile").length > 0'),
+    'Panels dropped the match data while a new hero loaded',
+  );
+  malformedDraft = true;
+  delayDraft = false;
+  pendingDrafts.splice(0).forEach((resolve) => resolve());
+  await waitFor(
+    () => execute('return document.querySelector(".draft-carousel [role=alert]")?.textContent.includes("draft data")'),
+    'Malformed service response was not rejected',
+  );
+  assert.equal(
+    await execute('return document.querySelectorAll(".suggestion-tile, .matchup-cell .portrait").length'),
+    0,
+    'Failed replacement kept old recommendations',
+  );
+  malformedDraft = false;
+  neutralDraft = true;
+  // Retry the same current picks through the existing refresh control.
+  await clickButton('Refresh match statistics');
+  await waitFor(
+    () => execute('return document.querySelectorAll(".suggestion-tile").length > 0'),
+    'Changed pick did not produce recommendations',
+  );
+  assert.deepEqual(draftBatches.at(-1), [13], 'Refresh retried more than the failed hero');
+  // Two heroes not asked for yet both come back neutral: a small advantage keeps its winner.
+  picks[0].heroId = 16;
+  picks[1].heroId = 17;
+  await emitDraft('800001', picks);
+  await waitFor(
+    () =>
+      execute(
+        'return [...document.querySelectorAll(".matchup-cell")].some(el=>el.querySelector(".portrait") && el.getAttribute("aria-label").includes("Radiant +0.4"))',
+      ),
+    'A small known advantage still shows its winner',
+  );
+  assert.deepEqual(draftBatches.at(-1), [16, 17]);
+  assert.ok(
+    await execute(
+      'return [...document.querySelectorAll(".matchup-average")].every(node=>/^(—|0|[+−][0-9]+(\\.[0-9])?)$/.test(node.textContent))',
+    ),
+    'Axis totals are signed numbers without a unit',
+  );
+  neutralDraft = false;
+  // Native bans: no strip of their own; excluded from suggestions, struck through in meta, no refetch.
+  const bannedCandidate = await execute('return Number(document.querySelector(".suggestion-tile")?.dataset.heroId)');
+  const banRequests = draftRequests;
+  await emitDraft('800001', picks, undefined, [bannedCandidate]);
+  await waitFor(
+    () =>
+      execute(
+        'return !document.querySelector(".draft-bans") && !document.querySelector(`.suggestion-tile[data-hero-id="${arguments[0]}"]`)',
+        [bannedCandidate],
+      ),
+    'Native ban was not shown or still suggested',
+  );
+  assert.equal(draftRequests, banRequests, 'Bans must not refetch draft statistics');
+  await emitDraft('800001', picks);
+  await waitFor(
+    () =>
+      execute('return !!document.querySelector(`.suggestion-tile[data-hero-id="${arguments[0]}"]`)', [bannedCandidate]),
+    'Removed ban stayed applied',
+  );
+  const repeatedDraft = draftRequests;
+  await emitDraft('800001', picks);
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  assert.equal(draftRequests, repeatedDraft, 'Same picks refetched draft statistics');
+  await emitDraft('800001', []);
+  await waitFor(
+    () =>
+      execute(
+        'return !document.querySelector(".suggestion-tile") && !document.querySelector(".matchup-cell .portrait") && document.querySelectorAll(".matchup-cell").length === 25',
+      ),
+    'Removed picks remained in UI',
+  );
+  assert.deepEqual(await matrixShape(), twoHeroShape, 'Empty matrix changed size');
+  await clickButton('Right panel: Meta');
+  await waitFor(
+    () => execute('return document.querySelectorAll(".meta-tile").length > 0'),
+    'Meta must load before any pick or hover',
+  );
+  // Positions stay in the match's draft store, so clearing the picks needs no request.
+  const emptyDraftCalls = draftRequests;
+  await emitDraft('800001', []);
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  assert.equal(draftRequests, emptyDraftCalls, 'Empty draft refetched on the same event');
+  await clickButton('Right panel: Picks for Radiant');
+  delayDraft = true;
+  await emitDraft('800001', [
+    { slot: 0, team: 'radiant', heroId: 14 },
+    { slot: 5, team: 'dire', heroId: 15 },
+  ]);
+  await waitFor(() => Promise.resolve(pendingDrafts.length === 1), 'Delayed draft request did not start');
+  await emitDraft('800002', []);
+  delayDraft = false;
+  pendingDrafts.splice(0).forEach((resolve) => resolve());
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  assert.equal(
+    await execute('return document.querySelectorAll(".suggestion-tile, .matchup-cell .portrait").length'),
+    0,
+    'Old match response revived draft',
+  );
+  // A new match without picks asks for positions alone (an empty request).
+  assert.deepEqual(draftBatches.at(-1), [], 'Empty draft never requested positions');
+  await emitDraft('0', [], 'DOTA_GAMERULES_STATE_INIT');
+  assert.equal(batches.length, beforeAnonymous, 'Anonymous picks triggered profile requests');
+  assert.equal(totalBatches.length, beforeTotals, 'Anonymous picks triggered lifetime requests');
+  console.log(
+    'Anonymous draft passed: picks/swap/removal, no profile requests, deduplication and late-match response rejection.',
+  );
+
+  hoverDraft = true;
+  const hoverPicks = [
+    { slot: 0, team: 'radiant', heroId: 11 },
+    { slot: 5, team: 'dire', heroId: 12 },
+  ];
+  const hover = (heroId) => [{ slot: 6, team: 'dire', heroId }];
+  await emitDraft('810001', hoverPicks, undefined, [], hover(13), [{ slot: 6, team: 'dire', flags: 4 }]);
+  await waitFor(
+    () =>
+      execute(
+        'return !!document.querySelector(".suggestion-tile") && !!document.querySelector(`.selected-hero[data-hero-id="13"] .draft-hover`)',
+      ),
+    'Hover did not load draft',
+  );
+  assert.equal(await execute('return document.querySelector(".draft-scope").textContent'), 'Known picks: 2/10');
+  await assertPanelContentsFit();
+  assert.equal(
+    await execute('return document.querySelector(".draft-lane-flags .role-icon").getAttribute("src")'),
+    './roles/midlane.png',
+  );
+  assert.ok(
+    await execute(
+      'return document.querySelectorAll(".matchup-provisional").length > 0 && [...document.querySelectorAll(".matrix-axis")].some(el=>(el.title || el.dataset.title).includes("hovered"))',
+    ),
+  );
+  // Self is Dire: the only counter page is against the enemy (Radiant).
+  await clickButton('Right panel: Counter picks against Radiant');
+  await waitFor(
+    () =>
+      execute(
+        'return !!document.querySelector(`.counter-row[data-enemy-id="11"]`) && !document.querySelector(`.counter-row[data-enemy-id="13"]`)',
+      ),
+    'Counters must list enemy heroes only, not an own-team hover',
+  );
+  await clickButton('Right panel: Picks for your team');
+  const hoverStyle = await execute(
+    'const el=document.querySelector(`.selected-hero[data-hero-id="13"] .portrait`); const style=getComputedStyle(el); return {filter:style.filter,opacity:Number(style.opacity)}',
+  );
+  assert.ok(
+    hoverStyle.filter.includes('grayscale(1)') && hoverStyle.opacity < 1,
+    'Hover portrait is not grey and translucent',
+  );
+  const oldSuggestions = await execute(
+    'return [...document.querySelectorAll(".suggestion-tile")].map(el=>el.getAttribute("aria-label")).join("|")',
+  );
+  const beforeHovers = draftRequests;
+  // Hovers changing faster than the 100 ms debounce send one request, for the last hero.
+  for (const heroId of [15, 17, 14])
+    await emitDraft('810001', hoverPicks, undefined, [], hover(heroId), [{ slot: 6, team: 'dire', flags: 24 }]);
+  await waitFor(
+    () => execute('return !!document.querySelector(`.selected-hero[data-hero-id="14"] .draft-hover`)'),
+    'Hover did not update immediately',
+  );
+  // A hover change keeps the match's data on screen until the new hero arrives.
+  assert.ok(
+    await execute('return document.querySelectorAll(".suggestion-tile").length > 0'),
+    'Panels dropped the match data on a hover change',
+  );
+  // Panels never empty now, so wait for the debounced request itself.
+  await waitFor(() => Promise.resolve(draftRequests > beforeHovers), 'Debounced hover never loaded');
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  assert.equal(draftRequests, beforeHovers + 1);
+  // Only the last hover is requested, and only because this match has not asked for it.
+  assert.deepEqual(draftBatches.at(-1), [14]);
+  assert.notEqual(
+    await execute(
+      'return [...document.querySelectorAll(".suggestion-tile")].map(el=>el.getAttribute("aria-label")).join("|")',
+    ),
+    oldSuggestions,
+    'Ally hover did not change scores',
+  );
+  assert.equal(await execute('return document.querySelectorAll(".draft-lane-flags .role-icon").length'), 2);
+  assert.ok(
+    await execute(
+      'return document.querySelector(".draft-lane-flags").getAttribute("aria-label").includes("Lane selected in the draft")',
+    ),
+  );
+  await writeFile(
+    'test-results/native-linux-hover.png',
+    Buffer.from(await request(`/session/${session}/screenshot`), 'base64'),
+  );
+  await request(`/session/${session}/window/rect`, { width: 1200, height: 927 });
+  await waitFor(() => execute('return innerWidth <= 1210'), 'Hover window did not resize');
+  assert.ok(
+    await execute(
+      'const matrix=document.querySelector(".matrix-panel").closest(".analysis-panel").getBoundingClientRect(); const carousel=document.querySelector(".draft-carousel").closest(".analysis-panel").getBoundingClientRect(); return Math.abs(matrix.top-carousel.top)<3 && carousel.left>matrix.left',
+    ),
+    'Fixed matrix and recommendations are misaligned in a narrow window',
+  );
+  await request(`/session/${session}/window/rect`, { width: 1710, height: 927 });
+  const beforeLane = draftRequests;
+  await emitDraft('810001', hoverPicks, undefined, [], hover(14), [{ slot: 6, team: 'dire', flags: 2 }]);
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  assert.equal(draftRequests, beforeLane, 'Lane icon refetched hero statistics');
+  const beforeHeroTwo = draftRequests;
+  await emitDraft('810001', [hoverPicks[0]], undefined, [], hover(2), [{ slot: 6, team: 'dire', flags: 2 }]);
+  // The old scores stay up while hero 2 loads; page only once its reply has been applied.
+  await waitFor(
+    () => Promise.resolve(draftBatches.at(-1)?.join(',') === '2' && draftRequests > beforeHeroTwo),
+    'Hover 2 was not requested',
+  );
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  // Shrinkage reorders candidates, so search every page (and return to the first).
+  const candidateOnAnyPage = async (heroId) => {
+    let found = false;
+    const categories = await execute(
+      'return [...document.querySelectorAll(".suggestion-category")].map(el=>el.getAttribute("aria-label"))',
+    );
+    for (const category of categories) {
+      const hasHero = () =>
+        execute(
+          'return !!document.querySelector(`.suggestion-category[aria-label="${arguments[0]}"] .suggestion-tile[data-hero-id="${arguments[1]}"]`)',
+          [category, heroId],
+        );
+      found = (await hasHero()) || found;
+      const next = `Next ${category} heroes`;
+      if (await execute('return !document.querySelector(`button[aria-label="${arguments[0]}"]`)?.disabled', [next])) {
+        const before = await tileIds(category);
+        await execute(
+          'document.querySelector(`button[aria-label="${arguments[0]}"]`).scrollIntoView({block:"nearest"})',
+          [next],
+        );
+        await clickButton(next);
+        await waitFor(
+          async () => JSON.stringify(await tileIds(category)) !== JSON.stringify(before),
+          'Hero page did not change',
+        );
+        found = (await hasHero()) || found;
+        await clickButton(`Previous ${category} heroes`);
+        await waitFor(
+          async () => JSON.stringify(await tileIds(category)) === JSON.stringify(before),
+          'Hero page did not reset',
+        );
+      }
+    }
+    return found;
+  };
+  await waitFor(() => candidateOnAnyPage(2), 'Hovered hero was excluded from candidates');
+  assert.equal(await execute('return document.querySelector(".draft-scope").textContent'), 'Known picks: 1/10');
+  await clickButton('Right panel: Meta');
+  await waitFor(
+    () => execute('return !!document.querySelector(`.meta-tile[data-hero-id="2"]`)'),
+    'Meta excluded an unconfirmed hover',
+  );
+  await clickButton('Right panel: Picks for your team');
+  const beforeConfirm = draftRequests;
+  await emitDraft('810001', [hoverPicks[0], ...hover(2)], undefined, [], hover(2));
+  await waitFor(
+    () =>
+      execute(
+        'return !!document.querySelector(".suggestion-tile") && !document.querySelector(`.suggestion-tile[data-hero-id="2"]`) && !document.querySelector(".draft-hover")',
+      ),
+    'Confirm did not exclude the hero or clear hover',
+  );
+  assert.equal(draftRequests, beforeConfirm, 'Confirming the same hero refetched aggregates');
+  assert.equal(
+    await execute('return !!document.querySelector(`.meta-tile[data-hero-id="2"]`)'),
+    false,
+    'Meta retained a confirmed pick',
+  );
+  await emitDraft('810001', [hoverPicks[0]], undefined, [2], hover(2));
+  await waitFor(
+    () =>
+      execute(
+        'return !!document.querySelector(`.selected-hero[data-hero-id="2"] .draft-hover`) && !!document.querySelector(".banned-hover") && !document.querySelector(`.suggestion-tile[data-hero-id="2"]`)',
+      ),
+    'Banned hover must remain grey in its player row',
+  );
+  await clickButton('Right panel: Meta');
+  await waitFor(
+    () =>
+      execute(
+        'return !!document.querySelector(`.analysis-panel[aria-label^=Right] .meta-tile.banned[data-hero-id="2"] .ban-portrait`)',
+      ),
+    'Meta did not strike the banned hero through in place',
+  );
+  await clickButton('Right panel: Counter picks against Radiant');
+  assert.equal(
+    await execute('return !!document.querySelector(`.counter-tile[data-hero-id="2"]`)'),
+    false,
+    'Counter picks retained a banned hero',
+  );
+  await clickButton('Right panel: Picks for your team');
+  await emitDraft(
+    '810001',
+    [],
+    undefined,
+    [],
+    [
+      { slot: 0, team: 'radiant', heroId: 19 },
+      { slot: 6, team: 'dire', heroId: 20 },
+    ],
+  );
+  await waitFor(
+    () =>
+      execute(
+        'return document.querySelectorAll(".matchup-cell .portrait").length === 1 && !!document.querySelector(".suggestion-tile")',
+      ),
+    'Hover-only teams did not produce matchups',
+  );
+  assert.equal(await execute('return document.querySelector(".draft-scope").textContent'), 'Known picks: 0/10');
+  delayDraft = true;
+  await emitDraft('810001', [], undefined, [], hover(21));
+  await waitFor(() => Promise.resolve(pendingDrafts.length === 1), 'Delayed hover request did not start');
+  await emitDraft('810002', []);
+  delayDraft = false;
+  pendingDrafts.splice(0).forEach((resolve) => resolve());
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  assert.equal(
+    await execute('return document.querySelectorAll(".suggestion-tile, .draft-hover, .draft-lane-flags").length'),
+    0,
+    'Late hover revived the old match',
+  );
+  await emitDraft('810002', [], undefined, [], hover(22), [{ slot: 6, team: 'dire', flags: 4 }], 'disabled');
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  assert.equal(
+    await execute('return document.querySelectorAll(".suggestion-tile, .draft-hover, .draft-lane-flags").length'),
+    0,
+    'Disabled reader displayed intentions',
+  );
+  const beforeLargeDraft = draftRequests;
+  const fullPicks = Array.from({ length: 10 }, (_, slot) => ({
+    slot,
+    team: slot < 5 ? 'radiant' : 'dire',
+    heroId: slot + 1,
+  }));
+  await emitDraft(
+    '810003',
+    fullPicks,
+    undefined,
+    [],
+    [
+      { slot: 0, team: 'radiant', heroId: 11 },
+      { slot: 5, team: 'dire', heroId: 12 },
+    ],
+  );
+  await waitFor(
+    () =>
+      execute(
+        'return document.querySelectorAll(".matchup-cell .portrait").length === 25 && !!document.querySelector(".suggestion-tile")',
+      ),
+    'Picks and hovers exceeding ten IDs did not load',
+  );
+  assert.equal(draftRequests, beforeLargeDraft + 2);
+  assert.deepEqual(
+    draftBatches.slice(-2).sort((a, b) => a[0] - b[0]),
+    [
+      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      [11, 12],
+    ],
+  );
+  // Warm-up: a new draft fetches every catalogue hero once in batches of ten; picks and
+  // hovers covered by it then need no request of their own.
+  const beforeWarmUp = draftRequests;
+  const catalogue = heroes.map((hero) => hero.id);
+  const warmBatches = Array.from({ length: Math.ceil(catalogue.length / 10) }, (_, i) =>
+    catalogue.slice(i * 10, i * 10 + 10),
+  );
+  await emitDraft('810004', [{ slot: 0, team: 'radiant', heroId: 11 }], undefined, [], [], [], 'ready', {
+    warmUp: true,
+  });
+  await waitFor(
+    () => Promise.resolve(draftRequests - beforeWarmUp >= warmBatches.length),
+    'Draft warm-up did not fetch every hero',
+  );
+  await waitFor(() => execute('return !!document.querySelector(".suggestion-tile")'), 'Warmed draft did not load');
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  assert.deepEqual(draftBatches.slice(beforeWarmUp), warmBatches, 'Warm-up batches or an extra request');
+  await emitDraft(
+    '810004',
+    [
+      { slot: 0, team: 'radiant', heroId: 11 },
+      { slot: 5, team: 'dire', heroId: 25 },
+    ],
+    undefined,
+    [],
+    [{ slot: 1, team: 'radiant', heroId: 31 }],
+  );
+  await waitFor(
+    () => execute('return !!document.querySelector(`.selected-hero[data-hero-id="31"]`)'),
+    'Warmed pick and hover were not shown',
+  );
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  assert.equal(draftRequests, beforeWarmUp + warmBatches.length, 'A warmed pick or hover requested draft data');
+  assert.equal(await execute('return document.querySelectorAll(".matchup-cell").length'), 25);
+  assert.deepEqual(await matrixShape(), twoHeroShape, 'Full matrix changed size');
+  const identity = fullPicks.map((pick) => ({
+    key: pick.slot === 6 ? 'self' : `linux.${pick.slot}`,
+    team: pick.team,
+    heroId: pick.heroId,
+    name: `Visible ${pick.slot}`,
+  }));
+  await emitDraft('810003', fullPicks, 'DOTA_GAMERULES_STATE_STRATEGY_TIME', [], [], [], 'ready', {
+    players: identity,
+  });
+  await waitFor(
+    () =>
+      execute(
+        'return document.querySelector(`.team-dire [data-team-slot="3"] .player-link`)?.textContent === "Visible 6"',
+      ),
+    'Strategy identity moved to a different slot',
+  );
+  assert.ok(
+    await execute(
+      'return !!document.querySelector(`.team-dire [data-team-slot="3"] .selected-hero[data-hero-id="7"]`)',
+    ),
+  );
+  assert.ok(
+    await execute(
+      'return document.querySelector(`.team-radiant [data-team-slot="2"] .player-link`)?.textContent === "Visible 0"',
+    ),
+  );
+  assert.equal(batches.length, beforeAnonymous, 'Hover created profile requests');
+  assert.equal(totalBatches.length, beforeTotals, 'Hover created lifetime requests');
+  await emitDraft('0', [], 'DOTA_GAMERULES_STATE_INIT');
+  hoverDraft = false;
+  console.log(
+    'Hover draft passed: debounce, changed scores, candidate eligibility, lane flags, provisional matrix, confirmation, bans and stale/disabled rejection.',
+  );
+
+  await clickButton('Settings');
+  const readerToggle = 'document.querySelector(`input[aria-label="Allow Dota memory reading"]`)';
+  assert.equal(await execute(`return ${readerToggle}.checked`), false);
+  await execute(`${readerToggle}.click()`);
+  await waitFor(
+    () => execute(`return ${readerToggle}.checked && !${readerToggle}.disabled`),
+    'Reader opt-in was not saved',
+  );
+  assert.equal(JSON.parse(await readFile(join(directory, 'state.json'), 'utf8')).nativeRosterReader, 'on');
+  await writeFile(
+    'test-results/native-linux-reader.png',
+    Buffer.from(await request(`/session/${session}/screenshot`), 'base64'),
+  );
+  const readerPayload = {
+    auth: { token },
+    provider: { appid: 570 },
+    map: { matchid: '987654', game_state: 'DOTA_GAMERULES_STATE_HERO_SELECTION' },
+    player: { team_name: 'dire' },
+    hero: { id: 0 },
+  };
+  await post(readerPayload);
+  await waitFor(async () => (await call('getLive')).draftStatus === 'test-mode', 'Isolated worker did not start');
+  await execute(`${readerToggle}.click()`);
+  await waitFor(() => execute(`return !${readerToggle}.checked && !${readerToggle}.disabled`), 'Reader did not stop');
+  const afterStop = await call('getLive');
+  assert.equal(afterStop.rosterStatus, 'disabled');
+  assert.equal(afterStop.draftStatus, undefined);
+  assert.equal(afterStop.draft, undefined);
+  assert.equal(JSON.parse(await readFile(join(directory, 'state.json'), 'utf8')).nativeRosterReader, 'off');
+  await clickButton('Match and draft');
+  await execute(
+    'const ids=Object.getOwnPropertyNames(window.__internal_unstable_listeners_object_id__["live:update"]); window.__internal_unstable_listeners_function_id__({event:"live:update",payload:arguments[0]},ids);',
+    [{ ...afterStop, draftStatus: 'permission' }],
+  );
+  await waitFor(
+    () =>
+      execute(
+        'return [...document.querySelectorAll("[role=alert]")].some(node=>node.textContent.includes("The system denied access to Dota memory"))',
+      ),
+    'Draft permission error was hidden in hero selection',
+  );
+  await post({ ...readerPayload, map: { matchid: '0', game_state: 'DOTA_GAMERULES_STATE_INIT' } });
+  console.log('Reader opt-in passed: legacy off, UI toggle, persistence, isolated start/stop and permission message.');
+
+  await call('addMmr', 5000);
+  await call('saveNote', { accountId: '2', name: 'Second', text: 'Native IPC persistence', tag: 'neutral' });
+  const saved = JSON.parse(await readFile(join(directory, 'state.json'), 'utf8'));
+  assert.equal(saved.token, token);
+  assert.equal(saved.mmr.at(-1).value, 5000);
+  assert.equal(saved.notes.length, 2);
+  assert.equal(
+    JSON.parse(await readFile(join(directory, 'state.pre-tauri.json'), 'utf8')).notes[0].text,
+    'Keep this note',
+  );
+  // The hotkey toggles the main window; no second window is created. Whether the first
+  // press hides or raises depends on focus under the driver, so two presses end visible.
+  const first = await call('toggleWindow');
+  if (!first) assert.equal(await call('toggleWindow'), true);
+  assert.equal((await request(`/session/${session}/window/handles`)).length, 1);
+  assert.equal((await call('getInfo')).gsiPort, info.gsiPort);
+  assert.deepEqual(await execute('return window.smokeErrors'), []);
+  console.log(
+    `Linux native smoke passed: WebKitGTK rendering, Rust IPC, authenticated HTTP GSI, 10 profiles in 2 batches, reordered identity mapping, migration, MMR/notes, settings and window toggle. Wayland: ${info.wayland}.`,
+  );
+} finally {
+  pendingDrafts.splice(0).forEach((resolve) => resolve());
+  if (session) await request(`/session/${session}`, undefined, 'DELETE').catch(() => {});
+  // The process group includes the app, even if a wedged renderer prevented deletion.
+  if (driver.pid) {
+    try {
+      process.kill(-driver.pid, 'SIGTERM');
+    } catch {}
+  }
+  await new Promise((resolve) => service.close(resolve));
+  await rm(directory, { recursive: true, force: true });
+}

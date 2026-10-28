@@ -1,0 +1,31 @@
+name: Bug report
+description: Report a reproducible problem with Ancient Lens.
+body:
+  - type: markdown
+    attributes:
+      value: Do not include tokens, generated GSI configuration, state.json, personal exports, or unredacted logs. For vulnerabilities, follow SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: App version or commit
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: OS and desktop
+      description: For Linux, include the distribution and Wayland or X11.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps, expected result, and actual result
+      description: For game-related issues, include game mode, participant or spectator, GSI status, reader on/off, provider, and Dota revision if known. Use synthetic IDs in examples.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Sanitized error or screenshot
+      description: Review screenshots and logs for personal data before attaching them.
