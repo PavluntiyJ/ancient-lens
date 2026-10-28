@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { formatDecimal, winRateTone } from '../shared/domain';
 import type { MetaPick } from '../shared/meta-picks';
 import { rankedRoles, type Position } from '../shared/roles';
@@ -13,7 +13,7 @@ export function MetaPicks({
   note,
 }: {
   rows: Record<Position, MetaPick[]>;
-  message?: string;
+  message?: ReactNode;
   /** Data provenance, e.g. "STRATZ, all ranks · updated …". */
   note?: string;
 }) {

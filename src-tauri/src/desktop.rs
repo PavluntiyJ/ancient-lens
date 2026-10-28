@@ -16,7 +16,12 @@ use tokio::sync::{Mutex, RwLock};
 
 struct Desktop {
     store: Mutex<Store>,
-    api: Arc<Api>,
+    /// Replaced when STRATZ is connected or disconnected from Settings.
+    api: std::sync::RwLock<Arc<Api>>,
+    /// `ANCIENT_STATS_URL` chose the service; Connect must not replace that choice.
+    explicit_service: bool,
+    /// Held while a token is checked and the service restarted, so only one change runs.
+    provider_change: Mutex<()>,
     live: Arc<RwLock<Value>>,
     port: AtomicU16,
     /// The roster reader (Linux and Windows) is switched through it; elsewhere it is just kept alive.
@@ -31,6 +36,32 @@ struct Desktop {
     close_to_tray: AtomicBool,
     /// Held while Steam is being closed and its settings edited, so only one repair runs.
     steam_repair: Mutex<()>,
+}
+impl Desktop {
+    fn api(&self) -> Arc<Api> {
+        match self.api.read() {
+            Ok(api) => api.clone(),
+            Err(poisoned) => poisoned.into_inner().clone(),
+        }
+    }
+    /// Provider details for Settings; whether a token can be connected here, never the token.
+    fn provider(&self, message: Option<String>) -> Value {
+        let mut info = self.api().info();
+        info["connectable"] = json!(!self.explicit_service);
+        if let Some(message) = message {
+            info["message"] = json!(message);
+        }
+        info
+    }
+    /// Point every following request at the service an outcome reports.
+    fn use_service(&self, directory: std::path::PathBuf, service: Option<String>) -> Result<()> {
+        let api = Api::new(directory, service)?;
+        match self.api.write() {
+            Ok(mut slot) => *slot = api,
+            Err(poisoned) => *poisoned.into_inner() = api,
+        }
+        Ok(())
+    }
 }
 /// Default global key, used by the X11 fallback and by a state file without a binding.
 const SHORTCUT: &str = "Alt+Numpad5";
@@ -289,19 +320,51 @@ async fn desktop_call(
             Ok(json!(url))
         }
         "live:get" => Ok(state.live.read().await.clone()),
-        "provider:get" => Ok(state.api.info()),
+        "provider:get" => Ok(state.provider(None)),
         "provider:token" => {
             Err("Configure a local STRATZ service; see docs/guide/stats-service.md.".into())
         }
-        "heroes:get" => state.api.resource("heroes", 3_600_000).await,
-        "patches:get" => state.api.patches().await,
-        "country:get" => state.api.country(args["id"].as_str().unwrap_or("")).await,
-        "totals:get" => state.api.totals(args["id"].as_str().unwrap_or("")).await,
+        "stratz:tokens" => {
+            if std::env::var_os("ANCIENT_TEST_DATA").is_none() {
+                open::that_detached(crate::stratz_token::TOKENS_PAGE)
+                    .map_err(|e| format!("Could not open the browser: {e}"))?;
+            }
+            Ok(json!(crate::stratz_token::TOKENS_PAGE))
+        }
+        // Isolated test runs never touch this computer's secret store or its service.
+        "provider:connect" | "provider:disconnect"
+            if std::env::var_os("ANCIENT_TEST_DATA").is_some() =>
+        {
+            Err("Connecting STRATZ is disabled in isolated test sessions.".into())
+        }
+        "provider:connect" | "provider:disconnect" => {
+            if state.explicit_service {
+                return Err(
+                    "The statistics service is set by ANCIENT_STATS_URL for this launch.".into(),
+                );
+            }
+            let Ok(_changing) = state.provider_change.try_lock() else {
+                return Err("STRATZ is already being connected.".into());
+            };
+            // The token is only borrowed from the call's arguments, which are dropped on return.
+            let outcome = if command == "provider:connect" {
+                crate::local_service::connect(args["token"].as_str().unwrap_or("")).await?
+            } else {
+                crate::local_service::disconnect().await?
+            };
+            let directory = state.store.lock().await.directory.join("cache");
+            state.use_service(directory, outcome.service)?;
+            Ok(state.provider(Some(outcome.message)))
+        }
+        "heroes:get" => state.api().resource("heroes", 3_600_000).await,
+        "patches:get" => state.api().patches().await,
+        "country:get" => state.api().country(args["id"].as_str().unwrap_or("")).await,
+        "totals:get" => state.api().totals(args["id"].as_str().unwrap_or("")).await,
         "draft:data" => {
             let ids: Vec<u64> =
                 serde_json::from_value(args["ids"].clone()).map_err(|_| "Invalid heroes")?;
             state
-                .api
+                .api()
                 .draft_data(&ids, args["bracket"].as_str().unwrap_or("ALL"))
                 .await
         }
@@ -309,11 +372,11 @@ async fn desktop_call(
             let ids: Vec<u64> =
                 serde_json::from_value(args["ids"].clone()).map_err(|_| "Invalid heroes")?;
             state
-                .api
+                .api()
                 .hero_averages(&ids, args["bracket"].as_str().unwrap_or("ALL"))
                 .await
         }
-        "player:get" => state.api.player(args["id"].as_str().unwrap_or("")).await,
+        "player:get" => state.api().player(args["id"].as_str().unwrap_or("")).await,
         "journal:medal" => {
             let id = args["matchId"]
                 .as_str()
@@ -337,11 +400,11 @@ async fn desktop_call(
             } else {
                 crate::api::HistoryLoad::Recent
             };
-            let history = state.api.history(&id, offset as u32, load).await;
+            let history = state.api().history(&id, offset as u32, load).await;
             // Matches recorded from the game stay visible when the provider has none.
             let recorded = state.store.lock().await.recorded(&id);
             let fallback = |warning: Option<String>| {
-                crate::journal::local_history(&id, &state.api.info()["source"], warning)
+                crate::journal::local_history(&id, &state.api().info()["source"], warning)
             };
             match history {
                 Ok(history) if history.is_object() => Ok(crate::journal::merge(history, &recorded)),
@@ -356,7 +419,7 @@ async fn desktop_call(
         }
         "summary:get" => {
             state
-                .api
+                .api()
                 .summary(
                     args["id"].as_str().unwrap_or(""),
                     args["days"]
@@ -374,7 +437,7 @@ async fn desktop_call(
                 return Err("Invalid period".into());
             }
             let v = state
-                .api
+                .api()
                 .summary(
                     args["id"].as_str().unwrap_or(""),
                     days as u32,
@@ -386,7 +449,7 @@ async fn desktop_call(
         "matchups:get" => {
             let ids: Vec<u64> =
                 serde_json::from_value(args["ids"].clone()).map_err(|_| "Invalid heroes")?;
-            state.api.matchups(&ids).await
+            state.api().matchups(&ids).await
         }
         "window:toggle" => Ok(json!(toggle_main(&app)?)),
         "state:tray" => {
@@ -572,10 +635,12 @@ pub fn run() {
             let store = Store::open(directory.clone()).map_err(std::io::Error::other)?;
             let token = store.token();
             let live = Arc::new(RwLock::new(json!({"status":"waiting","receivedAt":null})));
+            let explicit_service = std::env::var("ANCIENT_STATS_URL")
+                .ok()
+                .or_else(|| option_env!("ANCIENT_STATS_URL").map(String::from));
+            let explicit = explicit_service.is_some();
             let broker = tauri::async_runtime::block_on(crate::local_service::resolve(
-                std::env::var("ANCIENT_STATS_URL")
-                    .ok()
-                    .or_else(|| option_env!("ANCIENT_STATS_URL").map(String::from)),
+                explicit_service,
                 std::env::var_os("ANCIENT_TEST_DATA").is_some(),
             ));
             let api =
@@ -631,7 +696,9 @@ pub fn run() {
             let close_to_tray = store.close_to_tray();
             app.manage(Desktop {
                 store: Mutex::new(store),
-                api,
+                api: std::sync::RwLock::new(api),
+                explicit_service: explicit,
+                provider_change: Mutex::new(()),
                 live,
                 port: AtomicU16::new(port),
                 gsi,
@@ -741,7 +808,7 @@ async fn match_details(handle: tauri::AppHandle) {
     loop {
         tokio::time::sleep(std::time::Duration::from_secs(60)).await;
         let state = handle.state::<Desktop>();
-        let stratz = state.api.stratz_service();
+        let stratz = state.api().stratz_service();
         let now = chrono::Utc::now().timestamp();
         let due = state.store.lock().await.details_due(now, stratz, 2);
         for record in due {
@@ -752,7 +819,7 @@ async fn match_details(handle: tauri::AppHandle) {
             };
             let mut found = vec![];
             if stratz {
-                match state.api.stratz_match(id).await {
+                match state.api().stratz_match(id).await {
                     Ok(value) => found.push(value),
                     Err(error) => eprintln!("Match details {id}: {error}"),
                 }
@@ -762,7 +829,7 @@ async fn match_details(handle: tauri::AppHandle) {
                     .iter()
                     .any(|m| crate::match_details::own(&record, m).is_some());
             if !has_stats {
-                match state.api.opendota_match(id).await {
+                match state.api().opendota_match(id).await {
                     Ok(value) => found.push(value),
                     Err(error) => eprintln!("Match details {id}: {error}"),
                 }

@@ -138,7 +138,7 @@ impl Api {
         }))
     }
     pub fn info(&self) -> Value {
-        json!({"source":if self.broker.is_some(){"STRATZ"}else{"OpenDota"},"hasToken":false,"persistent":false,"automatic":true,"serviceConfigured":self.broker.is_some(),"status":if self.broker.is_some(){"Service configured; access is checked when loading a match."}else{"Using public OpenDota. For STRATZ features, set up a local service; see docs/guide/stats-service.md."}})
+        json!({"source":if self.broker.is_some(){"STRATZ"}else{"OpenDota"},"hasToken":false,"persistent":false,"automatic":true,"serviceConfigured":self.broker.is_some(),"status":if self.broker.is_some(){"Service configured; access is checked when loading a match."}else{"Using public OpenDota. Connect STRATZ for draft statistics and faster player history."}})
     }
     async fn lock(&self, key: &str) -> Arc<Mutex<()>> {
         let mut locks = self.locks.lock().await;

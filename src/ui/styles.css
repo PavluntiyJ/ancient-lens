@@ -4725,3 +4725,35 @@ kbd {
 .shortcut-settings .button-row .fine-print {
   margin: 0;
 }
+.stratz-dialog {
+  width: min(560px, 92vw);
+  padding: 16px 20px 20px;
+  display: grid;
+  gap: 12px;
+}
+.stratz-dialog header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.stratz-dialog h2 {
+  margin: 0;
+}
+.stratz-connect ol {
+  margin: 0 0 10px;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+}
+.stratz-connect li .secondary {
+  margin-left: 6px;
+}
+.stratz-connect input {
+  flex: 1;
+  min-width: 200px;
+}
+.rail-empty .stratz-prompt {
+  display: block;
+  margin: 8px auto 0;
+  color: var(--accent);
+}
