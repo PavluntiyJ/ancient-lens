@@ -3,8 +3,8 @@
 <h1 align="center">Ancient Lens</h1>
 
 <p align="center">
-  A Dota 2 companion for Windows and Linux that shows who is in your match, which heroes
-  to pick against them, and how your own rating develops. Free, open source, no ads or account.
+  A Dota 2 companion for Windows and Linux with public player statistics, hero draft
+  recommendations, notes and an MMR journal. Free, open source, no ads or Ancient Lens account.
 </p>
 
 <p align="center">
@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/PavluntiyJ/ancient-lens/releases/latest"><b>Download</b></a> ·
+  <a href="https://github.com/PavluntiyJ/ancient-lens/releases"><b>Download</b></a> ·
   <a href="#quick-start"><b>Quick start</b></a> ·
   <a href="docs/README.md"><b>Documentation</b></a>
 </p>
@@ -58,7 +58,7 @@ Details and troubleshooting: [setup and data](docs/guide/setup.md), and the
 | What you get                                                                      | Needs                                   | Windows                         | Linux |
 | --------------------------------------------------------------------------------- | --------------------------------------- | ------------------------------- | ----- |
 | Public profiles, notes, manual draft, MMR journal, automatic account detection    | Nothing: works out of the box           | Yes                             | Yes   |
-| Ten-player roster and picks while spectating                                      | Nothing: Dota GSI                       | Yes                             | Yes   |
+| Ten-player roster and picks while spectating                                      | Dota GSI setup (Quick start above)      | Yes                             | Yes   |
 | Matchups, position recommendations, meta and counter picks                        | Your STRATZ token and the local service | Yes                             | Yes   |
 | Ten-player roster, picks and bans in **your own** match; exact MMR and confidence | Optional memory reader, off by default  | Yes, draft not yet checked live | Yes   |
 

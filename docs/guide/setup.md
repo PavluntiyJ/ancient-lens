@@ -45,12 +45,6 @@ therefore require the optional memory reader. This is the same on Windows and
 Linux: an empty enemy roster in your own match, with the reader off, is expected and does
 not mean the installation failed. Data becomes stale after 30 seconds without events.
 
-## Your profile
-
-**My profile** finds your account without a token. Windows uses the active Steam account
-from the registry. Linux uses the Steam login that launched Dota and, when that is
-unavailable, your own GSI events. **Set profile manually** is the fallback on both systems.
-
 ### Optional draft diagnostics
 
 Diagnostics are off by default. To enable them for one Linux launch:
@@ -63,6 +57,12 @@ This writes `gsi-draft-diagnostics.jsonl` in the data folder, capped at 1 MiB
 before replacement. It records time, phase, mode, structure shape, and slot
 counts, not field values, Steam IDs, player names, or tokens. To check the readers
 after a game update, see [the native reader guide](../dev/native-reader.md#after-a-game-update).
+
+## Your profile
+
+**My profile** finds your account without a token. Windows uses the active Steam account
+from the registry. Linux uses the Steam login that launched Dota and, when that is
+unavailable, your own GSI events. **Set profile manually** is the fallback on both systems.
 
 ## Memory reading
 
