@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { api, errorMessage, Notice } from './App';
-import { Keycaps } from './Keycaps';
-import type { LocalState } from '../shared/domain';
+import { api, errorMessage, Notice } from '../App';
+import { Keycaps } from '../Keycaps';
+import type { LocalState } from '../../shared/domain';
 import {
   defaultShortcuts,
   normalizeShortcut,
@@ -11,7 +11,7 @@ import {
   shortcutProblem,
   type ShortcutName,
   type Shortcuts,
-} from '../shared/shortcuts';
+} from '../../shared/shortcuts';
 
 /**
  * One rebindable key. The recorder listens in the capture phase so opening a panel or the

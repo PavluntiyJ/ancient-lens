@@ -56,7 +56,8 @@ a token from Windows Credential Manager on Windows), or uses `ANCIENT_STATS_URL`
 | Path                                                        | Responsibility                                                                                                                      |
 | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `bridge.ts`                                                 | `window.ancient`: typed IPC calls (`invoke('desktop_call', …)`) and event subscriptions                                             |
-| `ui/App.tsx`                                                | Pages in one window: match and draft, manual draft and roster, profile, notes, GSI diagnostics, settings                            |
+| `ui/App.tsx`                                                | The header and the pages of the one window: match and draft, manual draft and roster, profile, notes, GSI diagnostics, settings     |
+| `ui/settings/`                                              | The Settings page, one component per section                                                                                        |
 | `ui/MatchScreen.tsx`, `ui/Roster.tsx`, `ui/DraftPanels.tsx` | Ten-player table and the analysis carousels                                                                                         |
 | `ui/OwnProfile.tsx`, `ui/profile/`                          | Personal profile: header, filters, history table, side panel                                                                        |
 | `shared/`                                                   | Pure logic without UI: domain types, draft maths, role guesses, statistic bands, history filters. Covered by unit tests in `tests/` |
