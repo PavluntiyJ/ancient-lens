@@ -1,17 +1,35 @@
 version: 2
+# Minor and patch updates arrive as one grouped pull request per ecosystem; a major version
+# gets its own pull request because it may need code changes. Security updates are separate
+# and not limited by these settings.
 updates:
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 0
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: 'chore(deps)'
+    groups:
+      npm-minor-patch:
+        update-types: ['minor', 'patch']
   - package-ecosystem: cargo
     directory: /src-tauri
     schedule:
       interval: weekly
-    open-pull-requests-limit: 0
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: 'chore(deps)'
+    groups:
+      cargo-minor-patch:
+        update-types: ['minor', 'patch']
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
-    open-pull-requests-limit: 0
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: 'ci'
+    groups:
+      actions:
+        patterns: ['*']

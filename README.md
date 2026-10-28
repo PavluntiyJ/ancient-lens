@@ -32,6 +32,16 @@ functions. The anti-cheat response is unknown, and game updates may break the
 reader. See [setup and data](docs/guide/setup.md) before enabling it. macOS is not
 currently a supported release target.
 
+### Is this a cheat?
+
+No gameplay automation, no input to the game, no overlay inside it, no modified game files
+beyond Valve's own GSI setup, and nothing the game hides from you: during hero selection the
+optional reader takes picks only, not who is playing. What you see is public profile
+statistics and your own match, in a separate window. The one part with an unknown risk is the
+optional memory reader, which is off unless you enable it.
+[Safety and fair play](docs/guide/fair-play.md) explains each point, the data sources and the
+limits of what we can promise.
+
 ## Features
 
 - **Match table:** two teams of five with this match's role (selected in the

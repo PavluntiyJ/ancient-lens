@@ -1,0 +1,46 @@
+name: Task
+description: A scoped piece of work a contributor or an AI agent can pick up.
+labels: ['task']
+body:
+  - type: markdown
+    attributes:
+      value: A task is ready when someone new to the project can do it from this issue alone. Maintainers add `agent-ready` once the fields below are complete.
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What changes for the user or the project, in one or two sentences.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Files and area
+      description: Where the work happens and what must not change.
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Done when
+      description: Observable acceptance criteria.
+    validations:
+      required: true
+  - type: textarea
+    id: verify
+    attributes:
+      label: How to verify
+      description: Commands from CONTRIBUTING, and any check that needs a person (live game, real keyboard).
+    validations:
+      required: true
+  - type: dropdown
+    id: platforms
+    attributes:
+      label: Platforms
+      options:
+        - Windows and Linux
+        - Windows only (state why)
+        - Linux only (state why)
+        - Not platform-specific
+    validations:
+      required: true

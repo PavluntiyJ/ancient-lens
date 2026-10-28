@@ -82,8 +82,9 @@ ordinary tests.
 
 ## CI
 
-`.github/workflows/build.yml` checks formatting, frontend, Rust, and service on
-GitHub-hosted Ubuntu for code changes/PRs. Tags and manual runs build Linux and
-Windows distributions; Windows also runs native smoke. Linux native smoke is a
-local desktop check, not currently a CI job. Distribution artifacts expire and
+`.github/workflows/build.yml` checks formatting, frontend, Rust, Python and the service on
+GitHub-hosted Ubuntu and Windows for every code change and pull request. Tags and manual runs
+build Linux and Windows distributions; Windows also runs the native smoke. Linux native smoke
+is a local desktop check, not currently a CI job. `docs.yml` runs the public-source and link
+check for documentation-only changes, and `audit.yml` audits the lockfiles weekly. Distribution artifacts expire and
 are not a published release. Public pull requests must never use a personal runner.

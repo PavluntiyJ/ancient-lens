@@ -14,10 +14,15 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  # Public contributions always run on disposable GitHub-hosted machines.
+  # Public contributions always run on disposable GitHub-hosted machines. Both platforms run
+  # every check, so neither falls behind the other.
   check:
-    timeout-minutes: 30
-    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -26,6 +31,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
@@ -33,13 +41,14 @@ jobs:
         with:
           workspaces: src-tauri
       - name: Linux system dependencies
+        if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libssl-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev
       - run: npm ci
       - name: Formatting
         run: npm run format:check && cargo fmt --manifest-path src-tauri/Cargo.toml --check
       - run: npm run check
       - run: npm run check:public
-      - run: python3 -m unittest discover -s tests/python
+      - run: python -m unittest discover -s tests/python
       - run: npm run build:web
       - run: npm run test:rust
       - run: cargo check --manifest-path src-tauri/Cargo.toml --no-default-features --bin stats-service

@@ -33,8 +33,6 @@ or unverified, and what is planned.
 - An own performance score per match, scored against position and bracket averages.
 - Replay parsing, so statistics of all ten players are available without waiting for
   providers. It needs a replay source and a demo parser checked against the current game.
-- Windows and Linux checks in hosted CI once the repository is public, so neither platform
-  falls behind.
 - Visual decisions still open: best-of-match marks in the history table and colour families
   for statistics.
 
