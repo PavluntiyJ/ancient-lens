@@ -1,6 +1,7 @@
 # Contributing
 
-Thanks for helping. Start with the [installation guide](docs/guide/install.md), the
+Thanks for helping. Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md).
+Start with the [installation guide](docs/guide/install.md), the
 [architecture](docs/dev/architecture.md) and [status](docs/status.md). Issues labelled
 `good first issue` are small and self-contained; `help wanted` marks larger work.
 

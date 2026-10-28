@@ -6,6 +6,12 @@
   "description": "Open-source Dota 2 companion for Windows and Linux, without ads or telemetry",
   "author": "Ancient Lens contributors",
   "license": "MIT",
+  "homepage": "https://github.com/PavluntiyJ/ancient-lens#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PavluntiyJ/ancient-lens.git"
+  },
+  "bugs": "https://github.com/PavluntiyJ/ancient-lens/issues",
   "desktopName": "org.ancientlens.desktop",
   "scripts": {
     "dev": "npm run build:web && tauri dev",
