@@ -28,7 +28,7 @@ serde_json = "1"
 tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
 axum = "0.8"
-tower-http = { version = "0.6", features = ["timeout", "limit"] }
+tower-http = { version = "0.7", features = ["timeout", "limit"] }
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4"] }
 rand = "0.8"
