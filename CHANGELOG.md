@@ -4,6 +4,10 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ## Unreleased
 
+- **Connect STRATZ** in Settings and in the empty draft panels: open stratz.com/api, paste
+  your token, and the app checks it, saves it in Windows Credential Manager or the Linux
+  keyring and starts the statistics service that ships with the app. **Disconnect STRATZ**
+  removes the token. On Linux the flow has not been tried on a desktop yet.
 - **Profile:** removed the Bracket column from match history. A current MMR reading no longer
   shows a leaderboard position from cached public profile data.
 

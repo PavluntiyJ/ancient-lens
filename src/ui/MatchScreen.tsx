@@ -62,6 +62,7 @@ import { mainPosition, rankedRoles } from '../shared/roles';
 import { PlayerCard } from './PlayerCard';
 import { PlayerPreview } from './PlayerPreview';
 import { FrequentHeroTip } from './Tips';
+import { StratzPrompt } from './StratzPrompt';
 import { InfoHeader, rosterColumns } from './ColumnInfo';
 import { hide, tip } from './Tooltip';
 import { useShortcuts } from './shortcut-context';
@@ -222,6 +223,7 @@ export function MatchScreen({
   ownMmr,
   steamSetup,
   setup,
+  connectStratz,
 }: {
   ownAccountId: string;
   platform?: string;
@@ -236,6 +238,8 @@ export function MatchScreen({
   ownMmr?: number | null;
   steamSetup?: SteamSetup;
   setup(): void;
+  /** Opens the Connect STRATZ prompt. */
+  connectStratz?(): void;
 }) {
   // Leaving a match must not wipe the roster and draft: a running player match waits for
   // a reconnect, any other last match (spectated, finished) stays until a new one appears.
@@ -297,12 +301,15 @@ export function MatchScreen({
   const synergyWeight = useSynergyWeight();
   const minWinRate = useMinWinRate();
   const [stratzDraft, setStratzDraft] = useState<boolean>();
+  const [stratzConnectable, setStratzConnectable] = useState(false);
   useEffect(() => {
     let active = true;
     void api
       .getProvider()
       .then((info) => {
-        if (active) setStratzDraft(!!info.serviceConfigured);
+        if (!active) return;
+        setStratzDraft(!!info.serviceConfigured);
+        setStratzConnectable(!!info.connectable && !!api.connectStratz);
       })
       .catch(() => {
         if (active) setStratzDraft(false);
@@ -599,14 +606,15 @@ export function MatchScreen({
       ),
     [heroes, draftData, confirmedIds, banIds],
   );
+  const connect = stratzConnectable ? connectStratz : undefined;
   const adviceMessage = !connected
     ? 'Waiting for match data'
     : draftError ||
-      (!stratzDraft
-        ? 'Connect STRATZ for draft statistics'
-        : (draftBusy || pickedIds) && !draftData
-          ? 'Loading…'
-          : undefined);
+      (!stratzDraft ? (
+        <StratzPrompt feature="Draft statistics" connect={connect} />
+      ) : (draftBusy || pickedIds) && !draftData ? (
+        'Loading…'
+      ) : undefined);
   const nameOf = (id: number) => heroes.find((hero) => hero.id === id)?.localized_name ?? `#${id}`;
   const matchSummaries = ids.split(',').flatMap((id) => (entries[id]?.result ? [entries[id].result!] : []));
   const median = medianMatches(matchSummaries);
@@ -644,6 +652,7 @@ export function MatchScreen({
         busy={draftBusy}
         error={draftError}
         available={stratzDraft}
+        connect={connect}
         picked={livePicks.length}
         hovered={liveHovers.length}
         partial={connected && livePicks.length < 10}

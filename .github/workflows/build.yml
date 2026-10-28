@@ -84,6 +84,19 @@ jobs:
       - name: Windows installer
         if: runner.os == 'Windows'
         run: npm run dist:win
+      # Tauri bundles every binary of the crate; Connect STRATZ relies on stats-service sitting
+      # beside the app, so a bundler change must not drop it silently.
+      - name: Statistics service in the packages
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then
+            grep -q '/oname=stats-service.exe' src-tauri/target/release/nsis/x64/installer.nsi
+          else
+            dpkg-deb -c src-tauri/target/release/bundle/deb/*.deb | grep -q ' ./usr/bin/stats-service$'
+            appimage=$(ls "$PWD"/src-tauri/target/release/bundle/appimage/*.AppImage)
+            cd "$RUNNER_TEMP" && "$appimage" --appimage-extract usr/bin/stats-service > /dev/null
+            test -x "$RUNNER_TEMP/squashfs-root/usr/bin/stats-service"
+          fi
       # The portable ZIP copies the executable the installer build just produced.
       - name: Windows portable ZIP
         if: runner.os == 'Windows'

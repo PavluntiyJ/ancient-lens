@@ -37,9 +37,9 @@ sudo apt install ./Ancient-Lens-*-amd64.deb
 Run the app as your regular user, never as root. Then continue with
 [Connect Dota and understand your data](setup.md).
 
-The optional STRATZ statistics service is included only in the portable Windows ZIP; see the
-[STRATZ guide](stats-service.md). Public OpenDota profiles, notes and manual MMR
-entries work without it.
+For STRATZ draft features, press **Connect STRATZ** in Settings; see the
+[STRATZ guide](stats-service.md). Every download includes the statistics service. Public
+OpenDota profiles, notes and manual MMR entries work without it.
 
 ### Verify the download
 
@@ -139,12 +139,14 @@ an AppImage executable before launching it (`chmod +x <download>.AppImage`).
 If AppImage/FUSE is unavailable, use the native build. Windows portable builds
 require an installed WebView2 Runtime. Packages are currently unsigned.
 
-The optional STRATZ service is a separate binary (see the
-[statistics service guide](stats-service.md)). The NSIS installer and the Linux packages
-never contain it. `npm run dist:win:zip` copies `stats-service.exe` into the portable ZIP
-when it exists in `src-tauri/target/release/`; `tauri build` builds it there together with
-the app, so CI ZIPs include it. On Windows the app starts the service itself when the
-binary sits next to `ancient-lens.exe` and a token is saved.
+The optional STRATZ service is a second binary of the same crate (see the
+[statistics service guide](stats-service.md)). Tauri bundles every binary of the crate,
+so the NSIS installer puts `stats-service.exe` next to `Ancient Lens.exe`, and the `.deb`
+and AppImage put `stats-service` next to `ancient-lens` in `usr/bin`; the CI release build
+fails if a package lacks it. `npm run dist:win:zip` copies `stats-service.exe` into the
+portable ZIP when it exists in `src-tauri/target/release/`; `tauri build` builds it there
+together with the app. The app starts the service itself when the binary sits next to its
+executable and a token is saved.
 The service is not required for notes, manual MMR entries, or public OpenDota profiles.
 
 ## First use and troubleshooting

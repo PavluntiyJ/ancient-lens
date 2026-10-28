@@ -39,10 +39,10 @@ FIRST LAUNCH
 1. Open Settings > Connect Dota 2. It shows what is missing; Fix connection
    installs the GSI file and the launch option. Restart Dota afterwards.
 2. Spectate a match to check the connection. Public OpenDota profiles need no key.
-3. Optional STRATZ draft features: save your token once with the Python launcher
-   from the project repository (Windows Credential Manager), then start this
-   folder's stats-service.exe from Ancient Lens automatically. See the STRATZ
-   guide. If stats-service.exe is missing, the app still uses public OpenDota.
+3. Optional STRATZ draft features: Settings > Player history > Connect STRATZ.
+   Paste your token from stratz.com/api; it is saved in Windows Credential
+   Manager and this folder's stats-service.exe starts with Ancient Lens.
+   If stats-service.exe is missing, the app still uses public OpenDota.
 
 MEMORY READING (OPTIONAL, OFF BY DEFAULT)
 Participant GSI supplies only your own player. Settings > Allow Dota memory reading

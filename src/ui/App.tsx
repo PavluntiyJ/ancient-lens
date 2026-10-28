@@ -64,6 +64,7 @@ import {
 } from './preferences';
 import { rankBrackets, type BracketSetting } from '../shared/rank-bracket';
 import { playChime } from './sound';
+import { StratzConnectDialog, StratzConnectForm } from './StratzConnect';
 
 declare global {
   interface Window {
@@ -148,6 +149,7 @@ export function App() {
   const [now, setNow] = useState(Date.now());
   const [ready, setReady] = useState(false);
   const [providerRevision, setProviderRevision] = useState(0);
+  const [stratzOpen, setStratzOpen] = useState(false);
   const [steamSetup, setSteamSetup] = useState<SteamSetup>();
   useEffect(() => {
     let active = true;
@@ -344,6 +346,7 @@ export function App() {
                 recordedMatches={local.recordedMatches ?? 0}
                 steamSetup={steamSetup}
                 setup={() => setPage('settings')}
+                connectStratz={() => setStratzOpen(true)}
               />
             </MatchViewport>
             {page === 'profile' && <OwnProfile key={local.accountId} local={local} update={updateLocal} />}
@@ -390,12 +393,19 @@ export function App() {
                 info={info}
                 steamSetup={steamSetup}
                 steamChanged={setSteamSetup}
+                providerRevision={providerRevision}
                 providerChanged={() => setProviderRevision((value) => value + 1)}
               />
             )}
           </div>
         </main>
       </div>
+      {stratzOpen && (
+        <StratzConnectDialog
+          close={() => setStratzOpen(false)}
+          connected={() => setProviderRevision((value) => value + 1)}
+        />
+      )}
       {api.resizeWindow &&
         (['North', 'South', 'East', 'West', 'NorthEast', 'NorthWest', 'SouthEast', 'SouthWest'] as WindowEdge[]).map(
           (edge) => (
@@ -498,6 +508,7 @@ function SettingsPanel({
   update,
   steamSetup,
   steamChanged,
+  providerRevision,
   providerChanged,
 }: {
   info?: AppInfo;
@@ -505,6 +516,7 @@ function SettingsPanel({
   update(value: LocalState): void;
   steamSetup?: SteamSetup;
   steamChanged(value: SteamSetup): void;
+  providerRevision: number;
   providerChanged(): void;
 }) {
   const statsFilter = useStatsFilter();
@@ -526,7 +538,7 @@ function SettingsPanel({
     return () => {
       active = false;
     };
-  }, []);
+  }, [providerRevision]);
   async function save(kind: 'gsi' | 'backup') {
     setError('');
     setMessage('');
@@ -721,7 +733,7 @@ function SettingsPanel({
           </div>
           <p className="fine-print" id="synergy-note">
             {suggestions === false
-              ? 'Unavailable: pick suggestions and lane totals need the local STRATZ service (see Player history).'
+              ? 'Unavailable: pick suggestions and lane totals need STRATZ (connect it under Player history).'
               : 'How much allies count in pick suggestions and the Lanes total. Re-scores loaded data without reloading.'}
           </p>
         </div>
@@ -993,7 +1005,23 @@ function ProviderSettings({ changed }: { changed(): void }) {
         <p>{error || 'Connecting…'}</p>
       </section>
     );
-  if (info.automatic)
+  async function disconnect() {
+    setBusy(true);
+    setError('');
+    setMessage('');
+    try {
+      const result = await api.disconnectStratz!();
+      setInfo(result);
+      setMessage(result.message ?? '');
+      changed();
+    } catch (error) {
+      setError(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+  if (info.automatic) {
+    const connectable = !!info.connectable && !!api.connectStratz;
     return (
       <section className="panel provider-settings">
         <h2>Player history · {info.source}</h2>
@@ -1001,26 +1029,44 @@ function ProviderSettings({ changed }: { changed(): void }) {
         <p className="fine-print">
           {info.serviceConfigured
             ? 'Player statistics, personal history, and recommendations load from STRATZ.'
-            : 'For faster roster loading and position recommendations, run a local STRATZ service with your own token.'}
+            : 'For faster roster loading and position recommendations, connect STRATZ with your own token.'}
         </p>
-        {!info.serviceConfigured && (
-          <details>
-            <summary>Set up the optional STRATZ service</summary>
-            <p>
-              Build the bundled stats service and save your token once with{' '}
-              <code>scripts/start-personal-stratz.py --configure</code> (Windows Credential Manager on Windows, the
-              system keyring on Linux). On Windows, Ancient Lens starts a service binary that sits next to the app and
-              stops it when the app quits.
-            </p>
-            <p className="fine-print">
-              Follow docs/guide/stats-service.md for both platforms. The token stays in the service and never enters
-              this window or its settings. OpenDota profiles and local notes work without it.
-            </p>
-          </details>
+        {connectable && !info.serviceConfigured && (
+          <StratzConnectForm
+            connected={(result) => {
+              setInfo(result);
+              setMessage(result.message ?? '');
+              changed();
+            }}
+          />
         )}
+        {connectable && info.serviceConfigured && (
+          <>
+            <div className="button-row">
+              <button type="button" className="secondary" disabled={busy} onClick={() => void disconnect()}>
+                Disconnect STRATZ
+              </button>
+            </div>
+            <p className="fine-print">
+              Removes the saved token and stops the statistics service Ancient Lens started; OpenDota is used
+              afterwards. To change the token, disconnect and connect again.
+            </p>
+          </>
+        )}
+        {!connectable && !info.serviceConfigured && (
+          <p className="fine-print">
+            This launch sets the statistics service with ANCIENT_STATS_URL. See docs/guide/stats-service.md.
+          </p>
+        )}
+        <p className="fine-print">
+          To run the service yourself, for example from a source build, follow docs/guide/stats-service.md. OpenDota
+          profiles and local notes work without STRATZ.
+        </p>
+        {message && <Notice>{message}</Notice>}
         {error && <Notice error>{error}</Notice>}
       </section>
     );
+  }
   return (
     <section className="panel provider-settings">
       <h2>Player history · {info?.source ?? 'Loading…'}</h2>
