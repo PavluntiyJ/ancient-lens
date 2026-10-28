@@ -139,8 +139,13 @@ an AppImage executable before launching it (`chmod +x <download>.AppImage`).
 If AppImage/FUSE is unavailable, use the native build. Windows portable builds
 require an installed WebView2 Runtime. Packages are currently unsigned.
 
-The optional STRATZ service is built separately; it is not bundled with the app.
-It is not required for notes, manual MMR entries, or public OpenDota profiles.
+The optional STRATZ service is a separate binary that you build yourself (see the
+[statistics service guide](stats-service.md)). The NSIS installer and the Linux packages
+never contain it. `npm run dist:win:zip` copies `stats-service.exe` into the portable ZIP
+only when it was built in `src-tauri/target/release/` beforehand; CI builds do not do that
+yet ([#2](https://github.com/PavluntiyJ/ancient-lens/issues/2)). On Windows the app starts
+the service itself when the binary sits next to `ancient-lens.exe` and a token is saved.
+The service is not required for notes, manual MMR entries, or public OpenDota profiles.
 
 ## First use and troubleshooting
 

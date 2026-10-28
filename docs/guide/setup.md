@@ -41,8 +41,9 @@ or `coreinit.lua`.
 In spectator mode, GSI supplies ten players with IDs and heroes. As a participant,
 it supplies only your own player; the `draft` block was empty throughout the
 live test on October 13, 2026. Full roster, picks, and bans in your own match
-therefore require the optional memory reader. Data becomes stale after
-30 seconds without events.
+therefore require the optional memory reader. This is the same on Windows and
+Linux: an empty enemy roster in your own match, with the reader off, is expected and does
+not mean the installation failed. Data becomes stale after 30 seconds without events.
 
 ### Optional draft diagnostics
 
@@ -56,6 +57,12 @@ This writes `gsi-draft-diagnostics.jsonl` in the data folder, capped at 1 MiB
 before replacement. It records time, phase, mode, structure shape, and slot
 counts, not field values, Steam IDs, player names, or tokens. To check the readers
 after a game update, see [the native reader guide](../dev/native-reader.md#after-a-game-update).
+
+## Your profile
+
+**My profile** finds your account without a token. Windows uses the active Steam account
+from the registry. Linux uses the Steam login that launched Dota and, when that is
+unavailable, your own GSI events. **Set profile manually** is the fallback on both systems.
 
 ## Memory reading
 
@@ -95,7 +102,8 @@ without one the option is disabled and closing quits. Exclusive fullscreen can h
 so use borderless windowed mode or a second monitor. On Wayland the compositor
 controls stacking and position (on KDE: **Keep Above Others** in the window menu),
 and the shortcut depends on the desktop. This is a regular desktop window, not
-an overlay injected into the game renderer.
+an overlay injected into the game renderer. Shortcuts for the analysis panels are listed in
+[the match screen guide](match-and-profile.md#analysis-panels).
 
 ## Storage and privacy
 

@@ -3,7 +3,9 @@
 OpenDota works without registration, subject to its availability and rate limits.
 STRATZ powers position recommendations, the live matchup matrix, meta/counter
 picks, and faster player-history requests. **No shared public STRATZ service or
-API token is included.** You can run the bundled Rust service on your own machine.
+API token is included.** You can build and run the Rust service from this repository on
+your own machine. The installer and Linux packages do not include it; see
+[packages](install.md#packages) for the Windows portable ZIP.
 
 ## Personal setup (Linux or Windows)
 
