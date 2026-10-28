@@ -54,6 +54,7 @@ Start with the [installation guide](docs/guide/install.md), the
 | Launcher scripts   | `python3 -m unittest discover -s tests/python` (`py -3` on Windows)                          |
 | UI or desktop      | `npm run build` and `npm run test:native` on each platform you can reach                     |
 | Memory readers     | The offline game-file tests in the [native reader guide](docs/dev/native-reader.md)          |
+| Screenshots        | `npm run build`, then `npm run docs:screenshots` ([details](docs/README.md#screenshots))     |
 
 `npm run test:rust` builds the web assets first, because Tauri embeds them when the crate
 compiles; a direct `cargo test` needs an earlier `npm run build:web`.

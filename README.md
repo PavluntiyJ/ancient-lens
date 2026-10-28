@@ -1,36 +1,77 @@
-# Ancient Lens
+<p align="center"><img src="build/icon.svg" width="96" height="96" alt="Ancient Lens logo"></p>
 
-An independent, open-source Dota 2 companion for **Windows and Linux**: draft
-recommendations, a ten-player match table, player notes, and a personal profile
-with an MMR journal. No ads, telemetry, or required Ancient Lens account.
-Built with Tauri, Rust, and React. Licensed under MIT.
+<h1 align="center">Ancient Lens</h1>
 
-> **Early prototype · 0.5.0.** Platform features differ. There is no hosted STRATZ
-> service or published binary release yet; build from source using the instructions
-> below. Ancient Lens is not affiliated with Valve.
+<p align="center">
+  A Dota 2 companion for Windows and Linux that shows who is in your match, which heroes
+  to pick against them, and how your own rating develops. Free, open source, no ads or account.
+</p>
+
+<p align="center">
+  <a href="https://github.com/PavluntiyJ/ancient-lens/actions/workflows/build.yml"><img src="https://github.com/PavluntiyJ/ancient-lens/actions/workflows/build.yml/badge.svg" alt="Build status"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/PavluntiyJ/ancient-lens" alt="MIT license"></a>
+  <a href="https://github.com/PavluntiyJ/ancient-lens/releases"><img src="https://img.shields.io/github/v/release/PavluntiyJ/ancient-lens?include_prereleases&label=release" alt="Latest release"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/PavluntiyJ/ancient-lens/releases/latest"><b>Download</b></a> ·
+  <a href="#quick-start"><b>Quick start</b></a> ·
+  <a href="docs/README.md"><b>Documentation</b></a>
+</p>
+
+> **Early prototype, 0.5.0.** The first prerelease is still pending: if the
+> [releases page](https://github.com/PavluntiyJ/ancient-lens/releases) is empty,
+> [build from source](docs/guide/install.md). Not affiliated with Valve.
 
 ![Match screen with ten players, hero matchups, and suggested picks](docs/images/match-screen.png)
 
-Screenshots use invented players and demonstration statistics. Hero portraits
-are Valve assets. Regenerate them on Linux or Windows with
-`npm run build && npm run docs:screenshots`.
+- **Match analysis:** all ten players with rank, win rate, recent games, main positions and
+  their most played heroes, side by side.
+- **Draft recommendations:** hero matchups, lane summary, picks for either side, counter and
+  meta picks, updated as heroes are picked and banned (needs your STRATZ token).
+- **Profile and MMR:** your rank with confidence, an MMR chart, position breakdown and a
+  filterable match history, kept even when your match data is private.
+- **Player notes:** searchable notes on players you met, with links to Dotabuff, OpenDota
+  and STRATZ.
+
+Screenshots use invented players. A tour of every panel and shortcut:
+[the match screen and profile](docs/guide/match-and-profile.md).
+
+## Quick start
+
+1. Install Ancient Lens from the [releases page](https://github.com/PavluntiyJ/ancient-lens/releases)
+   or [from source](docs/guide/install.md).
+2. Open **Settings → Connect Dota 2** and press **Set up automatically**. It installs the
+   GSI file and, after you confirm, restarts Steam to add the `-gamestateintegration`
+   launch option.
+3. Restart Dota 2 and spectate a match: ten players should appear.
+4. Open **My profile**. Your account is detected from Steam; **Set profile manually** is
+   the fallback.
+5. Optional: set up the [STRATZ service](docs/guide/stats-service.md) for draft
+   recommendations, and decide whether to enable the memory reader (below).
+
+Details and troubleshooting: [setup and data](docs/guide/setup.md), and the
+[Fedora guide](docs/guide/fedora.md) on Fedora.
 
 ## What works on each platform
 
-| Feature                                                    | Windows                                                  | Linux                   |
-| ---------------------------------------------------------- | -------------------------------------------------------- | ----------------------- |
-| Public profiles, notes, manual draft, manual MMR journal   | Yes                                                      | Yes                     |
-| Spectator roster and picks through Dota GSI                | Yes                                                      | Yes                     |
-| Full roster, picks, and bans in your own match             | Optional memory reader (not yet checked in a live match) | Optional memory reader  |
-| Automatic account identification                           | Active Steam account                                     | Steam login of Dota     |
-| Exact MMR and rank confidence from Dota                    | Optional memory reader                                   | Optional memory reader  |
-| Matchups, position recommendations, meta and counter picks | Requires STRATZ service                                  | Requires STRATZ service |
+| What you get                                                                      | Needs                                   | Windows                         | Linux |
+| --------------------------------------------------------------------------------- | --------------------------------------- | ------------------------------- | ----- |
+| Public profiles, notes, manual draft, MMR journal, automatic account detection    | Nothing: works out of the box           | Yes                             | Yes   |
+| Ten-player roster and picks while spectating                                      | Nothing: Dota GSI                       | Yes                             | Yes   |
+| Matchups, position recommendations, meta and counter picks                        | Your STRATZ token and the local service | Yes                             | Yes   |
+| Ten-player roster, picks and bans in **your own** match; exact MMR and confidence | Optional memory reader, off by default  | Yes, draft not yet checked live | Yes   |
 
-**Memory reading is off by default.** Enabling it permits external, read-only
-access to the Dota process. It does not write memory, inject code, or call game
-functions. The anti-cheat response is unknown, and game updates may break the
-reader. See [setup and data](docs/guide/setup.md) before enabling it. macOS is not
-currently a supported release target.
+In your own match Dota's GSI sends only your own player, on both systems. With the reader
+off, an empty enemy roster there is expected, not a failed installation. The STRATZ service
+is a separate program you build yourself and run with your own token; the installer does
+not include it ([details](docs/guide/install.md#packages)).
+
+**The memory reader is off by default.** Enabling it allows external, read-only access to
+the Dota process: it does not write memory, inject code, or call game functions. The
+anti-cheat response is unknown, and game updates may break the reader. Everything else
+works without it. Read [setup and data](docs/guide/setup.md#memory-reading) before enabling
+it.
 
 ### Is this a cheat?
 
@@ -42,128 +83,31 @@ optional memory reader, which is off unless you enable it.
 [Safety and fair play](docs/guide/fair-play.md) explains each point, the data sources and the
 limits of what we can promise.
 
-## Features
+## Supported systems and limits
 
-- **Match table:** two teams of five with this match's role (selected in the
-  draft, or a team-wide guess marked as likely), ranks, lifetime games and win
-  rate, recent games over 7/14/30/90 days, main positions and their shares,
-  frequent heroes with spam markers, and statistics for the current hero. Your own
-  row is marked, earlier meetings show a MET badge, and avatars get the in-game
-  slot colour when the slot order is known. Missing IDs, private profiles,
-  loading, and stale data are shown separately.
-- **Analysis panels:** hero matchups, lane summary, picks for either side, meta
-  picks, and counter picks. Two independent panels, three on a wide window. Switch
-  the left panel with `Alt+←/→`, the right with `Shift+←/→`, and the shared lane
-  with `Alt+↑/↓`. In your own match the assigned position sets the initial lane.
-  Switching panels does not fetch again.
-- **Draft tracking:** bans drop out of suggestions and counters. Hovered heroes
-  remain tentative. The current match survives a disconnect, and the last match
-  stays on screen until another one starts.
-- **Hover cards:** every number has a card that says what it is and where it comes
-  from; column headers with ⓘ explain formulas and colour bands.
-- **Readable layout:** the match screen fits the window down to 90% scale, then
-  scrolls. Analysis panels keep their size when switching views.
-- **Player notes and cards:** searchable notes linked to Dota IDs; a player card
-  with full history, teammates and opponents; Dotabuff, OpenDota, and STRATZ
-  links. The SMURF label is a public-statistics heuristic, not proof.
+- **Windows and Linux** desktops. macOS is not supported.
+- Packages are unsigned and there are no automatic updates.
+- There is no hosted STRATZ service; without your own, public OpenDota statistics are used,
+  with a rate limit and no draft recommendations.
+- Exclusive fullscreen can hide the window: use borderless windowed mode or a second
+  monitor. On Wayland the desktop controls stacking and the shortcut.
+- **Privacy:** notes, settings and the MMR journal stay on your computer. No analytics,
+  telemetry or cloud account. Statistics providers see your IP address and the player IDs
+  requested ([details](docs/guide/setup.md#storage-and-privacy)).
 
-![Draft panels: lane summary, Radiant recommendations and counters to Dire](docs/images/draft-panels.png)
+Known limitations and plans: [status](docs/status.md). Changes: [changelog](CHANGELOG.md).
 
-The personal profile includes a rank medal with confidence, an interactive MMR
-chart, position breakdown, match averages, and history with KP/DP, IMP, building
-damage, healing, measured MMR changes and site links. Statistics are coloured
-against OpenDota hero benchmarks. Filters cover period, hero, result, modes,
-position, duration, local start time and weekday, and patch; active filters show
-as chips with a Reset. Incomplete history is labelled and can be extended. The
-match journal records your own matches from GSI, so they stay visible when the
-account's match data is private.
+## For developers
 
-![Personal profile with rating, position breakdown, and match history](docs/images/profile.png)
-
-Hovering a statistic of a match ranks all ten players of that match (STRATZ
-history):
-
-![Ten-player card for GPM with the own row highlighted](docs/images/match-card.png)
-
-[How draft numbers are calculated](docs/guide/draft.md).
-
-## Build and run
-
-Install **Node.js 22.12 or newer**, npm, Rust stable, and the
-[Tauri 2 platform prerequisites](https://v2.tauri.app/start/prerequisites/).
-On Windows, install the MSVC C++ Build Tools and WebView2 Runtime. On Linux,
-install WebKitGTK 4.1 and your distribution's build dependencies.
-See the [installation guide](docs/guide/install.md) for commands and packaging.
-
-```sh
-git clone https://github.com/PavluntiyJ/ancient-lens.git
-cd ancient-lens
-npm ci
-npm run dev
-```
-
-`npm run dev` opens the desktop app. It is not a browser-only web application.
-To create an optimized executable:
-
-```sh
-npm run build
-```
-
-Run `src-tauri/target/release/ancient-lens` on Linux or
-`src-tauri/target/release/ancient-lens.exe` on Windows.
-
-## First launch
-
-1. Open **Settings → Connect Dota 2**. It checks the GSI file and the
-   `-gamestateintegration` launch option; **Set up automatically** installs the
-   file and, after you confirm, closes Steam to add the launch option and starts
-   it again. **Set up manually** keeps the file-saving steps.
-2. Restart Dota 2 if it was running, then spectate a match to check the connection.
-3. Open **My profile**. Windows detects the active Steam account; Linux uses the
-   Steam login that launched Dota, then your own GSI events if that is unavailable.
-   **Set profile manually** is the fallback.
-4. Public OpenDota statistics work without a token. For STRATZ draft features,
-   set up the optional [local statistics service](docs/guide/stats-service.md).
-   On Windows, save your token once with the launcher; Ancient Lens then starts
-   the bundled `stats-service.exe` itself and stops it when the app quits. The
-   token stays in Windows Credential Manager and never enters the app UI.
-
-GSI sends only your own player when you participate in a match. An empty enemy
-roster on Windows is a current platform limitation, not a failed installation.
-See [setup and troubleshooting](docs/guide/setup.md) and the
-[Fedora guide](docs/guide/fedora.md).
-
-## Data and privacy
-
-Notes, settings, and the MMR journal stay on your computer. Public statistics
-providers receive your IP address and the player IDs you request; Steam CDNs
-serve portraits and avatars. There is no usage analytics or cloud account.
-Your generated GSI configuration contains a local access token: do not share it.
-[Storage locations and network details](docs/guide/setup.md#storage-and-privacy).
-
-## Contribute
-
-```sh
-npm run check
-npm run format:check
-npm run test:rust
-python3 -m unittest discover -s tests/python
-npm run build
-npm run test:native
-```
-
-Native tests need the platform WebView driver. They use isolated synthetic data,
-not a running Dota game. See [verification](docs/dev/verification.md),
-[contributing](CONTRIBUTING.md), and [security reporting](SECURITY.md).
-The [documentation index](docs/README.md) links the guides, the
-[architecture](docs/dev/architecture.md) and the [native reader guide](docs/dev/native-reader.md);
-[status](docs/status.md) lists known limitations and planned work, and the
-[changelog](CHANGELOG.md) user-visible changes.
+Build from source with the [installation guide](docs/guide/install.md). Read
+[contributing](CONTRIBUTING.md) for the workflow and checks, the
+[architecture](docs/dev/architecture.md), [verification](docs/dev/verification.md) and the
+[native reader guide](docs/dev/native-reader.md). Report vulnerabilities as described in
+[SECURITY.md](SECURITY.md).
 
 ## License and attribution
 
-Project code is [MIT licensed](LICENSE). Third-party assets retain their own
-rights and licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-Valve owns Dota 2 artwork and trademarks. No third-party application binaries,
-extracted source, private captures or proprietary datasets are distributed with this
-project.
+Project code is [MIT licensed](LICENSE). Third-party assets retain their own rights and
+licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Hero portraits, Dota 2
+artwork and trademarks belong to Valve. No third-party application binaries, extracted
+source, private captures or proprietary datasets are distributed with this project.

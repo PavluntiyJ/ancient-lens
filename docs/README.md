@@ -1,20 +1,21 @@
 # Ancient Lens documentation
 
-New users start with [installation](guide/install.md), then [first-run setup](guide/setup.md).
-Contributors read the [contributing guide](../CONTRIBUTING.md) and the
+New users start with [installation](guide/install.md), then [first-run setup](guide/setup.md)
+and [the match screen and profile](guide/match-and-profile.md). Contributors read the [contributing guide](../CONTRIBUTING.md) and the
 [architecture](dev/architecture.md). Known limitations and plans are in [status](status.md);
 user-visible changes in the [changelog](../CHANGELOG.md).
 
 ## User guides
 
-| Document                                     | Purpose                                                                   |
-| -------------------------------------------- | ------------------------------------------------------------------------- |
-| [Install](guide/install.md)                  | Build requirements, source installation, native packages                  |
-| [Setup](guide/setup.md)                      | GSI, opt-in memory reading, platform limits, window/tray, storage/network |
-| [Draft](guide/draft.md)                      | Recommendations, matrix, lanes, counters, meta, formulas and uncertainty  |
-| [Fedora](guide/fedora.md)                    | Dependencies, launcher, optional keyring/service                          |
-| [Statistics service](guide/stats-service.md) | Optional STRATZ setup, credentials, cache, quotas                         |
-| [Safety and fair play](guide/fair-play.md)   | What the app does and does not do, data sources, the memory reader's risk |
+| Document                                               | Purpose                                                                   |
+| ------------------------------------------------------ | ------------------------------------------------------------------------- |
+| [Install](guide/install.md)                            | Build requirements, source installation, native packages                  |
+| [Setup](guide/setup.md)                                | GSI, profile, opt-in memory reading, window/tray, storage/network         |
+| [Match screen and profile](guide/match-and-profile.md) | Match table, analysis panels and shortcuts, notes, personal profile       |
+| [Draft](guide/draft.md)                                | Recommendations, matrix, lanes, counters, meta, formulas and uncertainty  |
+| [Fedora](guide/fedora.md)                              | Dependencies, launcher, optional keyring/service                          |
+| [Statistics service](guide/stats-service.md)           | Optional STRATZ setup, credentials, cache, quotas                         |
+| [Safety and fair play](guide/fair-play.md)             | What the app does and does not do, data sources, the memory reader's risk |
 
 ## Development
 
@@ -28,8 +29,8 @@ user-visible changes in the [changelog](../CHANGELOG.md).
 
 ## Screenshots
 
-README screenshots in `images/` (match screen, analysis panels, profile, ten-player card,
-memory-reading consent) use isolated fictional fixtures, not personal account captures.
+Screenshots in `images/` (match screen, analysis panels, profile, ten-player card,
+memory-reading consent), used by the README and the guides, use isolated fictional fixtures, not personal account captures.
 Regenerate on Linux with WebKitWebDriver or Windows with WebView2:
 
 ```sh
