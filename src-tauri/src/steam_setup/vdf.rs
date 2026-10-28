@@ -467,8 +467,8 @@ mod tests {
             "\"AppState\"\n{\n\t\"appid\"\t\t\"570\"\n\t\"installdir\"\t\t\"dota 2 beta\"\n}\n";
         assert_eq!(install_dir(manifest).as_deref(), Some("dota 2 beta"));
         assert_eq!(install_dir(&manifest.replace("dota 2 beta", "..")), None);
-        let users = "\"users\"\n{\n\t\"76561198816292876\"\n\t{\n\t\t\"MostRecent\"\t\t\"1\"\n\t}\n\t\"76561198083722517\"\n\t{\n\t\t\"MostRecent\"\t\t\"0\"\n\t}\n}\n";
-        assert_eq!(most_recent_account(users).as_deref(), Some("856027148"));
+        let users = "\"users\"\n{\n\t\"76561197960265730\"\n\t{\n\t\t\"MostRecent\"\t\t\"1\"\n\t}\n\t\"76561198083722517\"\n\t{\n\t\t\"MostRecent\"\t\t\"0\"\n\t}\n}\n";
+        assert_eq!(most_recent_account(users).as_deref(), Some("2"));
         assert_eq!(most_recent_account(&users.replace("\"0\"", "\"1\"")), None);
     }
 }
