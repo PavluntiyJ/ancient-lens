@@ -55,6 +55,8 @@ Start with the [installation guide](docs/guide/install.md), the
 | UI or desktop      | `npm run build` and `npm run test:native` on each platform you can reach                     |
 | Memory readers     | The offline game-file tests in the [native reader guide](docs/dev/native-reader.md)          |
 
+`npm run test:rust` builds the web assets first, because Tauri embeds them when the crate
+compiles; a direct `cargo test` needs an earlier `npm run build:web`.
 `npm run format` and `cargo fmt --manifest-path src-tauri/Cargo.toml` format your changes.
 The optional pre-push hook runs the main checks: `git config core.hooksPath .githooks`.
 Ordinary tests use fixtures, need no API keys and never start Dota. See

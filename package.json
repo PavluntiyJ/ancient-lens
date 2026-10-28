@@ -23,7 +23,7 @@
     "dist:win:zip": "tauri build --no-bundle && node scripts/package-native.mjs",
     "check": "tsc --noEmit && tsc --noEmit -p tests && vitest run",
     "build:web": "tsc --noEmit && vite build",
-    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "test:rust": "npm run build:web && cargo test --manifest-path src-tauri/Cargo.toml",
     "test:native": "node scripts/smoke-native.mjs",
     "docs:screenshots": "node scripts/docs-screenshots.mjs",
     "format": "prettier --write src tests scripts vite.config.ts",
