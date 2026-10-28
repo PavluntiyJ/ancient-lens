@@ -1,25 +1,16 @@
 # Changelog
 
-User-visible changes. Dates are when the change landed; there are no binary releases yet.
+User-visible changes. Dates are when the change landed; 0.5.0 is the first binary prerelease.
 
 ## Unreleased
 
-- **Downloads:** a version tag builds a Windows installer, a portable Windows ZIP, an AppImage
-  and a Debian package into a draft GitHub prerelease with SHA-256 checksums. The
-  [installation guide](docs/guide/install.md#download) explains installing, verifying and
-  updating.
-- **Windows:** the optional memory reader now also reads the roster, picks, hovers, lanes and
-  bans of your own match, as on Linux. Watching a friend's match live in the client shows all
-  ten players too.
-- **Windows:** the statistics service needs no console after the first setup: the STRATZ
-  token is kept in Windows Credential Manager, and Ancient Lens starts and stops the service.
-  A service already running at `127.0.0.1:8787` is found automatically.
-- **Shortcuts:** every in-app key and the Windows show/hide key can be changed in Settings;
-  a combination another program owns is reported and the previous one stays active.
-- **Profile:** a match you just played is coloured right away from the roles and medals of
-  the live match (Linux), before providers have it.
-
 ## 0.5.0 — October 28, 2026
+
+### Downloads
+
+- A Windows installer, a portable Windows ZIP, an AppImage and a Debian package, with SHA-256
+  checksums, on the Releases page. The [installation guide](docs/guide/install.md#download)
+  explains installing, verifying and updating.
 
 ### Match screen
 
@@ -48,6 +39,8 @@ User-visible changes. Dates are when the change landed; there are no binary rele
   seven tones; KP, DP, building damage, healing and site links per match.
 - Every match opens a ten-player card; a local match journal keeps your matches even when
   your provider history is private.
+- A match you just played is coloured right away from the roles and medals of the live match
+  (Linux), before providers have it.
 
 ### Players
 
@@ -56,11 +49,16 @@ User-visible changes. Dates are when the change landed; there are no binary rele
 ### Memory readers and setup
 
 - Optional, read-only readers for your MMR, rank confidence, behaviour and communication
-  scores (Windows and Linux) and for the roster and draft of your own match (Linux).
+  scores and for the roster, picks, hovers, lanes and bans of your own match (Windows and
+  Linux). Watching a friend's match live in the client shows all ten players too.
 - Settings checks and repairs the Steam side of the game connection: the GSI file and the
   launch option.
+- On Windows the statistics service needs no console after the first setup: the STRATZ token
+  is kept in Windows Credential Manager, and Ancient Lens starts and stops the service. A
+  service already running at `127.0.0.1:8787` is found automatically.
 - One window with a tray icon; `Alt+Numpad 5` shows or hides it (a desktop portal shortcut on
-  Linux).
+  Linux). Every in-app key and the Windows show/hide key can be changed in Settings; a
+  combination another program owns is reported and the previous one stays active.
 
 ### Fixes
 
