@@ -1,0 +1,23 @@
+name: Documentation
+# The build workflow skips documentation-only pushes; this keeps links, private paths and
+# personal data out of documentation changes too. It needs Node only, no dependencies.
+on:
+  push:
+    branches: [main]
+    paths: ['**.md', 'docs/**']
+  pull_request:
+    paths: ['**.md', 'docs/**']
+permissions:
+  contents: read
+jobs:
+  docs:
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/check-public.mjs

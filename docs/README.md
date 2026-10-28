@@ -14,6 +14,7 @@ user-visible changes in the [changelog](../CHANGELOG.md).
 | [Draft](guide/draft.md)                      | Recommendations, matrix, lanes, counters, meta, formulas and uncertainty  |
 | [Fedora](guide/fedora.md)                    | Dependencies, launcher, optional keyring/service                          |
 | [Statistics service](guide/stats-service.md) | Optional STRATZ setup, credentials, cache, quotas                         |
+| [Safety and fair play](guide/fair-play.md)   | What the app does and does not do, data sources, the memory reader's risk |
 
 ## Development
 
