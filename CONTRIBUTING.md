@@ -1,6 +1,7 @@
 # Contributing
 
-Thanks for helping. Start with the [installation guide](docs/guide/install.md), the
+Thanks for helping. Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md).
+Start with the [installation guide](docs/guide/install.md), the
 [architecture](docs/dev/architecture.md) and [status](docs/status.md). Issues labelled
 `good first issue` are small and self-contained; `help wanted` marks larger work.
 
@@ -54,6 +55,8 @@ Thanks for helping. Start with the [installation guide](docs/guide/install.md), 
 | UI or desktop      | `npm run build` and `npm run test:native` on each platform you can reach                     |
 | Memory readers     | The offline game-file tests in the [native reader guide](docs/dev/native-reader.md)          |
 
+`npm run test:rust` builds the web assets first, because Tauri embeds them when the crate
+compiles; a direct `cargo test` needs an earlier `npm run build:web`.
 `npm run format` and `cargo fmt --manifest-path src-tauri/Cargo.toml` format your changes.
 The optional pre-push hook runs the main checks: `git config core.hooksPath .githooks`.
 Ordinary tests use fixtures, need no API keys and never start Dota. See

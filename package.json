@@ -6,6 +6,12 @@
   "description": "Open-source Dota 2 companion for Windows and Linux, without ads or telemetry",
   "author": "Ancient Lens contributors",
   "license": "MIT",
+  "homepage": "https://github.com/PavluntiyJ/ancient-lens#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PavluntiyJ/ancient-lens.git"
+  },
+  "bugs": "https://github.com/PavluntiyJ/ancient-lens/issues",
   "desktopName": "org.ancientlens.desktop",
   "scripts": {
     "dev": "npm run build:web && tauri dev",
@@ -17,7 +23,7 @@
     "dist:win:zip": "tauri build --no-bundle && node scripts/package-native.mjs",
     "check": "tsc --noEmit && tsc --noEmit -p tests && vitest run",
     "build:web": "tsc --noEmit && vite build",
-    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "test:rust": "npm run build:web && cargo test --manifest-path src-tauri/Cargo.toml",
     "test:native": "node scripts/smoke-native.mjs",
     "docs:screenshots": "node scripts/docs-screenshots.mjs",
     "format": "prettier --write src tests scripts vite.config.ts",
