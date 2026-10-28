@@ -1,10 +1,19 @@
+import type { ReactNode } from 'react';
 import { formatDecimal } from '../shared/domain';
 import type { EnemyCounters } from '../shared/counter-picks';
 import { Portrait } from './MatchScreen';
 import { CounterTip } from './Tips';
 import { tip } from './Tooltip';
 
-export function CounterPicks({ rows, hovers, message }: { rows: EnemyCounters[]; hovers: number[]; message?: string }) {
+export function CounterPicks({
+  rows,
+  hovers,
+  message,
+}: {
+  rows: EnemyCounters[];
+  hovers: number[];
+  message?: ReactNode;
+}) {
   return (
     <div className="counter-panel">
       {message ? (

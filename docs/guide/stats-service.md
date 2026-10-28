@@ -3,15 +3,56 @@
 OpenDota works without registration, subject to its availability and rate limits.
 STRATZ powers position recommendations, the live matchup matrix, meta/counter
 picks, and faster player-history requests. **No shared public STRATZ service or
-API token is included.** You can build and run the Rust service from this repository on
-your own machine. The installer and Linux packages do not include it; see
-[packages](install.md#packages) for the Windows portable ZIP.
+API token is included:** you connect your own token, and a small service on your
+computer uses it.
 
-## Personal setup (Linux or Windows)
+## Connect STRATZ in the app
 
-1. Obtain your own token from [STRATZ My Tokens](https://stratz.com/api). Check
-   the current permissions and quota there. Do not put it in source files,
-   screenshots, issue reports, shell commands, or the desktop app.
+1. Open **Settings → Player history**, or press **Connect STRATZ** in an empty
+   draft panel of the match screen.
+2. Press **Open stratz.com/api**, sign in with Steam and copy your token from
+   **My Tokens**. Check the current permissions and quota there.
+3. Paste the token into the field and press **Connect**.
+
+Ancient Lens then checks the token with one STRATZ request for a public reference
+profile (not your account), saves it in the system secret store and starts the
+statistics service with it. Windows uses Credential Manager under the target
+`Ancient Lens/STRATZ`; Linux uses the Secret Service (`secret-tool`, attributes
+`application org.ancientlens service stratz`). It is the same entry the Python
+launcher below uses, so both find each other's token. Afterwards the app starts the
+service at every launch and stops it when it quits. **Disconnect STRATZ** in
+Settings deletes the saved token and stops the service the app started.
+
+Connect reports a rejected token, a locked or missing keyring, a missing service
+binary and a service that does not start; a rejected or unchecked token is never
+saved. A service started outside the app (for example by the launcher below) keeps
+its own token until you restart it.
+
+The service ships beside the app: `stats-service.exe` next to `Ancient Lens.exe`
+in the Windows installer and portable ZIP, `stats-service` next to `ancient-lens` in
+`usr/bin` of the `.deb` and AppImage, and in `src-tauri/target/release/` of a source
+build. The release build checks that every package contains it. On Linux the
+Connect flow (keyring save and service start) has not been tried on a desktop yet.
+
+On Linux an installed `ancient-lens-stats` user unit
+([Fedora guide](fedora.md#personal-stratz-service)) is restarted after Connect and
+reads the new token from the keyring itself.
+
+**What the window sees.** With Connect, the token passes through the app window
+once: you paste it into a password field, the Connect call hands it to the Rust
+side, and the field is cleared at once. The page keeps no copy; the token is not
+stored in app state, settings, exports or logs and is never shown again. This is a
+deliberate trade-off so that release users need no source tree or terminal: while
+you paste, the token is in the webview's memory like any typed password. If you
+want the token never to enter the window, save it with the launcher below instead.
+
+## Run the service yourself (Linux or Windows)
+
+This is the path for source builds, other addresses and a token that never enters
+the window.
+
+1. Obtain your own token from [STRATZ My Tokens](https://stratz.com/api). Do not
+   put it in source files, screenshots, issue reports or shell commands.
 2. Install Python 3 if you want to use the hidden-input launcher below.
 3. Build the service without Tauri/GTK/WebView dependencies:
 
@@ -42,13 +83,13 @@ py -3 scripts/start-personal-stratz.py --saved-token
 ```
 
 Ancient Lens finds a compatible service already listening at
-`127.0.0.1:8787` on either platform. On Windows, if no service is running and a
-saved token exists, the app starts `stats-service.exe` from its own folder
-(or the path in `ANCIENT_STATS_SERVICE`) as a hidden child and stops it when the
-app quits. This mirrors the Linux user-service branch; the token travels only in
-the child's environment, never in a command line, application state, logs, or the
-webview. If the binary is not beside the app, it is not started; discovery of an
-already running service still works.
+`127.0.0.1:8787` on either platform. If no service is running, a Linux user unit is
+started when installed. Otherwise, when a saved token exists and `stats-service`
+sits beside the app (or at the path in `ANCIENT_STATS_SERVICE`), the app starts it
+as a hidden child and stops it when the app quits. The token travels only in the
+child's environment, never in a command line, application state or logs. Without
+the binary beside the app nothing is started and the keyring is not opened;
+discovery of an already running service still works.
 
 For a service at another address (here a service bound with
 `ANCIENT_SERVICE_BIND=127.0.0.1:8788`), launch it from a separate terminal with
@@ -95,8 +136,8 @@ outage, saved data is explicitly marked stale; a STRATZ row is not silently
 replaced with OpenDota data. Errors do not reveal upstream bodies or tokens.
 
 If port 8787 is already occupied, reuse the existing service or stop it first.
-If the token is rejected, replace it through My Tokens and run `--configure`
-again. If a quota is exhausted, wait; restarting does not increase your upstream
+If the token is rejected, replace it through My Tokens and connect again in
+Settings (or run `--configure` again). If a quota is exhausted, wait; restarting does not increase your upstream
 quota. `py -3 scripts/start-personal-stratz.py --forget` (or
 `python3 scripts/start-personal-stratz.py --forget`) removes the saved token.
 
@@ -137,7 +178,11 @@ responses by ID, not by array order.
 ## Verification
 
 `npm run test:rust` exercises a local fake GraphQL server: server-only token
-handling, reordered responses, caching, budgets, and rejected requests.
+handling, reordered responses, caching, budgets, and rejected requests, plus the
+Connect check (accepted, rejected, rate-limited and malformed tokens). Two Windows
+tests that write synthetic entries to Credential Manager are opt-in
+(`cargo test --manifest-path src-tauri/Cargo.toml -- --ignored`); the full Connect
+test needs `stats-service.exe` in `target/release` and no saved personal token.
 `npm run test:native` checks the actual desktop UI/IPC with synthetic data.
 Neither proves live STRATZ coverage. To compare with another source,
 use identical accounts, filters, periods, and capture times, and compare match

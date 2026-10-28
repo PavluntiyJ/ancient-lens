@@ -409,6 +409,10 @@ export type ProviderInfo = {
   automatic?: boolean;
   serviceConfigured?: boolean;
   status?: string;
+  /** The desktop app can save a STRATZ token and start the service itself. */
+  connectable?: boolean;
+  /** Result of the last connect or disconnect, for the player. */
+  message?: string;
 };
 export function summarizeHeroes(matches: Match[]) {
   const rows = new Map<number, { hero_id: number; games: number; win: number }>();
@@ -493,6 +497,12 @@ export type DesktopApi = {
   getHeroAverages?(ids: number[], bracket: RankBracket): Promise<HeroAverages>;
   getProvider(): Promise<ProviderInfo>;
   setProviderToken(token: string): Promise<ProviderInfo>;
+  /** Check a STRATZ token, save it in the system secret store and start the service. */
+  connectStratz?(token: string): Promise<ProviderInfo>;
+  /** Remove the saved STRATZ token and stop the service this app started. */
+  disconnectStratz?(): Promise<ProviderInfo>;
+  /** Open the STRATZ page that issues API tokens in the browser. */
+  openStratzTokens?(): Promise<string>;
   saveNote(note: NoteInput): Promise<LocalState>;
   deleteNote(id: string): Promise<LocalState>;
   addMmr(value: number, expectedAccountId?: string): Promise<LocalState>;

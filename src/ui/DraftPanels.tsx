@@ -19,6 +19,7 @@ import { Portrait } from './MatchScreen';
 import { LaneTip, MatchupTip, SuggestionTip } from './Tips';
 import type { LaneHero, LaneSummary } from '../shared/lane-summary';
 import { tip } from './Tooltip';
+import { StratzPrompt } from './StratzPrompt';
 import { useShortcuts } from './shortcut-context';
 import { matchesShortcut, normalizeShortcut } from '../shared/shortcuts';
 import type { VisibleDraftSlot } from '../shared/live-draft';
@@ -148,6 +149,7 @@ export function DraftSuggestions({
   busy,
   error,
   available,
+  connect,
   picked,
   hovered = 0,
   partial,
@@ -160,6 +162,8 @@ export function DraftSuggestions({
   busy: boolean;
   error: string;
   available?: boolean;
+  /** Opens the Connect STRATZ prompt when recommendations are unavailable. */
+  connect?(): void;
   picked: number;
   hovered?: number;
   partial: boolean;
@@ -184,7 +188,11 @@ export function DraftSuggestions({
           {error}
         </p>
       )}
-      {available === false && <p className="rail-empty">Connect STRATZ for position recommendations</p>}
+      {available === false && (
+        <p className="rail-empty">
+          <StratzPrompt feature="Position recommendations" connect={connect} />
+        </p>
+      )}
       <div className="lane-heading" aria-live="polite" title={lane.title}>
         <LaneIcon lane={lane.id} />
         {lane.name}

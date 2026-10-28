@@ -12,8 +12,8 @@ This is an early prerelease. Read these points first:
 - **Windows live check still open.** Reading the draft of your own match on Windows has not
   been confirmed in a live game yet
   ([#5](https://github.com/PavluntiyJ/ancient-lens/issues/5)).
-- **STRATZ features need the statistics service and your own STRATZ token.** The portable
-  Windows ZIP includes `stats-service.exe`; the installer and the Linux packages do not
+- **STRATZ features need your own STRATZ token.** Press **Connect STRATZ** in Settings and
+  paste it; every download includes the statistics service it starts
   ([setup](https://github.com/PavluntiyJ/ancient-lens/blob/main/docs/guide/stats-service.md)).
   Public OpenDota profiles, notes and manual MMR work without it.
 
