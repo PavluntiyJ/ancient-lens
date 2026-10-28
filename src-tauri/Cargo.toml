@@ -2,6 +2,9 @@
 name = "ancient-lens"
 version = "0.5.0"
 edition = "2021"
+description = "Open-source Dota 2 companion for Windows and Linux, without ads or telemetry"
+license = "MIT"
+repository = "https://github.com/PavluntiyJ/ancient-lens"
 default-run = "ancient-lens"
 
 [lib]
