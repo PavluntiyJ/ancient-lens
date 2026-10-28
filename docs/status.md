@@ -19,6 +19,9 @@ or unverified, and what is planned.
   [maintenance guide](dev/native-reader.md#verified-builds)). A game update can make them
   report `unsupported` until discovery is checked again. The anti-cheat response to external
   reading is unknown; reading is off by default.
+- **Connect STRATZ on Linux** saves the token with `secret-tool` and starts the
+  `stats-service` shipped in the packages. It is covered by the build and the unit tests
+  only; the keyring save and the service start have not been run on a Linux desktop yet.
 - **Windows draft reading** in your own match is implemented but has not yet been checked
   during a live hero selection.
 - **Recorded matches** have no damage, net worth or game mode until a provider has the

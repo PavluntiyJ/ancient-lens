@@ -130,6 +130,7 @@ failure. Removing the app does not remove this data directory automatically.
 | Destination                            | When                                                                               | Data sent                                                             |
 | -------------------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
 | Configured statistics service → STRATZ | When configured                                                                    | Player IDs, period, filters; STRATZ token stays in the service        |
+| `api.stratz.com`                       | Once per **Connect STRATZ**, to check the token                                    | IP, your token and a query for one public reference profile           |
 | `api.opendota.com`                     | Without STRATZ; hero catalogue, benchmarks, patch dates, match by ID, manual draft | IP and requested IDs; requests are paced, with a pause after HTTP 429 |
 | `api.opendota.com` (`players/{id}`)    | With STRATZ, once a week per shown player whose STRATZ profile has no country      | IP and the player ID; only the country is used                        |
 | `cdn.cloudflare.steamstatic.com`       | Hero portraits                                                                     | Ordinary image requests                                               |
@@ -146,7 +147,7 @@ No analytics, telemetry, or Ancient Lens cloud account is used.
 | Only your player appears         | Expected participant GSI limitation. The full roster requires **Allow Dota memory reading** in Settings.                                         |
 | Memory access denied             | Same user/permissions for game and app; OS process restrictions may still deny access. GSI remains available.                                    |
 | Reader unsupported after a patch | Keep memory reading off and report the game/platform version. Do not replace offsets with guesses.                                               |
-| Empty draft recommendations      | Set up the [STRATZ service](stats-service.md); OpenDota alone does not power these panels.                                                       |
+| Empty draft recommendations      | Press **Connect STRATZ** ([details](stats-service.md)); OpenDota alone does not power these panels.                                              |
 | Rate limit or stale statistics   | Wait for the cooldown and retry. Provider coverage can differ; unavailable history does not prove a private profile.                             |
 | No Linux MMR measurement         | Enable **Allow Dota memory reading** and start Dota from Steam. Without Steam's launch environment, the rating waits for your first in-game GSI. |
 | No automatic profile             | Wait for your own GSI event on Linux or Steam login on Windows, or use **Set profile manually**.                                                 |
