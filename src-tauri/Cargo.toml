@@ -34,7 +34,7 @@ uuid = { version = "1", features = ["v4"] }
 rand = "0.8"
 sha2 = "0.10"
 subtle = "2"
-dirs = "6"
+dirs = "7"
 futures = "0.3"
 rfd = { version = "0.15", optional = true }
 tempfile = "3"
