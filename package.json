@@ -35,7 +35,7 @@
   "devDependencies": {
     "@playwright/test": "1.64.0",
     "@tauri-apps/cli": "^2.12.4",
-    "@types/node": "^22.0.0",
+    "@types/node": "^26.6.5",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@upstash/context7-mcp": "4.4.4",
