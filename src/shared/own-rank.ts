@@ -27,7 +27,7 @@ export function ownProfileRank(
   if (tier)
     return {
       tier,
-      leaderboard: tier === 80 && publicTier === 80 ? leaderboard : null,
+      leaderboard: null,
       source: 'Based on current MMR from Dota 2',
     };
   return { tier: publicTier, leaderboard, source: 'Public rank from profile history' };

@@ -8,7 +8,6 @@ import { StatCard } from '../src/ui/Tips';
 
 vi.mock('../src/ui/MatchScreen', () => ({
   Portrait: () => <span className="portrait" />,
-  RankMedal: ({ tier }: { tier?: number | null }) => <span className={`medal medal-${tier}`} />,
 }));
 
 const text = (html: string) => html.replace(/<[^>]+>/g, '');
@@ -110,19 +109,11 @@ it('colours statistics against the bracket average of the hero on its position',
   expect(unknown).not.toContain('stat-band-');
 });
 
-it('shows the bracket of the match with its medal', () => {
-  expect(table([enigma])).toContain('medal-75');
-  expect(text(table([enigma]))).toContain('Divine 5');
-  // A rank STRATZ rounded to a medal without stars.
-  const rounded = text(table([{ ...enigma, average_rank: 70 }]));
-  expect(rounded).toContain('Divine');
-  expect(rounded).not.toContain('Divine 0');
-  const none = table([{ ...enigma, average_rank: undefined }]);
-  expect(none).not.toContain('medal-');
-  // Before STRATZ ranks it: the median medal seen in the live match.
-  const live = table([{ ...enigma, average_rank: undefined, medal_rank: 54 }]);
-  expect(live).toContain('medal-54');
-  expect(text(live)).toContain('Legend 4');
+it('does not show the match bracket column', () => {
+  const html = table([enigma]);
+  expect(html).not.toContain('data-column="bracket"');
+  expect(html).not.toContain('medal-75');
+  expect(text(html)).not.toContain('Divine 5');
 });
 
 it('colours a just-recorded match from its queue position and live medal before details arrive', () => {
@@ -141,7 +132,6 @@ it('colours a just-recorded match from its queue position and live medal before 
   ]);
   expect(html).toMatch(/class="stat-band-1"[^>]*>11</);
   expect(html).toMatch(/class="stat-band-0"[^>]*>2</);
-  expect(html).toContain('medal-75');
 });
 
 it('shows MMR as value then change, and only when measured', () => {

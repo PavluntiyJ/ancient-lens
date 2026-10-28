@@ -4,6 +4,9 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ## Unreleased
 
+- **Profile:** removed the Bracket column from match history. A current MMR reading no longer
+  shows a leaderboard position from cached public profile data.
+
 ## 0.5.0 — October 28, 2026
 
 ### Downloads

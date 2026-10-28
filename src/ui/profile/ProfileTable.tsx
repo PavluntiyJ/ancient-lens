@@ -4,7 +4,6 @@ import {
   formatDecimal,
   formatDuration,
   matchWon,
-  rankName,
   type Hero,
   type HeroAverageRow,
   type Match,
@@ -17,7 +16,7 @@ import type { RankBracket } from '../../shared/rank-bracket';
 import type { MatchRating } from '../../shared/rating-history';
 import { matchPosition, rankedRoles } from '../../shared/roles';
 import { expectedValue, matchBracket, ownValue, statBand, type StatKey } from '../../shared/stat-bands';
-import { Portrait, RankMedal } from '../MatchScreen';
+import { Portrait } from '../MatchScreen';
 import { RoleIcon } from '../Roles';
 import { RankList, StatCard } from '../Tips';
 import { tip, TipCard } from '../Tooltip';
@@ -117,7 +116,6 @@ const columns: {
   { key: 'xp_per_min', label: 'XPM', sort: 'xp_per_min', show: (view) => view.columns.xpm },
   { key: 'hero_damage', label: 'Damage', sort: 'hero_damage', show: (view) => view.columns.damage },
   { key: 'imp', label: 'IMP', sort: 'imp' },
-  { key: 'bracket', label: 'Bracket' },
   { key: 'mmr', label: 'MMR', sort: 'mmr', show: (_, measured) => measured },
 ];
 
@@ -266,28 +264,6 @@ export function ProfileTable({
           >
             {formatImp(match.imp)}
           </span>
-        );
-      }
-      case 'bracket': {
-        const tier = match.average_rank ?? match.medal_rank;
-        return tier ? (
-          <span
-            className="profile-bracket"
-            {...tip(
-              <TipCard title="Bracket" value={rankName(tier)}>
-                <p className="tip-verdict">
-                  {match.average_rank
-                    ? 'Average rank of the ten players'
-                    : 'Median medal of the players in the live match'}
-                </p>
-              </TipCard>,
-            )}
-          >
-            <RankMedal tier={tier} />
-            {rankName(tier)}
-          </span>
-        ) : (
-          <span className="muted">—</span>
         );
       }
       case 'mmr':
