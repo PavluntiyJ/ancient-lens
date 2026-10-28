@@ -4,6 +4,10 @@ User-visible changes. Dates are when the change landed; there are no binary rele
 
 ## Unreleased
 
+- **Downloads:** a version tag builds a Windows installer, a portable Windows ZIP, an AppImage
+  and a Debian package into a draft GitHub prerelease with SHA-256 checksums. The
+  [installation guide](docs/guide/install.md#download) explains installing, verifying and
+  updating.
 - **Windows:** the optional memory reader now also reads the roster, picks, hovers, lanes and
   bans of your own match, as on Linux. Watching a friend's match live in the client shows all
   ten players too.

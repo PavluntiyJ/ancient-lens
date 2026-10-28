@@ -1,10 +1,82 @@
 # Install and build
 
-Ancient Lens 0.5.0 is an early desktop prototype for Windows and Linux. There is
-no published release binary yet. GitHub Actions artifacts are temporary test
-builds, not releases; the supported starting point is a source build.
+Ancient Lens is an early desktop prototype for Windows and Linux. Download a
+prerelease to try it without Node.js or Rust, or build it from source. GitHub
+Actions artifacts are temporary test builds, not releases.
 
-## Requirements
+## Download
+
+Prereleases are on the [Releases page](https://github.com/PavluntiyJ/ancient-lens/releases).
+If it lists no release yet, build from source as described below. Read the
+notes of the release first: they list what is not finished yet.
+
+| File                                    | For                                      |
+| --------------------------------------- | ---------------------------------------- |
+| `Ancient-Lens-<version>-x64-setup.exe`  | Windows installer                        |
+| `Ancient-Lens-<version>-Tauri-win.zip`  | Windows portable build, no installation  |
+| `Ancient-Lens-<version>-amd64.AppImage` | Linux, any distribution, Fedora included |
+| `Ancient-Lens-<version>-amd64.deb`      | Debian and Ubuntu                        |
+| `SHA256SUMS.txt`                        | SHA-256 checksums of the other files     |
+
+**Windows.** Run the installer, or extract the complete ZIP and start
+`Ancient Lens.exe`. Both need the Microsoft Edge WebView2 Runtime: Windows 11
+includes it, and the installer downloads it when it is missing; for the portable
+build, install it yourself if needed. The builds are not code-signed,
+so SmartScreen warns about an unknown publisher: check the checksum, then choose
+**More info → Run anyway**.
+
+**Linux.** Make the AppImage executable and start it, or install the Debian
+package:
+
+```sh
+chmod +x Ancient-Lens-*-amd64.AppImage
+./Ancient-Lens-*-amd64.AppImage
+sudo apt install ./Ancient-Lens-*-amd64.deb
+```
+
+Run the app as your regular user, never as root. Then continue with
+[Connect Dota and understand your data](setup.md).
+
+The optional STRATZ statistics service is not part of the downloads; see the
+[STRATZ guide](stats-service.md). Public OpenDota profiles, notes and manual MMR
+entries work without it.
+
+### Verify the download
+
+Download `SHA256SUMS.txt` into the same folder and compare. On Linux, this
+checks every file present and reports `OK` for each:
+
+```sh
+sha256sum --check --ignore-missing SHA256SUMS.txt
+```
+
+On Windows, in PowerShell, print the hash and compare it with the line for that
+file in `SHA256SUMS.txt`:
+
+```powershell
+Get-FileHash .\Ancient-Lens-0.5.0-x64-setup.exe -Algorithm SHA256
+```
+
+`Get-FileHash` prints capital letters; upper and lower case do not matter. Do
+not run a file whose hash differs; download it again from the Releases page.
+
+### Update
+
+Install the new version over the old one. Settings, notes and rating history
+live outside the program folder (see [setup](setup.md)) and are kept.
+
+- Windows installer: quit Ancient Lens and run the new installer; it replaces
+  the installed version. If it offers to remove the old version first, accept.
+- Windows portable: quit Ancient Lens, then extract the new ZIP into a fresh
+  folder or over the old one.
+- AppImage: replace the old file with the new one and make it executable.
+- Debian package: `sudo apt install ./Ancient-Lens-<version>-amd64.deb`.
+
+There is no automatic update; watch the Releases page for new versions.
+
+## Build from source
+
+Building Ancient Lens yourself needs:
 
 - Git, Node.js 22.12+, npm, and Rust stable installed through rustup.
 - Windows: MSVC C++ Build Tools with the Windows SDK, and Microsoft Edge WebView2

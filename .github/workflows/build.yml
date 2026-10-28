@@ -52,9 +52,10 @@ jobs:
       - run: npm run test:rust
       - run: cargo check --manifest-path src-tauri/Cargo.toml --no-default-features --bin stats-service
 
-  # Distributables and the Windows build only on tags or a manual run.
+  # Distributables only on tags or a manual run, and only after `check` passed on both platforms.
   dist:
     if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+    needs: check
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -77,15 +78,16 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libssl-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev
       - run: npm ci
-      - name: Windows Rust tests
-        if: runner.os == 'Windows'
-        run: npm run test:rust
       - name: Linux distribution
         if: runner.os == 'Linux'
         run: npm run dist:linux
-      - name: Windows distribution
+      - name: Windows installer
         if: runner.os == 'Windows'
-        run: npm run dist:win:zip
+        run: npm run dist:win
+      # The portable ZIP copies the executable the installer build just produced.
+      - name: Windows portable ZIP
+        if: runner.os == 'Windows'
+        run: node scripts/package-native.mjs
       - name: Windows native smoke
         if: runner.os == 'Windows'
         run: npm run test:native
@@ -94,7 +96,69 @@ jobs:
           name: ancient-lens-${{ runner.os }}
           path: |
             release/*-Tauri-win.zip
+            src-tauri/target/release/bundle/nsis/*-setup.exe
             src-tauri/target/release/bundle/appimage/*.AppImage
             src-tauri/target/release/bundle/deb/*.deb
           if-no-files-found: error
           retention-days: 7
+
+  # A `v*` tag turns the distributables into a draft prerelease. Nothing is public until a
+  # maintainer reviews the draft and publishes it by hand.
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: dist
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ancient-lens-*
+          path: artifacts
+      - name: Collect files and checksums
+        run: |
+          mkdir upload
+          # Asset names without spaces or underscores, e.g. Ancient-Lens-0.5.0-x64-setup.exe.
+          find artifacts -type f -print0 | while IFS= read -r -d '' file; do
+            cp "$file" "upload/$(basename "$file" | tr ' _' '--')"
+          done
+          cd upload
+          sha256sum -- * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+      - name: Release notes
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#v}"
+          package=$(node -p "require('./package.json').version")
+          if [ "$version" != "$package" ]; then
+            echo "::error::Tag $TAG does not match package.json version $package"
+            exit 1
+          fi
+          # The version's changelog section, without its heading.
+          awk -v heading="## $version" '
+            /^## / { if (found) exit; found = ($0 == heading || index($0, heading " ") == 1); next }
+            found
+          ' CHANGELOG.md > changes.md
+          if ! grep -q '[^[:space:]]' changes.md; then
+            echo "::error::CHANGELOG.md has no section for $version"
+            exit 1
+          fi
+          { cat .github/release-notes.md; echo; echo "## Changes in $version"; cat changes.md; } > notes.md
+          cat notes.md
+      - name: Draft prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: >-
+          gh release create "$TAG" upload/*
+          --repo "$GITHUB_REPOSITORY"
+          --verify-tag
+          --draft
+          --prerelease
+          --title "Ancient Lens ${TAG#v} (prerelease)"
+          --notes-file notes.md
