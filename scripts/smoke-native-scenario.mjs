@@ -481,7 +481,19 @@ try {
     () => execute('return [...document.querySelectorAll(".all-time")].every(cell => cell.textContent.includes("%"))'),
     'Lifetime totals did not arrive',
   );
-  assert.equal(totalBatches.length, 2);
+  // Lifetime totals for all ten players, in batches of up to five. How the batches split
+  // depends on timing (the profile window may ask for its own account, here player 1, first).
+  const totalsSeen = JSON.stringify(totalBatches);
+  assert.ok(
+    totalBatches.every((ids) => ids.length <= 5),
+    `Totals batches: ${totalsSeen}`,
+  );
+  assert.deepEqual(
+    [...new Set(totalBatches.flat())].sort((a, b) => a - b),
+    Array.from({ length: 10 }, (_, i) => String(i + 1)),
+    `Totals batches: ${totalsSeen}`,
+  );
+  console.log(`Totals batches: ${totalsSeen}`);
   const rows = await execute(
     'return [...document.querySelectorAll("tr")].filter(r => r.querySelector(".all-time")).map(r => ({name: [...r.querySelectorAll("button")].find(b => b.textContent.startsWith("Fixture"))?.textContent, total: r.querySelector(".all-time").textContent}))',
   );
