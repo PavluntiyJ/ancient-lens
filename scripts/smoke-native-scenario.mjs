@@ -623,10 +623,8 @@ try {
   await assert.rejects(() => call('windowAction', 'unsupported'));
   await assert.rejects(() => call('resizeWindow', 'unsupported'));
   assert.equal(await execute('return document.querySelectorAll(".window-resize-edge").length'), 8);
-  // The native window size, not the driver's fixed page size (Windows). A maximized window
-  // only differs where the screen has room beyond the configured 1740×1100 window; the
-  // Windows CI screen has none, and there both actions run without the size check.
-  await app.nativeSize();
+  // A maximized window only differs where the screen has room beyond the configured
+  // 1740×1100 window; on a smaller screen both actions run without the size check.
   const windowSize = () => execute('return [innerWidth, innerHeight]');
   const sameSize = (a, b) => a.every((value, i) => Math.abs(value - b[i]) <= 2);
   const restoredSize = await windowSize();
@@ -643,7 +641,6 @@ try {
     console.log(
       `Maximize size not checked: screen ${await execute('return [screen.availWidth, screen.availHeight]')}.`,
     );
-  await app.resize(1740, 1100);
   assert.equal(await execute('return document.querySelectorAll(".hero-performance.positive").length'), 5);
   assert.equal(await execute('return document.querySelectorAll(".hero-performance.negative").length'), 5);
   assert.ok(

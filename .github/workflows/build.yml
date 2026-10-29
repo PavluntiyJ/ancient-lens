@@ -121,6 +121,15 @@ jobs:
       - name: Windows portable ZIP
         if: runner.os == 'Windows'
         run: node scripts/package-native.mjs
+      # The runner's default screen is smaller than the app window; the native scenario checks
+      # window sizes and maximizing as on a desktop.
+      - name: Windows screen size
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Set-DisplayResolution -Width 1920 -Height 1200 -Force
+          Add-Type -AssemblyName System.Windows.Forms
+          [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
       - name: Windows native smoke
         if: runner.os == 'Windows'
         run: npm run test:native
