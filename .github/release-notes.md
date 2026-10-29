@@ -7,7 +7,7 @@ This is an early prerelease. Read these points first:
   `SHA256SUMS.txt` first, then choose **More info → Run anyway**. The portable ZIP needs the
   Microsoft Edge WebView2 Runtime.
 - **Memory reader off by default.** The optional reader is read-only and stays off until you
-  turn it on in Settings. How Valve's anti-cheat responds to it is unknown; turn it on only if
+  turn it on, when the app asks at first start or later in Settings. How Valve's anti-cheat responds to it is unknown; turn it on only if
   you accept that risk. See [safety and fair play](https://github.com/PavluntiyJ/ancient-lens/blob/main/docs/guide/fair-play.md).
 - **Windows live check still open.** Reading the draft of your own match on Windows has not
   been confirmed in a live game yet

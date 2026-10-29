@@ -4787,6 +4787,19 @@ kbd {
 .stratz-dialog h2 {
   margin: 0;
 }
+.reader-consent {
+  width: min(560px, 92vw);
+  padding: 20px 22px 22px;
+}
+.reader-consent h2 {
+  margin: 0 0 10px;
+}
+.reader-consent p {
+  margin: 0 0 10px;
+}
+.reader-consent .button-row {
+  margin-top: 16px;
+}
 .stratz-connect ol {
   margin: 0 0 10px;
   padding-left: 20px;

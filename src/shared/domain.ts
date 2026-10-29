@@ -338,6 +338,8 @@ export type AppInfo = {
   tray?: boolean;
   dataPath: string;
   gsiPort: number;
+  /** False in isolated test runs, so automation never meets the first-run reader question. */
+  readerPrompt?: boolean;
 };
 export type Hero = z.infer<typeof heroSchema>;
 export const matchupSchema = z.object({

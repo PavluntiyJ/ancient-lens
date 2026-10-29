@@ -68,7 +68,8 @@ off, an empty enemy roster there is expected, not a failed installation. **Conne
 saves your own token and starts the statistics service that ships with the app
 ([details](docs/guide/stats-service.md)); on Linux this has not been tried on a desktop yet.
 
-**The memory reader is off by default.** Enabling it allows external, read-only access to
+**The memory reader is off by default.** The first start asks once whether to enable it;
+**Not now** keeps it off. Enabling it allows external, read-only access to
 the Dota process: it does not write memory, inject code, or call game functions. The
 anti-cheat response is unknown, and game updates may break the reader. Everything else
 works without it. Read [setup and data](docs/guide/setup.md#memory-reading) before enabling
