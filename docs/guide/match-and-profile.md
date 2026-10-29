@@ -37,8 +37,9 @@ Two teams of five, one row per player:
 - main positions and their shares;
 - frequent heroes with spam markers, and statistics for the current hero.
 
-Your own row is marked, earlier meetings show a MET badge, and avatars get the in-game slot
-colour when the slot order is known. Missing IDs, private profiles, loading, and stale data
+Your own row is marked, **With me** counts your earlier matches with the player and your win
+rate in them (hover for the list), and avatars get the in-game slot colour when the slot order
+is known; the country flag sits in the avatar's corner and the site links in the hover card. Missing IDs, private profiles, loading, and stale data
 are shown separately. The match screen fits the window down to 90% scale, then scrolls.
 
 ## Analysis panels

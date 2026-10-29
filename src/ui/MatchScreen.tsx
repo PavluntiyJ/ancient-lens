@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { BookOpen, Lock, RefreshCw, Settings, Swords, UserPlus, UserRound } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { Bookmark, Lock, RefreshCw, Settings, Swords, UserPlus, UserRound } from 'lucide-react';
 import {
-  formatDuration,
   rankName,
   winRateTone,
   type Hero,
@@ -119,7 +119,16 @@ const THIN_SAMPLE = 5;
  * padding, and two 12px gaps). Narrower, two panels show larger tiles than three would. */
 const WIDE_STRIP = 3 * (440 + 84) + 2 * 12;
 /** `frame` is the in-game slot colour, drawn only when the slot order is known. */
-export function Avatar({ url, frame }: { url?: string; frame?: { name: string; hex: string; index: number } }) {
+export function Avatar({
+  url,
+  frame,
+  children,
+}: {
+  url?: string;
+  frame?: { name: string; hex: string; index: number };
+  /** Drawn over the picture's corner, such as the country flag. */
+  children?: ReactNode;
+}) {
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [url]);
   const allowed =
@@ -138,9 +147,12 @@ export function Avatar({ url, frame }: { url?: string; frame?: { name: string; h
       ) : (
         <UserRound size={22} />
       )}
+      {children}
     </span>
   );
 }
+const noteDate = (iso: string) =>
+  new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 /** OpenDota country lookups by account, shared by every flag of that player. */
 const lookupCountry = countryCache((id) => api.getCountry?.(id) ?? Promise.resolve(null));
 /**
@@ -362,6 +374,10 @@ export function MatchScreen({
   // Own side first; spectators start with Radiant. Each side has its own suggestion page.
   const ownSide = selfTeam ?? 'radiant';
   const otherSide = ownSide === 'radiant' ? 'dire' : 'radiant';
+  // The match status shares the window's title bar, so the table starts one row higher.
+  const [titleBar, setTitleBar] = useState<HTMLElement | null>(null);
+  useEffect(() => setTitleBar(document.getElementById('titlebar-match')), []);
+  const inTitleBar = (toolbar: ReactNode) => (titleBar ? active && createPortal(toolbar, titleBar) : toolbar);
   const encounterSound = useEncounterSound();
   const shortcuts = useShortcuts();
   const announcer = useRef(new Announcer());
@@ -749,65 +765,66 @@ export function MatchScreen({
   ];
   return (
     <section className="match-screen" aria-label="Match and draft">
-      <div className="match-toolbar">
-        <div>
-          <span
-            className={`dot ${connectedInput && !lingering ? 'online' : continuity.suspended ? 'reconnecting' : ''}`}
-          />
-          <strong
-            title={
-              lingering ? 'You left this match. Its roster stays until you play or spectate another one.' : undefined
-            }
-          >
-            {lingering
-              ? live.mode === 'spectator'
-                ? 'Last spectated match'
-                : 'Last match'
-              : (phaseNames[phase ?? ''] ?? (connected ? 'Game data' : 'Waiting for a match'))}
-          </strong>
-          <span className="match-id">{match && match !== '0' ? `#${match}` : 'DOTA 2'}</span>
-          {lingering && (
-            <button className="link-button" onClick={() => setReleased(live.matchId)}>
-              Clear
-            </button>
-          )}
-        </div>
-        {/* Roster status and period live here, not in a caption row: every row of height
+      {inTitleBar(
+        <div className="match-toolbar">
+          <div>
+            <span
+              className={`dot ${connectedInput && !lingering ? 'online' : continuity.suspended ? 'reconnecting' : ''}`}
+            />
+            <strong
+              title={
+                lingering ? 'You left this match. Its roster stays until you play or spectate another one.' : undefined
+              }
+            >
+              {lingering
+                ? live.mode === 'spectator'
+                  ? 'Last spectated match'
+                  : 'Last match'
+                : (phaseNames[phase ?? ''] ?? (connected ? 'Game data' : 'Waiting for a match'))}
+            </strong>
+            <span className="match-id">{match && match !== '0' ? `#${match}` : 'DOTA 2'}</span>
+            {lingering && (
+              <button className="link-button" onClick={() => setReleased(live.matchId)}>
+                Clear
+              </button>
+            )}
+          </div>
+          {/* Roster status and period live here, not in a caption row: every row of height
             counts for keeping the ten players and the analysis panels on screen together. */}
-        <div>
-          <span className="roster-status">
-            {anonymousDraft
-              ? 'Anonymous draft'
-              : `Profiles · ${loaded}/${ids ? ids.split(',').length : 0} loaded${privateProfiles ? ` · ${privateProfiles} private` : ''}`}
-          </span>
-          {updating && <small role="status">Updating…</small>}
-          <select
-            aria-label="Statistics period"
-            value={days}
-            onChange={(event) => {
-              const value = Number(event.target.value) as StatsDays;
-              localStorage.setItem('stats-days', String(value));
-              setDays(value);
-            }}
-          >
-            {[7, 14, 30, 90].map((value) => (
-              <option key={value} value={value}>
-                {value} days
-              </option>
-            ))}
-          </select>
-          {live.mode === 'spectator' && <span className="badge">SPECTATOR</span>}
-          <b className="mono">{live.clock == null || continuity.frozen ? '—:—' : formatDuration(live.clock)}</b>
-          <button
-            className="icon-button"
-            aria-label="Refresh match statistics"
-            disabled={!connected}
-            onClick={() => setRevision((value) => value + 1)}
-          >
-            <RefreshCw size={15} />
-          </button>
-        </div>
-      </div>
+          <div>
+            <span className="roster-status">
+              {anonymousDraft
+                ? 'Anonymous draft'
+                : `Profiles · ${loaded}/${ids ? ids.split(',').length : 0} loaded${privateProfiles ? ` · ${privateProfiles} private` : ''}`}
+            </span>
+            {updating && <small role="status">Updating…</small>}
+            <select
+              aria-label="Statistics period"
+              value={days}
+              onChange={(event) => {
+                const value = Number(event.target.value) as StatsDays;
+                localStorage.setItem('stats-days', String(value));
+                setDays(value);
+              }}
+            >
+              {[7, 14, 30, 90].map((value) => (
+                <option key={value} value={value}>
+                  {value} days
+                </option>
+              ))}
+            </select>
+            {live.mode === 'spectator' && <span className="badge">SPECTATOR</span>}
+            <button
+              className="icon-button"
+              aria-label="Refresh match statistics"
+              disabled={!connected}
+              onClick={() => setRevision((value) => value + 1)}
+            >
+              <RefreshCw size={15} />
+            </button>
+          </div>
+        </div>,
+      )}
       {connected && (live.rosterStatus === 'permission' || live.draftStatus === 'permission') && (
         <div className="notice error" role="alert">
           The system denied access to Dota memory. Roster and picks from memory are unavailable; showing GSI data only.
@@ -901,11 +918,6 @@ export function MatchScreen({
       <div className="match-workspace">
         <div className="match-roster">
           <h1 className="sr-only">Match players</h1>
-          {Object.values(entries).some((entry) => entry.error) && (
-            <div className="notice error" role="alert">
-              {Object.values(entries).find((entry) => entry.error)?.error}
-            </div>
-          )}
           <>
             {obsolete && (
               <p className="table-refresh-note">
@@ -919,19 +931,20 @@ export function MatchScreen({
               className={`match-table ${display.rank ? '' : 'hide-rank'} ${display.totals ? '' : 'hide-totals'} ${display.frequent ? '' : 'hide-frequent'}`}
             >
               <colgroup>
-                <col style={{ width: '22%' }} />
+                <col style={{ width: '21%' }} />
+                <col style={{ width: '6%' }} />
+                <col style={{ width: '8%' }} />
+                <col style={{ width: '6%' }} />
                 <col style={{ width: '7%' }} />
-                <col style={{ width: '8%' }} />
-                <col style={{ width: '8%' }} />
                 <col style={{ width: '7%' }} />
-                <col style={{ width: '15%' }} />
-                <col style={{ width: '18%' }} />
-                <col style={{ width: '8%' }} />
+                <col style={{ width: '14%' }} />
+                <col style={{ width: '17%' }} />
+                <col style={{ width: '7%' }} />
                 <col style={{ width: '7%' }} />
               </colgroup>
               <thead>
                 <tr className="column-groups">
-                  <th colSpan={1 + Number(display.rank) + Number(display.totals)}>Player · all time</th>
+                  <th colSpan={2 + Number(display.rank) + Number(display.totals)}>Player · all time</th>
                   <th colSpan={2 + Number(display.frequent)}>Player · last {days} days</th>
                   <th colSpan={3}>Current hero · last {days} days</th>
                 </tr>
@@ -942,6 +955,9 @@ export function MatchScreen({
                   <th>Rank</th>
                   <th>
                     <InfoHeader label="Games · WR" info={rosterColumns.totalGames} />
+                  </th>
+                  <th>
+                    <InfoHeader label="With me" info={rosterColumns.withMe} />
                   </th>
                   <th>
                     <InfoHeader label="Games · WR" info={rosterColumns.periodGames(days)} />
@@ -967,7 +983,7 @@ export function MatchScreen({
                 return (
                   <tbody key={team} className={`team-${team}`}>
                     <tr className="team-divider">
-                      <td colSpan={6 + Number(display.rank) + Number(display.totals) + Number(display.frequent)}>
+                      <td colSpan={7 + Number(display.rank) + Number(display.totals) + Number(display.frequent)}>
                         <span />
                         {team === 'radiant' ? 'Radiant' : 'Dire'}
                         {team === selfTeam && <b className="own-team-label"> · your team</b>}
@@ -1046,44 +1062,56 @@ export function MatchScreen({
                           className={`${!player ? 'unavailable' : ''}${isSelf ? ' self-row' : ''}`.trim()}
                         >
                           <td>
-                            <div className="match-player">
+                            <div
+                              className="match-player"
+                              {...(player?.accountId
+                                ? tip(
+                                    <PlayerPreview
+                                      accountId={player.accountId}
+                                      name={name}
+                                      noteName={player.name || data?.profile.profile?.personaname || ''}
+                                      summary={data}
+                                      total={data?.total}
+                                      note={note}
+                                      role={roles[index]}
+                                      smurf={smurfs.has(player.accountId)}
+                                      error={entry?.error}
+                                      met={met}
+                                      heroes={heroes}
+                                      onOpen={() => {
+                                        hide();
+                                        setSelected(player.accountId);
+                                      }}
+                                      onMatch={(id) => void api.openMatchSite?.(String(id), 'stratz').catch(() => {})}
+                                    />,
+                                    true,
+                                    true,
+                                  )
+                                : {})}
+                            >
                               <span className="player-slot">{index + 1}</span>
                               <Avatar
                                 url={data?.profile.profile?.avatarfull}
                                 frame={slotColour(team, draftRow, player)}
+                              >
+                                <CountryFlag
+                                  code={data?.profile.profile?.loccountrycode}
+                                  source={data?.source}
+                                  id={data && player?.accountId}
+                                />
+                              </Avatar>
+                              <MatchRole
+                                role={roles[index]}
+                                heroName={hero?.localized_name}
+                                lanes={draftRow.lanes}
+                                card={!player?.accountId}
                               />
                               <div>
                                 <span className="player-name">
-                                  <CountryFlag
-                                    code={data?.profile.profile?.loccountrycode}
-                                    source={data?.source}
-                                    id={data && player?.accountId}
-                                  />
                                   <button
                                     className="player-link"
                                     disabled={!player?.accountId}
                                     onClick={() => player?.accountId && setSelected(player.accountId)}
-                                    {...(player?.accountId
-                                      ? tip(
-                                          <PlayerPreview
-                                            accountId={player.accountId}
-                                            name={name}
-                                            noteName={player.name || data?.profile.profile?.personaname || ''}
-                                            summary={data}
-                                            note={note}
-                                            met={met}
-                                            heroes={heroes}
-                                            onOpen={() => {
-                                              hide();
-                                              setSelected(player.accountId);
-                                            }}
-                                            onMatch={(id) =>
-                                              void api.openMatchSite?.(String(id), 'stratz').catch(() => {})
-                                            }
-                                          />,
-                                          true,
-                                        )
-                                      : {})}
                                   >
                                     {name}
                                   </button>
@@ -1093,15 +1121,17 @@ export function MatchScreen({
                                       SMURF
                                     </span>
                                   )}
-                                  <MetBadge met={met} heroes={heroes} />
                                   {note && (
-                                    <span title={note.text} className="note-marker">
-                                      <BookOpen size={12} />
+                                    <span
+                                      title={`${note.text}
+
+Note of ${noteDate(note.updatedAt)}`}
+                                      className="note-marker"
+                                    >
+                                      <Bookmark size={15} fill="currentColor" />
                                     </span>
                                   )}
                                 </span>
-                                <DraftRowLanes row={draftRow} />
-                                <PlayerLinks id={player?.accountId} />
                                 {oldSelection && (
                                   <small className="previous-selection">Previous sample · {data.days} days</small>
                                 )}
@@ -1117,7 +1147,6 @@ export function MatchScreen({
                                   </small>
                                 )}
                               </div>
-                              <MatchRole role={roles[index]} heroName={hero?.localized_name} days={days} />
                             </div>
                           </td>
                           <td className="rank-cell">
@@ -1151,6 +1180,9 @@ export function MatchScreen({
                                 </small>
                               </>
                             )}
+                          </td>
+                          <td className="with-me">
+                            {met ? <MetBadge met={met} heroes={heroes} /> : <span className="muted">—</span>}
                           </td>
                           <td title={entry?.error}>
                             {period && data && periodGames === 0 && data.limited ? (
@@ -1361,18 +1393,6 @@ function PositionShare({ matches }: { matches?: Match[] }) {
   );
 }
 
-function DraftRowLanes({ row }: { row: VisibleDraftSlot }) {
-  if (!row.lanes.length) return null;
-  const label = `Lane selected in the draft: ${row.lanes.map((position) => rankedRoles.find((role) => role.id === position)?.name ?? position).join(', ')}`;
-  return (
-    <span className="draft-lane-flags" title={label} aria-label={label}>
-      {row.lanes.map((position) => (
-        <RoleIcon key={position} position={position} />
-      ))}
-    </span>
-  );
-}
-
 function AnonymousDraftRow({
   row,
   team,
@@ -1397,15 +1417,15 @@ function AnonymousDraftRow({
         <div className="match-player">
           <span className="player-slot">{row.teamSlot + 1}</span>
           <Avatar frame={slotColour(team, row)} />
+          <MatchRole role={role} heroName={hero?.localized_name} lanes={row.lanes} />
           <div>
             <span className="player-name muted">{row.isSelf ? 'You' : `Player ${row.teamSlot + 1}`}</span>
-            <DraftRowLanes row={row} />
           </div>
-          <MatchRole role={role} heroName={hero?.localized_name} />
         </div>
       </td>
       <td className="rank-cell">—</td>
       <td className="all-time">—</td>
+      <td className="with-me">—</td>
       <td>—</td>
       <td>—</td>
       <td>—</td>

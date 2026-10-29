@@ -697,14 +697,6 @@ td small {
   color: var(--text-2);
   border: 1px solid var(--line-strong);
 }
-.tag-teammate {
-  color: var(--radiant);
-  border-color: rgba(var(--radiant-rgb), 0.4);
-}
-.tag-avoid {
-  color: var(--dire);
-  border-color: rgba(var(--dire-rgb), 0.4);
-}
 
 /* Hero portraits are always 16:9; the width decides the size */
 .portrait {
@@ -741,6 +733,7 @@ td small {
   overflow-wrap: anywhere;
 }
 .player-avatar {
+  position: relative;
   display: grid;
   place-items: center;
   width: var(--avatar, 36px);
@@ -758,6 +751,18 @@ td small {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+/* The country flag in the avatar's lower left corner; nothing when the player set none. */
+.player-avatar .country-flag {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 17px;
+  height: auto;
+  margin: 0;
+  border-radius: 0 2px 0 0;
+  outline: 0;
+  box-shadow: 0 0 0 1px #000000b0;
 }
 .rank-medal {
   position: relative;
@@ -1001,12 +1006,15 @@ td small {
   vertical-align: middle;
   white-space: normal;
 }
-.match-table tbody tr:not(.team-divider) td:is(:nth-child(4), :nth-child(7)),
-.match-table thead tr:last-child th:is(:nth-child(4), :nth-child(7)) {
+.match-table tbody tr:not(.team-divider) td:is(:nth-child(5), :nth-child(8)),
+.match-table thead tr:last-child th:is(:nth-child(5), :nth-child(8)) {
   border-left: 2px solid var(--line-strong);
 }
-.match-table thead tr:last-child th:is(:nth-child(3), :nth-child(4), :nth-child(5), :nth-child(8), :nth-child(9)),
-.match-table tbody td:is(:nth-child(3), :nth-child(4), :nth-child(5), :nth-child(8), :nth-child(9)) {
+.match-table
+  thead
+  tr:last-child
+  th:is(:nth-child(3), :nth-child(4), :nth-child(5), :nth-child(6), :nth-child(9), :nth-child(10)),
+.match-table tbody td:is(:nth-child(3), :nth-child(4), :nth-child(5), :nth-child(6), :nth-child(9), :nth-child(10)) {
   text-align: center;
 }
 .match-table td small {
@@ -1108,30 +1116,23 @@ td small {
   flex-direction: column;
 }
 /* This match's role sits at the end of the player cell, next to the rank. */
+/* The one role icon, between the avatar and the name. */
 .match-role {
   position: relative;
   display: inline-flex;
   flex-shrink: 0;
-  margin-left: auto;
 }
 .match-role .role-icon {
   width: 24px;
   height: 24px;
 }
+/* A guessed role is dimmer than one selected in the draft; its card says it is a guess. */
 .match-role.guessed .role-icon {
-  opacity: 0.6;
-}
-.match-role.guessed small {
-  position: absolute;
-  right: -5px;
-  top: -5px;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1;
+  opacity: 0.7;
 }
 .match-role.unknown {
-  color: var(--faint);
+  width: 24px;
+  height: 24px;
 }
 .player-slot {
   width: 16px;
@@ -1170,6 +1171,7 @@ td small {
 .player-name {
   display: flex;
   align-items: center;
+  gap: 6px;
   min-width: 0;
 }
 .match-table td > .muted {
@@ -4085,9 +4087,9 @@ kbd {
 .match-table.hide-totals col:nth-child(3),
 .match-table.hide-totals thead tr:last-child th:nth-child(3),
 .match-table.hide-totals tbody tr:not(.team-divider) td:nth-child(3),
-.match-table.hide-frequent col:nth-child(6),
-.match-table.hide-frequent thead tr:last-child th:nth-child(6),
-.match-table.hide-frequent tbody tr:not(.team-divider) td:nth-child(6) {
+.match-table.hide-frequent col:nth-child(7),
+.match-table.hide-frequent thead tr:last-child th:nth-child(7),
+.match-table.hide-frequent tbody tr:not(.team-divider) td:nth-child(7) {
   display: none;
 }
 
@@ -4110,18 +4112,6 @@ kbd {
 .draft-hover > small {
   font-size: 9px;
   font-weight: 400;
-  color: var(--muted);
-}
-.draft-lane-flags {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 2px;
-  max-width: 104px;
-}
-.draft-lane-flags small {
-  width: 100%;
-  font-size: 9px;
   color: var(--muted);
 }
 .matchup-cell.matchup-provisional {
@@ -4152,8 +4142,7 @@ kbd {
   flex-shrink: 0;
 }
 
-.smurf-badge,
-.met-badge {
+.smurf-badge {
   color: #22d3ee;
   border: 1px solid #22d3ee66;
   border-radius: 3px;
@@ -4162,14 +4151,29 @@ kbd {
   letter-spacing: 0.5px;
   flex-shrink: 0;
 }
+/* With me: the number of earlier matches over the own win rate in them, like Games · WR. */
 .met-badge {
-  color: var(--gold);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 3px;
   background: none;
-  border-color: color-mix(in srgb, var(--gold) 40%, transparent);
+  color: var(--text);
   font: inherit;
-  font-size: 9px;
-  line-height: normal;
+  font-size: 17px;
+  letter-spacing: 0;
+  line-height: 1.15;
   cursor: pointer;
+}
+.met-badge:hover,
+.met-badge:focus-visible {
+  background: var(--raised);
+}
+.met-badge small {
+  font-size: 13px;
+  font-weight: 400;
 }
 /* "Matches with / against me": opponents on a darker background. */
 .met-popover {
@@ -4463,6 +4467,21 @@ kbd {
   border-left: 0;
   border-top: 0;
 }
+/* Beside the anchor: the arrow sits on the near side edge, --tip-arrow from the top. */
+.tooltip:is(.right, .left)::before {
+  top: calc(var(--tip-arrow) - 5px);
+}
+.tooltip.right::before {
+  left: -6px;
+  border-top: 0;
+  border-right: 0;
+}
+.tooltip.left::before {
+  left: auto;
+  right: -6px;
+  border-bottom: 0;
+  border-left: 0;
+}
 .tip-text {
   white-space: pre-line;
   color: var(--text-2);
@@ -4528,108 +4547,302 @@ kbd {
   pointer-events: auto;
   cursor: pointer;
 }
+/* Player hover card: separate blocks (who, facts, note, site links) and the newest
+   matches in a column of their own. Labels muted, values white, colour only for meaning. */
 .tooltip:has(.player-preview) {
-  max-width: 400px;
-  padding: 12px 14px;
+  max-width: 1100px;
+  padding: 10px;
+  background: #101724fa;
 }
 .player-preview {
-  min-width: 340px;
+  display: grid;
+  grid-template-columns: minmax(340px, 380px);
+  gap: 8px;
 }
-.player-preview .tip-title .player-avatar {
-  width: 44px;
-  height: 44px;
-  flex: none;
+.player-preview.with-matches {
+  grid-template-columns: minmax(340px, 380px) minmax(260px, 300px);
+}
+.player-preview.with-met {
+  grid-template-columns: minmax(340px, 380px) minmax(330px, 360px);
+}
+.player-preview.with-matches.with-met {
+  grid-template-columns: minmax(340px, 380px) minmax(260px, 300px) minmax(320px, 360px);
+}
+/* Matches together: their hero, my hero, then when and the result for me. */
+.preview-matches.preview-met-list li {
+  grid-template-columns: 44px minmax(0, 1fr) 44px minmax(0, 1fr) auto;
+}
+.preview-met-list .preview-kda small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+.preview-main {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  min-width: 0;
+}
+.preview-block {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  min-width: 0;
+}
+.preview-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.preview-head .player-avatar {
+  --avatar: 56px;
+}
+.preview-head .player-avatar .country-flag {
+  width: 20px;
 }
 .preview-who {
+  display: grid;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+.preview-who b {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.15;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.preview-who small {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+}
+.preview-role {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.preview-role .role-icon,
+.preview-facts .role-icon {
+  width: 16px;
+  height: 16px;
+}
+.preview-head .rank-medal {
+  --medal: 46px;
+  flex: none;
+}
+.preview-error {
+  color: var(--loss);
+  font-size: 13px;
+  border-color: color-mix(in srgb, var(--loss) 35%, transparent);
+}
+.preview-hidden {
+  color: var(--muted);
+  font-size: 13px;
+  background: repeating-linear-gradient(135deg, #bac5d408 0 8px, transparent 8px 16px), var(--surface);
+}
+.preview-hidden b {
+  display: block;
+  color: var(--text);
+  font-weight: 500;
+}
+.preview-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 14px;
+}
+.preview-facts div {
   display: grid;
   gap: 2px;
   min-width: 0;
 }
-.preview-who small {
+.preview-facts dt {
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 400;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
 }
-.player-preview .player-note,
-.preview-met {
-  margin: 10px 0 0;
-  font-size: 13px;
-}
-/* The note is the reason to hover a known player, so it reads at body size. */
-.player-preview .player-note {
-  padding: 4px 0 4px 10px;
-  border-left-width: 3px;
-  color: var(--text);
-  font-size: 16px;
-  line-height: 1.35;
-}
-.preview-met {
-  color: var(--accent);
-}
-.player-preview > .muted {
-  margin: 10px 0 0;
-}
-.player-preview .tip-rows {
-  gap: 4px 14px;
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px solid var(--line);
-}
-.player-preview .tip-rows dd {
+.preview-facts dd {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
   gap: 4px;
+  margin: 0;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.player-preview .tip-rows .role-icon {
-  width: 16px;
-  height: 16px;
+.preview-facts dd small {
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 400;
+}
+/* The note is the reason to hover a known player: gold edge, body-size text, and the whole
+   block opens the editor. */
+.preview-note {
+  padding: 0;
+  cursor: auto;
+  border-left: 3px solid var(--gold);
+  background: color-mix(in srgb, var(--gold) 5%, var(--surface));
+}
+.preview-note .card-note-view {
+  min-height: 84px;
+  padding: 12px 14px;
+}
+.preview-note .card-note-form {
+  padding: 10px 12px;
+}
+.preview-note:has(.card-note-view.empty) {
+  border: 1px dashed color-mix(in srgb, var(--gold) 35%, transparent);
+  border-left: 3px solid color-mix(in srgb, var(--gold) 60%, transparent);
+  background: none;
+}
+.preview-note .player-note {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.35;
+}
+.preview-note textarea {
+  font-size: 15px;
+}
+.preview-actions {
+  display: grid;
+  gap: 10px;
+  cursor: auto;
+}
+/* Site tiles in the hover card: the name over a large icon, four in a row. */
+.player-sites.labelled {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+}
+.player-sites.labelled .player-site {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  width: auto;
+  height: auto;
+  padding: 7px 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--raised);
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 500;
+  text-decoration: none;
+}
+.player-sites.labelled .player-site:hover {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--raised));
+}
+.player-sites.labelled .player-site img {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+}
+/* Dotabuff has only a 16 px favicon: twice its size, pixel for pixel, rather than blurred. */
+.player-sites.labelled .site-dotabuff img {
+  image-rendering: pixelated;
+}
+.player-preview .tip-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 0 2px;
+}
+.preview-recent h4 {
+  margin: 0 0 6px;
+  color: var(--accent-light);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-align: center;
 }
 .preview-matches {
   display: grid;
-  gap: 6px;
-  margin: 10px 0 0;
-  padding: 8px 0 0;
-  border-top: 1px solid var(--line);
+  margin: 0;
+  padding: 0;
   list-style: none;
-  font-size: 14px;
 }
 .preview-matches li {
+  position: relative;
   display: grid;
-  grid-template-columns: 40px 1fr 18px 68px 16px 46px;
+  grid-template-columns: 44px 16px minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
-  margin: 0 -6px;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 5px 6px 5px 10px;
+  border-top: 1px solid var(--line);
+  border-radius: 3px;
+}
+.preview-matches li:first-child {
+  border-top: 0;
+}
+/* A thin result edge on the left: green won, red lost. */
+.preview-matches li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 7px;
+  bottom: 7px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--line-strong);
+}
+.preview-matches li.won::before {
+  background: var(--win);
+}
+.preview-matches li.lost::before {
+  background: var(--loss);
 }
 .tooltip.interactive .preview-matches li:hover {
   background: var(--raised);
 }
 .preview-matches .portrait {
-  width: 40px;
+  width: 44px;
 }
 .preview-matches .role-icon {
   width: 16px;
   height: 16px;
 }
-.preview-hero {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
 .preview-kda {
-  text-align: right;
+  display: grid;
+  color: var(--text);
+  font-size: 14.5px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-.preview-matches small {
-  color: var(--muted);
-  text-align: right;
+.preview-with {
+  color: var(--accent-light);
+  font-size: 11px;
+  font-weight: 500;
 }
-.player-preview .tip-note {
-  margin-top: 10px;
-  padding-top: 8px;
+.preview-when {
+  display: grid;
+  justify-items: end;
+  line-height: 1.2;
+}
+.preview-when b {
+  font-size: 13px;
+  font-weight: 600;
+}
+.preview-when small {
+  color: var(--muted);
+  font-size: 11.5px;
 }
 /* Ten-player card of one statistic (MatchRankTip). */
 /* Profile hover cards (title with its value on the right), as one 300 px card: a line saying
@@ -4741,6 +4954,33 @@ kbd {
   justify-items: start;
   gap: 6px;
 }
+.card-note-view {
+  align-content: center;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.card-note-view:hover,
+.card-note-view:focus-visible {
+  background: color-mix(in srgb, var(--gold) 7%, transparent);
+  outline: none;
+}
+.card-note-view.empty {
+  justify-items: center;
+}
+.card-note-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--accent-light);
+  font-size: 13px;
+}
+.card-note-view.empty .card-note-hint {
+  color: var(--muted);
+  font-size: 14px;
+}
+.card-note-hint .note-date {
+  color: var(--muted);
+}
 .card-note-form {
   justify-items: stretch;
 }
@@ -4760,24 +5000,6 @@ kbd {
   height: 32px;
   padding-block: 0;
 }
-.player-preview .player-note.tag-teammate {
-  border-left-color: var(--radiant);
-}
-.player-preview .player-note.tag-avoid {
-  border-left-color: var(--dire);
-}
-/* Note editor inside the hover preview. */
-.preview-note {
-  margin-top: 10px;
-  cursor: auto;
-}
-.preview-note .player-note {
-  margin: 0;
-}
-.preview-note textarea {
-  font-size: 15px;
-}
-
 /* Rebindable shortcuts: one row per action, keycaps before the change button. */
 .shortcut-list {
   display: flex;
@@ -4864,4 +5086,45 @@ kbd {
   display: block;
   margin: 8px auto 0;
   color: var(--accent);
+}
+
+/* The match status in the window's title bar: one row less above the table. */
+.titlebar-match {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 0 12px;
+}
+.titlebar-match .match-toolbar {
+  height: 100%;
+  gap: 24px;
+}
+.titlebar-match .match-toolbar strong {
+  font-size: 13px;
+}
+.titlebar-match .match-toolbar select {
+  padding: 0 6px;
+  font-size: 12px;
+}
+.titlebar-match .roster-status,
+.titlebar-match .match-id {
+  font-size: 12px;
+  white-space: nowrap;
+}
+/* Note marker in the player row: the note's date in its title. */
+.note-marker {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+.note-date {
+  color: var(--muted);
+  font-size: 12px;
+}
+.preview-sites {
+  margin-left: auto;
+  align-self: flex-start;
+}
+.preview-sites .player-site img {
+  width: 20px;
+  height: 20px;
 }

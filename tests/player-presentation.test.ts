@@ -13,6 +13,7 @@ it('does not mark tiny samples as strong heroes and uses the observed sample thr
 it('builds all three direct links using account ID, including SteamID64 input', () => {
   expect(playerSiteUrl('76561197960265729', 'dotabuff')).toBe('https://www.dotabuff.com/players/1');
   expect(playerSiteUrl('1', 'opendota')).toBe('https://www.opendota.com/players/1');
+  expect(playerSiteUrl('123456789', 'steam')).toBe('https://steamcommunity.com/profiles/76561198083722517');
   expect(playerSiteUrl('1', 'stratz')).toBe('https://stratz.com/players/1');
   expect(() => playerSiteUrl('javascript:alert(1)', 'stratz')).toThrow();
 });

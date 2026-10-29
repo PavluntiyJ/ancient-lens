@@ -4,9 +4,9 @@ import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode }
 const MIN_FIT = 0.9;
 // A large window enlarges the whole screen up to this, the roster first of all, instead of
 // stretching the analysis panels ever taller.
-const MAX_FIT = 1.3;
+const MAX_FIT = 1.5;
 // Panel height (CSS px) the analysis panels keep before the screen grows past 100%.
-const PANEL_PREFERRED = 400;
+const PANEL_PREFERRED = 300;
 
 /**
  * The canvas zoom that fits the content into the host. `stretch` is how much of the content

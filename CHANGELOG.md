@@ -12,6 +12,37 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
   hours; the request contains no account, settings or app version, and nothing is
   downloaded. Turn it off in Settings → Data → Updates.
 
+### Match table
+
+- A **With me** column replaces the MET badge: the number of your earlier matches with the
+  player and your win rate in them; hover it for the list.
+- The country flag sits in the corner of the avatar, and the Dotabuff, OpenDota and STRATZ
+  links moved from the row into the player's hover card.
+- The player's hover card opens from anywhere in the player cell (avatar, role or name), next
+  to the row, and is built of blocks: who (avatar, name, all-time matches, rank, this match's
+  role), facts (country, Steam name, the period, streak, main role, With me), the note, which
+  opens its editor from anywhere in its block, site tiles (Dotabuff, OpenDota, STRATZ and now
+  Steam), the newest eight matches with their result and how long ago they were, and your
+  earlier matches with or against the player (both heroes, K/D/A and the result for you),
+  which show for private profiles too because they come from your own history.
+- Notes have one kind: Observation, Good teammate and Watch out are gone from the note
+  forms, and older notes of any type look the same. The note marker is larger and its title
+  gives the note's date; the hover card shows the date under the note.
+- One role icon per player, before the name: the lane selected in the draft, or a dimmer
+  guess. Its card says which in one line; lanes picked in the draft no longer show as extra
+  icons under the name.
+- The analysis panels keep less height before the screen grows (up to 150%), so a tall
+  window gives the ten player rows more room.
+- The match status (phase, match ID, profiles, period, refresh) moved into the window's title
+  bar, and the match clock is gone, so the table starts higher. A player whose profile did not
+  load no longer pushes the table down with a banner: the row says so, with the reason on hover.
+
+### Sound
+
+- The chime for a player with a note is two soft notes at 30% of the chime volume, once per
+  match look; the separate "Watch out" chime is gone. Settings → Sound has a **Chime volume**
+  slider (80% by default).
+
 ## 0.6.1 — October 29, 2026
 
 0.6.0 was not published as a release, so this is the first release after 0.5.0 and also

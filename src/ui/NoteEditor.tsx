@@ -3,12 +3,6 @@ import { Pencil, Plus } from 'lucide-react';
 import type { LocalState, Note } from '../shared/domain';
 import { api, errorMessage } from './App';
 
-export const noteTags: [Note['tag'], string][] = [
-  ['neutral', 'Observation'],
-  ['teammate', 'Good teammate'],
-  ['avoid', 'Watch out'],
-];
-
 /**
  * The note of one player, written from the player card or the hover preview during a match;
  * keyed by account. Saving or deleting updates the app state, so the table and the chime
@@ -20,12 +14,10 @@ export function NoteEditor({ accountId, name, note: given }: { accountId: string
   const note = saved ? saved.note : given;
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState('');
-  const [tag, setTag] = useState<Note['tag']>('neutral');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const open = () => {
     setText(note?.text ?? '');
-    setTag(note?.tag ?? 'neutral');
     setError('');
     setEditing(true);
   };
@@ -44,16 +36,38 @@ export function NoteEditor({ accountId, name, note: given }: { accountId: string
   };
   const save = (event: FormEvent) => {
     event.preventDefault();
-    void run(() => api.saveNote({ accountId, name, text, tag }));
+    void run(() => api.saveNote({ accountId, name, text, tag: 'neutral' }));
   };
+  // The whole block opens the editor, not only its label.
   if (!editing)
     return (
-      <div className="card-note">
-        {note && <p className={`player-note tag-${note.tag}`}>{note.text}</p>}
-        <button type="button" className="text-button" onClick={open}>
-          {note ? <Pencil size={14} /> : <Plus size={14} />}
+      <div
+        className={`card-note card-note-view${note ? '' : ' empty'}`}
+        role="button"
+        tabIndex={0}
+        aria-label={note ? 'Edit note' : 'Add note'}
+        onClick={open}
+        onKeyDown={(event) => {
+          if (event.key !== 'Enter' && event.key !== ' ') return;
+          event.preventDefault();
+          open();
+        }}
+      >
+        {note && <p className="player-note">{note.text}</p>}
+        <span className="card-note-hint">
+          {note ? <Pencil size={14} /> : <Plus size={15} />}
           {note ? 'Edit note' : 'Add note'}
-        </button>
+          {note?.updatedAt && (
+            <small className="note-date">
+              · Note of{' '}
+              {new Date(note.updatedAt).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })}
+            </small>
+          )}
+        </span>
       </div>
     );
   return (
@@ -62,19 +76,12 @@ export function NoteEditor({ accountId, name, note: given }: { accountId: string
         aria-label="Note"
         autoFocus
         maxLength={2000}
-        rows={3}
+        rows={5}
         placeholder="What should you remember about this player?"
         value={text}
         onChange={(event) => setText(event.target.value)}
       />
       <div className="card-note-actions">
-        <select aria-label="Note type" value={tag} onChange={(event) => setTag(event.target.value as Note['tag'])}>
-          {noteTags.map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
         <button className="primary" disabled={busy || !text.trim()}>
           Save
         </button>

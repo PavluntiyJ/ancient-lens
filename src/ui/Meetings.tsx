@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { Hero, Participant } from '../shared/domain';
+import { winRateTone, type Hero, type Participant } from '../shared/domain';
 import type { Meeting, Meetings } from '../shared/meetings';
 import { api, errorMessage } from './App';
 import { Portrait } from './MatchScreen';
@@ -14,8 +14,9 @@ const result = (game: Meeting) =>
 
 /**
  * Earlier matches with this player in the own saved history ("matches with/against
- * me"): the count opens a list on hover or focus, and a row opens
- * that match on Dotabuff. Hidden when no meeting is known.
+ * me"), for the With me column: the count and the own win rate in them; the count opens
+ * a list on hover or focus, and a row opens that match on Dotabuff. Hidden when no
+ * meeting is known.
  */
 export function MetBadge({ met, heroes }: { met: Meetings | null; heroes: Hero[] }) {
   const anchor = useRef<HTMLButtonElement>(null);
@@ -39,6 +40,8 @@ export function MetBadge({ met, heroes }: { met: Meetings | null; heroes: Hero[]
   };
   const side = ({ games, wins }: Meetings['ally']) => `${games} (${wins}–${games - wins})`;
   const summary = `Already met: as ally ${side(met.ally)}, as opponent ${side(met.enemy)}. Wins and losses are yours.`;
+  const decided = met.games.filter((game) => game.won !== null);
+  const wins = decided.filter((game) => game.won).length;
   return (
     <>
       <button
@@ -52,7 +55,10 @@ export function MetBadge({ met, heroes }: { met: Meetings | null; heroes: Hero[]
         onBlur={close}
         onClick={open}
       >
-        MET {met.games.length}
+        {met.games.length}
+        <small className={`win-rate ${winRateTone(wins, decided.length)}`}>
+          {decided.length ? `${Math.round((wins / decided.length) * 100)}%` : '—'}
+        </small>
       </button>
       {place &&
         createPortal(

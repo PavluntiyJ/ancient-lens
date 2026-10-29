@@ -514,7 +514,7 @@ export type DesktopApi = {
   setMedalRank?(matchId: string, tier: number): Promise<void>;
   /** `refresh` asks the provider even when the saved history is recent. */
   getHistory(id: string, offset?: number, cachedOnly?: boolean, refresh?: boolean): Promise<PlayerHistory | null>;
-  openPlayerSite(id: string, site: import('./player-sites').PlayerSite): Promise<string>;
+  openPlayerSite(id: string, site: import('./player-sites').ProfileSite): Promise<string>;
   openMatchSite?(id: string, site: import('./player-sites').PlayerSite): Promise<string>;
   getHeroes(): Promise<Hero[]>;
   getPatches?(): Promise<import('./history').Patch[]>;

@@ -14,23 +14,16 @@ const hero = (id: number, name: string): Hero => ({
 const lich = hero(31, 'Lich'),
   spectre = hero(67, 'Spectre');
 
-it('explains a guessed role row by row', () => {
-  const html = renderToStaticMarkup(
-    <RoleTip
-      role={{ position: 5, guessed: true, player: { games: 59, known: 59 }, hero: { share: 0.69 } }}
-      heroName="Lich"
-      days={14}
-    />,
+it('says in one line whether a role was selected in the draft or guessed', () => {
+  const guessed = renderToStaticMarkup(
+    <RoleTip role={{ position: 5, guessed: true, player: { games: 59, known: 59 }, hero: { share: 0.69 } }} />,
   );
-  expect(html).toContain('Hard Support<span class="tip-tag">Likely</span>');
-  expect(html).toContain('<dt>Player, last 14 days</dt><dd>59 of 59 games</dd>');
-  expect(html).toContain('<dt>Lich in this role</dt><dd>69% of games</dd>');
-  expect(html).toContain('Guessed for the whole team');
-  const known = renderToStaticMarkup(<RoleTip role={{ position: 1, guessed: false }} days={14} />);
-  expect(known).not.toContain('tip-tag');
-  expect(known).toContain('Selected in the draft');
-  const hidden = renderToStaticMarkup(<RoleTip role={{ position: 3, guessed: true }} days={7} />);
-  expect(hidden).toContain('<dt>Player, last 7 days</dt><dd>Private or no games</dd>');
+  expect(guessed).toContain('Hard Support');
+  expect(guessed).toContain('Most probable position, guessed from this match');
+  const known = renderToStaticMarkup(<RoleTip role={{ position: 1, guessed: false }} />);
+  expect(known).toContain('Selected in the draft.');
+  const among = renderToStaticMarkup(<RoleTip role={{ position: 2, guessed: true }} lanes="Safe Lane, Mid Lane" />);
+  expect(among).toContain('among the lanes selected in the draft (Safe Lane, Mid Lane)');
 });
 
 it('shows a matchup as both heroes and the signed advantage', () => {

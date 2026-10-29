@@ -116,7 +116,7 @@ export function Roster({ active, notes }: { active: boolean; notes: Note[] }) {
                       </div>
                       {slot.result?.stale && <small className="amber">Cached data · may be out of date</small>}
                       {slot.result?.warning && <small className="amber">{slot.result.warning}</small>}
-                      {note && <p className={`player-note tag-${note.tag}`}>{note.text}</p>}
+                      {note && <p className="player-note">{note.text}</p>}
                       {!data.matches.length && (
                         <small className="muted">History is unavailable or has not been indexed yet.</small>
                       )}

@@ -6,7 +6,7 @@ trademarks, fonts, or externally served data.
 - **Dota 2 / Valve:** hero portraits are requested from the Steam CDN; rank medals
   and role icons are included in `public/`. These assets and Dota 2 trademarks
   belong to Valve. See `public/ranks/README.txt` and `public/roles/SOURCES.md`.
-- **Profile site icons:** Dotabuff, OpenDota, and STRATZ icons identify links to
+- **Profile site icons:** Dotabuff, OpenDota, STRATZ, and Steam icons identify links to
   their respective services. See `public/sites/SOURCES.md` for provenance.
 - **Country flags:** SVG flags from country-flag-icons (MIT) are included in
   `public/flags/`; see `public/flags/SOURCES.md` and `public/flags/LICENSE.txt`.

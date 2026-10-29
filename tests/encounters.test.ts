@@ -4,7 +4,7 @@ import { Announcer, notedPlayers } from '../src/shared/encounters';
 
 const note = (accountId: string, tag: Note['tag']): Note => ({ accountId, name: '', text: 'x', tag, updatedAt: '' });
 
-it('finds players with a note, "Watch out" ones as avoid, never the own account', () => {
+it('finds players with a note of any older type as one kind, never the own account', () => {
   const found = notedPlayers(['1', '55', '66', '88', '99'], '1', [
     note('66', 'avoid'),
     note('88', 'teammate'),
@@ -14,7 +14,7 @@ it('finds players with a note, "Watch out" ones as avoid, never the own account'
   expect(found).toEqual(
     new Map([
       ['55', 'note'],
-      ['66', 'avoid'],
+      ['66', 'note'],
       ['88', 'note'],
     ]),
   );
@@ -25,19 +25,10 @@ it('announces each player once per match, and players seen without a note stay q
   expect(announcer.next('9', ['55', '66'], new Map([['55', 'note']]))).toBe('note');
   expect(announcer.next('9', ['55', '66'], new Map([['55', 'note']]))).toBeUndefined();
   // A note written during the match does not ring at once.
-  expect(announcer.next('9', ['55', '66'], new Map([['66', 'avoid']]))).toBeUndefined();
+  expect(announcer.next('9', ['55', '66'], new Map([['66', 'note']]))).toBeUndefined();
   // A player who appears later in the same match still can.
-  expect(announcer.next('9', ['55', '66', '77'], new Map([['77', 'avoid']]))).toBe('avoid');
-  // Another match, then back: the noted players ring again; "avoid" wins.
+  expect(announcer.next('9', ['55', '66', '77'], new Map([['77', 'note']]))).toBe('note');
+  // Another match, then back: the noted players ring again.
   expect(announcer.next('10', ['11'], new Map())).toBeUndefined();
-  expect(
-    announcer.next(
-      '9',
-      ['55', '66'],
-      new Map([
-        ['55', 'note'],
-        ['66', 'avoid'],
-      ]),
-    ),
-  ).toBe('avoid');
+  expect(announcer.next('9', ['55', '66'], new Map([['66', 'note']]))).toBe('note');
 });

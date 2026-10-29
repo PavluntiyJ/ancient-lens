@@ -26,7 +26,7 @@ it('grows past 100% only while the panels keep their preferred height', () => {
   // A 1440p window: panels stretched 350 px above their minimum, 100 px short of preferred.
   expect(fitZoom({ ...wide, host: 1400, content: 1400, stretch: 350, preferred: 100 })).toBe(1.216);
   // Far more room still stops at the 130% ceiling.
-  expect(fitZoom({ ...wide, host: 2400, content: 2400, stretch: 1350, preferred: 100 })).toBe(1.3);
+  expect(fitZoom({ ...wide, host: 2400, content: 2400, stretch: 1350, preferred: 100 })).toBe(1.5);
   // A 1080p window: panels at their preferred height would not fit, so it stays at 100%.
   expect(fitZoom({ ...wide, content: 1000, stretch: 60, preferred: 110 })).toBe(1);
   // Overflow or the width limit still win.

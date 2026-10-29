@@ -7,5 +7,9 @@ requests for every player and to remain visible offline:
 - Dotabuff: https://www.dotabuff.com/favicon.ico
 - OpenDota: https://www.opendota.com/assets/images/logo.png
 - STRATZ: https://stratz.com/favicon.ico
+- Steam: https://steamcommunity.com/favicon.ico (downloaded on 2026-10-30; 16–256 px)
+
+Dotabuff publishes only a 16×16 favicon, so the hover card draws it at twice its size
+with pixelated scaling instead of blurring it.
 
 Brand marks belong to their respective owners.
