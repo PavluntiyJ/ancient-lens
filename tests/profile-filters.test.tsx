@@ -132,7 +132,7 @@ it('heads each position card with the MMR change when measured, otherwise the wi
   expect(plain).toMatch(/70%<\/span><small>win rate<\/small>/);
   // Record in words, then at most three heroes, each with its number of games.
   const offLane = plain.slice(plain.indexOf('Off Lane'), plain.indexOf('Soft Support'));
-  expect(offLane.replace(/<[^>]+>/g, '')).toContain('4W 2L · 6 games');
+  expect(offLane.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')).toContain('4W 2L · 6 games');
   expect(offLane.match(/class="profile-position-hero"/g)?.length).toBe(3);
   expect(offLane.match(/<b>(\d+)<\/b>/g)).toEqual(['<b>2</b>', '<b>2</b>', '<b>1</b>']);
 });
