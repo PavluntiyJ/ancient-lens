@@ -22,7 +22,8 @@ export function Notes({
     setError('');
     setSaved(false);
     try {
-      update(await api.saveNote(form));
+      // One kind of note; an older note's type is not kept.
+      update(await api.saveNote({ ...form, tag: 'neutral' }));
       setSaved(true);
     } catch (e) {
       setError(errorMessage(e));
@@ -76,9 +77,6 @@ export function Notes({
                       ID {note.accountId} · {date(note.updatedAt)}
                     </small>
                   </div>
-                  <span className={`tag tag-${note.tag}`}>
-                    {note.tag === 'teammate' ? 'Good teammate' : note.tag === 'avoid' ? 'Watch out' : 'Observation'}
-                  </span>
                 </div>
                 <p>{note.text}</p>
                 <div className="note-actions">
@@ -114,7 +112,7 @@ export function Notes({
               </article>
             ))}
           {!local.notes.length && (
-            <Empty icon={<BookOpen size={30} />} title="Good teammates are worth remembering">
+            <Empty icon={<BookOpen size={30} />} title="Players are worth remembering">
               Add your first note on the right. It will appear beside that player in the statistics table.
             </Empty>
           )}
@@ -145,20 +143,6 @@ export function Notes({
               }}
               placeholder="Nickname or familiar name"
             />
-          </label>
-          <label className="field-label">
-            Tag
-            <select
-              value={form.tag}
-              onChange={(e) => {
-                setForm({ ...form, tag: e.target.value as NoteInput['tag'] });
-                setSaved(false);
-              }}
-            >
-              <option value="neutral">Observation</option>
-              <option value="teammate">Good teammate</option>
-              <option value="avoid">Watch out</option>
-            </select>
           </label>
           <label className="field-label">
             Note

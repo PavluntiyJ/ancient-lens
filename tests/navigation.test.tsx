@@ -13,6 +13,7 @@ vi.mock('../src/ui/preferences', () => ({
   useSynergyWeight: () => 50,
   useMinWinRate: () => ({ enabled: false, value: 50 }),
   useEncounterSound: () => false,
+  useEncounterVolume: () => 80,
   useRankBracket: () => 'auto',
 }));
 afterEach(() => vi.unstubAllGlobals());

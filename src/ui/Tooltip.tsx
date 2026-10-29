@@ -22,14 +22,37 @@ const MARGIN = 8;
 const ARROW_INSET = 12;
 
 type Box = { left: number; top: number; right: number; bottom: number; width: number; height: number };
-export type TipPlacement = { left: number; top: number; placement: 'below' | 'above'; arrow: number };
+export type TipPlacement = {
+  left: number;
+  top: number;
+  placement: 'below' | 'above' | 'right' | 'left';
+  /** Offset of the arrow along the card's edge: from the left, or from the top beside the anchor. */
+  arrow: number;
+};
 
-/** Below the anchor and centred on it; above when only that fits; always inside the window. */
+/**
+ * Below the anchor and centred on it; above when only that fits; always inside the window.
+ * `beside`: to the right of the anchor, top-aligned with it, or to its left when the right
+ * has no room, like a player card next to its table row.
+ */
 export function placeTip(
   anchor: Box,
   size: { width: number; height: number },
   viewport: { width: number; height: number },
+  beside = false,
 ): TipPlacement {
+  if (beside) {
+    const right = anchor.right + GAP + size.width <= viewport.width - MARGIN;
+    const left = right ? anchor.right + GAP : Math.max(MARGIN, anchor.left - GAP - size.width);
+    const top = Math.min(Math.max(MARGIN, anchor.top), viewport.height - MARGIN - size.height);
+    const middle = (anchor.top + anchor.bottom) / 2;
+    return {
+      left,
+      top: Math.max(MARGIN, top),
+      placement: right ? 'right' : 'left',
+      arrow: Math.min(Math.max(ARROW_INSET, middle - top), size.height - ARROW_INSET),
+    };
+  }
   const centre = (anchor.left + anchor.right) / 2;
   const left = Math.min(Math.max(MARGIN, centre - size.width / 2), viewport.width - MARGIN - size.width);
   const below = anchor.bottom + GAP;
@@ -44,7 +67,7 @@ export function placeTip(
 }
 
 /** interactive: the pointer may move onto the card, which then stays open and takes clicks. */
-type Active = { anchor: Element; content: ReactNode; interactive?: boolean };
+type Active = { anchor: Element; content: ReactNode; interactive?: boolean; beside?: boolean };
 let active: Active | undefined;
 // Focus shows a card only after keyboard use, not when a dialog or click moves focus.
 let keyboard = false;
@@ -68,16 +91,16 @@ function writing() {
   const field = typeof document === 'undefined' ? null : document.activeElement;
   return !!active?.interactive && !!field && field.matches('input, textarea, select') && !!field.closest('.tooltip');
 }
-export function show(anchor: Element, content: ReactNode, interactive = false) {
+export function show(anchor: Element, content: ReactNode, interactive = false, beside = false) {
   // Passing over other cells while writing a note must not replace the card.
   if (writing() && active?.anchor !== anchor) return;
   clearTimeout(timer);
   // New content for the visible card (a chart point) replaces it without the delay.
-  if (active?.anchor === anchor) return publish({ anchor, content, interactive });
+  if (active?.anchor === anchor) return publish({ anchor, content, interactive, beside });
   pending = anchor;
   timer = setTimeout(() => {
     pending = undefined;
-    publish({ anchor, content, interactive });
+    publish({ anchor, content, interactive, beside });
   }, SHOW_DELAY);
 }
 /** Hides the card of `anchor` (any card without one). Leaving one element must not cancel
@@ -97,14 +120,25 @@ export function hide(anchor?: Element) {
 /** The pointer reached an interactive card: keep it open. */
 const hold = () => clearTimeout(closing);
 
-/** Props that give an element a rich hover card; keep its aria-label for screen readers. */
-export function tip(content: ReactNode, interactive = false) {
+/**
+ * Props that give an element a rich hover card; keep its aria-label for screen readers.
+ * `beside` opens it next to the element, and plain titles inside the element (a flag, a
+ * badge) do not replace it: the whole element is one hover zone.
+ */
+export function tip(content: ReactNode, interactive = false, beside = false) {
   const enter = (event: MouseEvent<Element> | FocusEvent<Element>) => {
     if (event.type === 'focus' && !keyboard) return;
-    show(event.currentTarget, content, interactive);
+    show(event.currentTarget, content, interactive, beside);
   };
   const leave = (event: MouseEvent<Element> | FocusEvent<Element>) => hide(event.currentTarget);
-  return { 'data-tip': '', onMouseEnter: enter, onMouseLeave: leave, onFocus: enter, onBlur: leave };
+  return {
+    'data-tip': '',
+    ...(beside && { 'data-tip-zone': '' }),
+    onMouseEnter: enter,
+    onMouseLeave: leave,
+    onFocus: enter,
+    onBlur: leave,
+  };
 }
 
 export function TipCard({
@@ -173,8 +207,9 @@ export function TooltipLayer({ scale }: { scale: number }) {
       if (event.target instanceof Node && card.current?.contains(event.target)) return;
       const plain = plainOf(event.target);
       const rich = event.target instanceof Element ? event.target.closest('[data-tip]') : null;
-      // A rich card inside a titled container wins over the container's plain text.
-      if (!plain || (rich && plain.contains(rich))) return;
+      // A rich card inside a titled container wins over the container's plain text, and so
+      // does a hover zone over the titles inside it.
+      if (!plain || (rich && (plain.contains(rich) || rich.hasAttribute('data-tip-zone')))) return;
       const text = plainText(plain);
       if (text.trim()) show(plain, <div className="tip-text">{text}</div>);
     };
@@ -221,7 +256,14 @@ export function TooltipLayer({ scale }: { scale: number }) {
       /* Without popover support the fixed card still shows outside dialogs. */
     }
     const size = card.current.getBoundingClientRect();
-    setPlace(placeTip(current.anchor.getBoundingClientRect(), size, { width: innerWidth, height: innerHeight }));
+    setPlace(
+      placeTip(
+        current.anchor.getBoundingClientRect(),
+        size,
+        { width: innerWidth, height: innerHeight },
+        current.beside,
+      ),
+    );
   }, [current]);
   if (!current) return null;
   // Fixed offsets are zoomed with the card, so they are given in unzoomed pixels.

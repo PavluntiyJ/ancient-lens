@@ -1,18 +1,16 @@
 import type { Note } from './domain';
 
-export type Encounter = 'note' | 'avoid';
+export type Encounter = 'note';
 
 /**
- * Players of the current match with a note of the own account; a "Watch out" note marks
- * them as `avoid`. Notes are local and keyed by account ID, so private profiles count
- * too. The own account is never listed.
+ * Players of the current match with a note of the own account. Notes are local and keyed
+ * by account ID, so private profiles count too. The own account is never listed.
  */
 export function notedPlayers(ids: string[], ownAccountId: string, notes: Note[]): Map<string, Encounter> {
   const found = new Map<string, Encounter>();
   for (const id of ids) {
     if (!id || id === ownAccountId) continue;
-    const note = notes.find((item) => item.accountId === id);
-    if (note) found.set(id, note.tag === 'avoid' ? 'avoid' : 'note');
+    if (notes.some((item) => item.accountId === id)) found.set(id, 'note');
   }
   return found;
 }
@@ -32,7 +30,6 @@ export class Announcer {
     }
     const fresh = ids.filter((id) => !this.seen.has(id));
     fresh.forEach((id) => this.seen.add(id));
-    const kinds = fresh.flatMap((id) => found.get(id) ?? []);
-    return kinds.includes('avoid') ? 'avoid' : kinds.length ? 'note' : undefined;
+    return fresh.some((id) => found.has(id)) ? 'note' : undefined;
   }
 }

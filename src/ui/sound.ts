@@ -1,12 +1,31 @@
 import type { Encounter } from '../shared/encounters';
+import { encounterVolume } from './preferences';
 
-/** Two short notes: rising for a noted player, falling and lower for a "Watch out" note. */
-const CHIMES: Record<Encounter, number[]> = {
-  note: [659.25, 880],
-  avoid: [392, 293.66],
+type Chime = {
+  wave: OscillatorType;
+  /** Seconds to full level; short for a sharp pulse, longer for a soft note. */
+  attack: number;
+  /** Share of the chosen volume: a note stays in the background of the game's sound. */
+  level: number;
+  /** Frequency (Hz), start and length (seconds) of each note. */
+  notes: [number, number, number][];
 };
-const NOTE = 0.16;
-const VOLUME = 0.18;
+/**
+ * A noted player: two soft rising sine notes at 30% of the chime volume, once per match look.
+ */
+const CHIMES: Record<Encounter, Chime> = {
+  note: {
+    wave: 'sine',
+    attack: 0.025,
+    level: 0.3,
+    notes: [
+      [659.25, 0, 0.7],
+      [987.77, 0.2, 0.7],
+    ],
+  },
+};
+/** Peak gain at 100%; the compressor keeps overlapping notes from clipping. */
+const PEAK = 0.85;
 
 let context: AudioContext | undefined;
 function audio() {
@@ -20,23 +39,30 @@ if (typeof window !== 'undefined') {
 }
 
 /** Synthesised, so no sound file ships with the app. Failures are silent. */
-export function playChime(kind: Encounter) {
+export function playChime(kind: Encounter, volume = encounterVolume()) {
+  if (volume <= 0) return;
   try {
     const ctx = audio();
     const start = ctx.currentTime + 0.02;
-    CHIMES[kind].forEach((frequency, index) => {
-      const at = start + index * NOTE;
+    const limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = -6;
+    limiter.ratio.value = 8;
+    limiter.connect(ctx.destination);
+    const { wave, attack, level, notes } = CHIMES[kind];
+    const peak = (PEAK * level * volume) / 100;
+    for (const [frequency, at, length] of notes) {
+      const time = start + at;
       const tone = ctx.createOscillator();
       const gain = ctx.createGain();
-      tone.type = 'sine';
+      tone.type = wave;
       tone.frequency.value = frequency;
-      gain.gain.setValueAtTime(0, at);
-      gain.gain.linearRampToValueAtTime(VOLUME, at + 0.015);
-      gain.gain.exponentialRampToValueAtTime(0.0001, at + NOTE * 2);
-      tone.connect(gain).connect(ctx.destination);
-      tone.start(at);
-      tone.stop(at + NOTE * 2 + 0.02);
-    });
+      gain.gain.setValueAtTime(0.0001, time);
+      gain.gain.exponentialRampToValueAtTime(Math.max(peak, 0.0002), time + attack);
+      gain.gain.exponentialRampToValueAtTime(0.0001, time + length);
+      tone.connect(gain).connect(limiter);
+      tone.start(time);
+      tone.stop(time + length + 0.02);
+    }
   } catch {
     /* No audio output: the note still shows in the table. */
   }

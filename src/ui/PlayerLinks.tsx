@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
-import { playerSites, playerSiteUrl } from '../shared/player-sites';
+import { playerSites, playerSiteUrl, profileSites } from '../shared/player-sites';
 import { api, errorMessage } from './App';
 
-export function PlayerLinks({ id }: { id?: string }) {
+/** The player on the statistics sites and Steam; `labelled` shows tiles with the site name over a large icon. */
+export function PlayerLinks({ id, labelled = false }: { id?: string; labelled?: boolean }) {
   const [error, setError] = useState('');
   if (!id) return null;
   return (
-    <span className="player-sites" aria-label="Player profiles">
-      {playerSites.map((site) => (
+    <span className={`player-sites${labelled ? ' labelled' : ''}`} aria-label="Player profiles">
+      {profileSites.map((site) => (
         <a
           key={site.id}
           className={`player-site site-${site.id}`}
@@ -21,6 +22,7 @@ export function PlayerLinks({ id }: { id?: string }) {
             void api.openPlayerSite(id, site.id).catch((e) => setError(errorMessage(e)));
           }}
         >
+          {labelled && <span>{site.name}</span>}
           <img src={`./sites/${site.icon}`} width={16} height={16} alt="" aria-hidden="true" />
         </a>
       ))}

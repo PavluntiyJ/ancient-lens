@@ -1794,7 +1794,7 @@ try {
   assert.equal(await execute('return document.querySelector(".draft-scope").textContent'), 'Known picks: 2/10');
   await assertPanelContentsFit();
   assert.equal(
-    await execute('return document.querySelector(".draft-lane-flags .role-icon").getAttribute("src")'),
+    await execute('return document.querySelector(".match-role[data-lanes] .role-icon").getAttribute("src")'),
     './roles/midlane.png',
   );
   assert.ok(
@@ -1848,10 +1848,13 @@ try {
     oldSuggestions,
     'Ally hover did not change scores',
   );
-  assert.equal(await execute('return document.querySelectorAll(".draft-lane-flags .role-icon").length'), 2);
+  assert.equal(
+    await execute('return document.querySelector(".match-role[data-lanes]").dataset.lanes.split(",").length'),
+    2,
+  );
   assert.ok(
     await execute(
-      'return document.querySelector(".draft-lane-flags").getAttribute("aria-label").includes("Lane selected in the draft")',
+      'return document.querySelector(".match-role[data-lanes]").getAttribute("aria-label").includes("selected in the draft")',
     ),
   );
   await screenshot('hover');
@@ -1983,14 +1986,14 @@ try {
   pendingDrafts.splice(0).forEach((resolve) => resolve());
   await new Promise((resolve) => setTimeout(resolve, 500));
   assert.equal(
-    await execute('return document.querySelectorAll(".suggestion-tile, .draft-hover, .draft-lane-flags").length'),
+    await execute('return document.querySelectorAll(".suggestion-tile, .draft-hover, .match-role[data-lanes]").length'),
     0,
     'Late hover revived the old match',
   );
   await emitDraft('810002', [], undefined, [], hover(22), [{ slot: 6, team: 'dire', flags: 4 }], 'disabled');
   await new Promise((resolve) => setTimeout(resolve, 500));
   assert.equal(
-    await execute('return document.querySelectorAll(".suggestion-tile, .draft-hover, .draft-lane-flags").length'),
+    await execute('return document.querySelectorAll(".suggestion-tile, .draft-hover, .match-role[data-lanes]").length'),
     0,
     'Disabled reader displayed intentions',
   );

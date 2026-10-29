@@ -26,6 +26,7 @@
     "test:rust": "npm run build:web && cargo test --manifest-path src-tauri/Cargo.toml",
     "test:native": "node scripts/smoke-native.mjs",
     "docs:screenshots": "node scripts/docs-screenshots.mjs",
+    "demo": "node scripts/demo.mjs",
     "format": "prettier --write src tests scripts vite.config.ts",
     "format:check": "prettier --check src tests scripts vite.config.ts",
     "check:public": "node scripts/check-public.mjs",

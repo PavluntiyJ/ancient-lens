@@ -34,6 +34,12 @@ export const rosterColumns = {
       "A lane selected in the draft; otherwise one role per player guessed for the whole team from the period history and the hero's positions, marked Likely.",
     source: 'the draft (game), STRATZ hero positions and the player history',
   },
+  withMe: {
+    title: 'Matches with you',
+    formula:
+      'Earlier matches of yours with this player, as ally or opponent, and your win rate in them. Hover the count for the list.',
+    source: 'your own history (STRATZ) and the local match journal; matches without a player list cannot count',
+  },
   totalGames: {
     title: 'Games and win rate, all time',
     formula: 'Every match the provider has for the player.',

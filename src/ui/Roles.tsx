@@ -38,15 +38,31 @@ export function LaneIcon({ lane }: { lane: string }) {
   return position ? <RoleIcon position={position} /> : <Map size={16} aria-hidden="true" />;
 }
 
-/** This match's role: a lane selected in the draft, or a team-wide guess marked as likely. */
-export function MatchRole({ role, heroName, days = 14 }: { role?: RoleGuess; heroName?: string; days?: number }) {
+/**
+ * This match's role, the one role icon before the player's name: a lane selected in the
+ * draft, or a team-wide guess, drawn dimmer. The lanes a player selected in the draft are
+ * named in its card rather than shown as icons of their own.
+ */
+export function MatchRole({
+  role,
+  heroName,
+  lanes = [],
+  card = true,
+}: {
+  role?: RoleGuess;
+  heroName?: string;
+  /** Lanes selected in the draft, when the game reports them. */
+  lanes?: Position[];
+  /** False inside a player cell whose hover card already names the role. */
+  card?: boolean;
+}) {
   if (!role)
     return (
-      <span className="match-role unknown" title="Role unknown: no hero or matches yet">
-        —
-      </span>
+      // An empty slot of the icon's width, so the names stay in one column.
+      <span className="match-role unknown" title="Role unknown: no hero or matches yet" />
     );
   const name = rankedRoles.find((item) => item.id === role.position)!.name;
+  const selected = lanes.map((lane) => rankedRoles.find((item) => item.id === lane)?.name ?? lane).join(', ');
   const label = role.guessed
     ? [
         `Likely ${name}`,
@@ -56,16 +72,17 @@ export function MatchRole({ role, heroName, days = 14 }: { role?: RoleGuess; her
         ...(role.hero && heroName
           ? [`${heroName}: ${Math.round(role.hero.share * 100)}% of matches in this position`]
           : []),
+        ...(lanes.length > 1 ? [`selected in the draft: ${selected}`] : []),
       ].join(' · ')
     : `${name} · selected in the draft`;
   return (
     <span
       className={`match-role${role.guessed ? ' guessed' : ''}`}
-      {...tip(<RoleTip role={role} heroName={heroName} days={days} />)}
+      {...(card ? tip(<RoleTip role={role} lanes={selected} />) : {})}
       aria-label={label}
+      data-lanes={lanes.length ? lanes.join(',') : undefined}
     >
       <RoleIcon position={role.position} />
-      {role.guessed && <small aria-hidden="true">?</small>}
     </span>
   );
 }

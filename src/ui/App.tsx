@@ -229,6 +229,7 @@ export function App() {
           info={info}
           onError={setError}
         >
+          <div className="titlebar-match" id="titlebar-match" />
           <HeaderNav page={page} open={(next) => (next === 'settings' ? openSettings() : open(next))} />
         </TitleBar>
         <main>

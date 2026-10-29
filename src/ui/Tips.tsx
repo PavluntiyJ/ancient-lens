@@ -20,25 +20,20 @@ const signed = (value: number, digits = 2) =>
 const tone = (value: number) => (value > 0 ? 'tip-positive' : value < 0 ? 'tip-negative' : undefined);
 const percent = (wins: number, games: number) => (games ? Math.round((wins / games) * 100) : 0);
 
-export function RoleTip({ role, heroName, days }: { role: RoleGuess; heroName?: string; days: number }) {
+/** The role of a match player in two lines: the role, and whether the draft says so or it is a guess. */
+export function RoleTip({ role, lanes }: { role: RoleGuess; lanes?: string }) {
   const name = rankedRoles.find((item) => item.id === role.position)!.name;
-  if (!role.guessed)
-    return <TipCard icon={<RoleIcon position={role.position} />} title={name} note="Selected in the draft" />;
   return (
     <TipCard
       icon={<RoleIcon position={role.position} />}
       title={name}
-      tag="Likely"
-      rows={[
-        [
-          `Player, last ${days} days`,
-          role.player ? `${role.player.games} of ${role.player.known} games` : 'Private or no games',
-        ],
-        ...(role.hero && heroName
-          ? [[`${heroName} in this role`, `${Math.round(role.hero.share * 100)}% of games`] as [string, string]]
-          : []),
-      ]}
-      note="Guessed for the whole team: each player gets one role."
+      note={
+        !role.guessed
+          ? 'Selected in the draft.'
+          : lanes
+            ? `Most probable position among the lanes selected in the draft (${lanes}).`
+            : "Most probable position, guessed from this match: the player's recent games and the hero."
+      }
     />
   );
 }

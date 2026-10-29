@@ -14,19 +14,20 @@ it('marks a guessed role as likely and explains it', () => {
   );
   expect(html).toContain('class="match-role guessed"');
   expect(html).toContain('hardsupport');
-  expect(html).toContain('?');
+  // One icon, dimmed by its class instead of a question mark.
+  expect(html).not.toContain('<small');
   expect(html).toContain(
     'Likely Hard Support · 20 of 22 matches with a known position · Witch Doctor: 90% of matches in this position',
   );
 });
-it('shows a lane chosen in the draft as known, and a dash without data', () => {
+it('shows a lane chosen in the draft as known, and an empty slot without data', () => {
   const known = renderToStaticMarkup(<MatchRole role={{ position: 1, guessed: false }} />);
   expect(known).toContain('class="match-role"');
   expect(known).toContain('Safe Lane · selected in the draft');
   expect(known).not.toContain('Likely');
   const none = renderToStaticMarkup(<MatchRole />);
   expect(none).toContain('match-role unknown');
-  expect(none).toContain('—');
+  expect(none).not.toContain('—');
   // A private profile explains the guess by the hero alone.
   const hero = renderToStaticMarkup(
     <MatchRole role={{ position: 3, guessed: true, hero: { share: 0.5 } }} heroName="Mars" />,

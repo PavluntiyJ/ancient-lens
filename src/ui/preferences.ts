@@ -72,6 +72,20 @@ export function setEncounterSound(enabled: boolean) {
   localStorage.setItem(encounterSoundKey, enabled ? 'on' : 'off');
   window.dispatchEvent(new Event('stats-preferences'));
 }
+const encounterVolumeKey = 'ancient-encounter-volume';
+/** Chime volume in percent, 80 by default. */
+export function encounterVolume() {
+  const saved = localStorage.getItem(encounterVolumeKey);
+  const value = saved === null ? 80 : Number(saved);
+  return Number.isFinite(value) ? Math.max(0, Math.min(100, Math.round(value))) : 80;
+}
+export function useEncounterVolume() {
+  return useSyncExternalStore(subscribe, encounterVolume);
+}
+export function setEncounterVolume(volume: number) {
+  localStorage.setItem(encounterVolumeKey, String(Math.max(0, Math.min(100, Math.round(volume)))));
+  window.dispatchEvent(new Event('stats-preferences'));
+}
 
 export type MinWinRate = { enabled: boolean; value: number };
 const minWinRateKey = 'ancient-min-win-rate';

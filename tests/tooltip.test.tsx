@@ -34,6 +34,21 @@ describe('tooltip placement', () => {
     expect(right.left).toBe(1000 - 8 - 200);
     expect(right.arrow).toBe(200 - 12);
   });
+  it('opens beside a row: right of it, top-aligned, or left when the right has no room', () => {
+    const row = anchor(20, 300, 300, 50);
+    expect(placeTip(row, { width: 400, height: 300 }, viewport, true)).toEqual({
+      left: 328,
+      top: 300,
+      placement: 'right',
+      arrow: 25,
+    });
+    const wide = placeTip(anchor(500, 600, 300, 50), { width: 400, height: 300 }, viewport, true);
+    expect(wide.placement).toBe('left');
+    expect(wide.left).toBe(500 - 8 - 400);
+    // Kept inside the window: moved up, the arrow still at the row's middle.
+    expect(wide.top).toBe(800 - 8 - 300);
+    expect(wide.arrow).toBe(625 - 492);
+  });
 });
 
 it('lays a card out as title, labelled rows and a note', () => {
