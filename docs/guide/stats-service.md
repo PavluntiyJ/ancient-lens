@@ -43,7 +43,7 @@ The service ships beside the app: `stats-service.exe` next to `Ancient Lens.exe`
 in the Windows installer and portable ZIP, `stats-service` next to `ancient-lens` in
 `usr/bin` of the `.deb` and AppImage, and in `src-tauri/target/release/` of a source
 build. The release build checks that every package contains it. On Linux the
-Connect flow (keyring save and service start) has not been tried on a desktop yet.
+Connect flow (keyring save and service start) was checked on a Fedora 44 KDE desktop.
 
 On Linux an installed `ancient-lens-stats` user unit
 ([Fedora guide](fedora.md#personal-stratz-service)) is restarted after Connect and

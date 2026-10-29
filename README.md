@@ -47,9 +47,10 @@ Screenshots use invented players. A tour of every panel and shortcut:
 3. Restart Dota 2 and spectate a match: ten players should appear.
 4. Look at the profile window (`Alt+Num 6` shows or hides it, `Alt+Num 5` the match window).
    Your account is detected from Steam; **Set profile manually** is the fallback.
-5. Optional: press **Connect STRATZ** in Settings for draft recommendations
-   ([details](docs/guide/stats-service.md)), and decide whether to enable the memory
-   reader (below).
+5. The first start asks two optional questions: whether to enable the memory reader
+   (below), then whether to connect STRATZ for draft recommendations and faster player
+   loading ([details](docs/guide/stats-service.md)). **Not now** skips either one; both
+   stay in **Settings → Connections**.
 
 Details and troubleshooting: [setup and data](docs/guide/setup.md), and the
 [Fedora guide](docs/guide/fedora.md) on Fedora.
@@ -60,14 +61,14 @@ Details and troubleshooting: [setup and data](docs/guide/setup.md), and the
 | --------------------------------------------------------------------------------- | --------------------------------------- | ------------------------------- | ---------------------------------------- |
 | Public profiles, notes, manual draft, MMR journal, automatic account detection    | Nothing: works out of the box           | Yes                             | Yes                                      |
 | Ten-player roster and picks while spectating                                      | Dota GSI setup (Quick start above)      | Yes                             | Yes                                      |
-| Matchups, position recommendations, meta and counter picks                        | Your STRATZ token and the local service | Yes                             | Yes, Connect not yet tried on a desktop  |
+| Matchups, position recommendations, meta and counter picks                        | Your STRATZ token and the local service | Yes                             | Yes                                      |
 | Ten-player roster, picks and bans in **your own** match; exact MMR and confidence | Optional memory reader, off by default  | Yes                             | Yes                                      |
 | Match and profile windows above the game that leave it the keyboard (and sound)   | Borderless or windowed game             | Yes, sound not yet checked live | X11 only; on Wayland the desktop decides |
 
 In your own match Dota's GSI sends only your own player, on both systems. With the reader
 off, an empty enemy roster there is expected, not a failed installation. **Connect STRATZ**
 saves your own token and starts the statistics service that ships with the app
-([details](docs/guide/stats-service.md)); on Linux this has not been tried on a desktop yet.
+([details](docs/guide/stats-service.md)).
 
 **The memory reader is off by default.** The first start asks once whether to enable it;
 **Not now** keeps it off. Enabling it allows external, read-only access to
