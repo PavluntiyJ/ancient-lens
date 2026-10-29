@@ -40,7 +40,7 @@ export function ProviderSettings({ changed }: { changed(): void }) {
   if (!info)
     return (
       <section className="panel provider-settings">
-        <h2>Statistics provider</h2>
+        <h2>Connect STRATZ</h2>
         <p>{error || 'Connecting…'}</p>
       </section>
     );
@@ -63,7 +63,7 @@ export function ProviderSettings({ changed }: { changed(): void }) {
     const connectable = !!info.connectable && !!api.connectStratz;
     return (
       <section className="panel provider-settings">
-        <h2>Player history · {info.source}</h2>
+        <h2>{info.serviceConfigured ? 'STRATZ connection' : 'Connect STRATZ'}</h2>
         <p className="muted">{info.status}</p>
         <p className="fine-print">
           {info.serviceConfigured
@@ -108,7 +108,7 @@ export function ProviderSettings({ changed }: { changed(): void }) {
   }
   return (
     <section className="panel provider-settings">
-      <h2>Player history · {info?.source ?? 'Loading…'}</h2>
+      <h2>Connect STRATZ</h2>
       <p className="muted">
         STRATZ loads the roster in batches of five players. Get your own API token from stratz.com/api. Without a token,
         OpenDota is used: requests respect its rate limits and rows appear gradually.

@@ -2,6 +2,8 @@ pub mod api;
 pub mod averages;
 pub mod broker;
 #[cfg(feature = "desktop")]
+mod browser;
+#[cfg(feature = "desktop")]
 pub mod desktop;
 pub mod draft;
 pub mod gsi;

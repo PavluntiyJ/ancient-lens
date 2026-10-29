@@ -4808,6 +4808,9 @@ kbd {
 .stratz-dialog h2 {
   margin: 0;
 }
+.selectable-url {
+  user-select: text;
+}
 .reader-consent {
   width: min(560px, 92vw);
   padding: 20px 22px 22px;

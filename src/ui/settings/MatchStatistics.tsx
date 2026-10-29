@@ -100,7 +100,7 @@ export function MatchStatisticsSettings({ suggestions }: { suggestions?: boolean
         </div>
         <p className="fine-print" id="synergy-note">
           {suggestions === false
-            ? 'Unavailable: pick suggestions and lane totals need STRATZ (connect it under Player history).'
+            ? 'Unavailable: pick suggestions and lane totals need STRATZ (Settings → Connections → STRATZ).'
             : 'How much allies count in pick suggestions and the Lanes total. Re-scores loaded data without reloading.'}
         </p>
       </div>

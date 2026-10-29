@@ -84,6 +84,13 @@ asks once whether to enable it (**Enable memory reading** or **Not now**); the
 question is not repeated. Changes apply immediately and are saved as
 `nativeRosterReader` in `state.json`.
 
+After either answer, the app offers **Connect STRATZ** if no statistics service is
+configured. This independent, optional step explains faster player loading and
+additional match statistics and lets you paste your token directly. **Not now**
+(or closing the prompt) dismisses the offer for future launches. You can return
+to **Settings → Connections → STRATZ** at any time. See the
+[STRATZ connection guide](stats-service.md) for the three setup steps.
+
 ![Memory-reading consent and explanation](../images/memory-consent.png)
 
 | Platform | Readable data                                                                                             | Method                                                                                            |

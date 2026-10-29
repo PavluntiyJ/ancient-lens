@@ -82,6 +82,10 @@ export function ReaderConsentDialog({
           Spectating, public profiles and notes work without it. You can change this at any time in Settings →
           Connections → Memory reading.
         </p>
+        <p className="fine-print">
+          Memory reading finds the players in your match. The optional STRATZ connection adds public statistics about
+          them; it works independently of this choice.
+        </p>
         {error && <Notice error>{error}</Notice>}
         <div className="button-row">
           <button type="button" className="primary" disabled={busy} onClick={() => void enable()}>
