@@ -1,6 +1,6 @@
 {
   "name": "ancient-lens",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "private": true,
   "type": "module",
   "description": "Open-source Dota 2 companion for Windows and Linux, without ads or telemetry",

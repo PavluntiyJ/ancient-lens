@@ -166,6 +166,23 @@ for (const match of history) {
     };
   });
   const team = (radiant) => match.lineup.filter((player) => player.radiant === radiant);
+  // The first five own matches include Kestrel, sometimes as an ally, sometimes an enemy.
+  // Keep the participant lists consistent with the ten-player statistic card.
+  if (history.indexOf(match) < 5) {
+    const player = match.lineup[1];
+    player.id = 1;
+    player.name = names[0];
+    const participant = {
+      id: player.id,
+      name: player.name,
+      hero: player.hero_id,
+      kills: player.kills,
+      deaths: player.deaths,
+      assists: player.assists,
+    };
+    match.allies = player.radiant === own ? [participant] : [];
+    match.enemies = player.radiant !== own ? [participant] : [];
+  }
   match.team_kills = team(own).reduce((sum, player) => sum + player.kills, 0);
   match.team_deaths = team(own).reduce((sum, player) => sum + player.deaths, 0);
 }
@@ -197,7 +214,22 @@ ranked.forEach((match, k) => {
 });
 await writeFile(
   join(directory, 'state.json'),
-  JSON.stringify({ version: 1, accountId: own, token: 'b'.repeat(64), notes: [], mmr, nativeRosterReader: 'on' }),
+  JSON.stringify({
+    version: 1,
+    accountId: own,
+    token: 'b'.repeat(64),
+    notes: [
+      {
+        accountId: '1',
+        name: names[0],
+        text: 'Calls objectives and shares the next smoke timing.',
+        tag: 'neutral',
+        updatedAt: new Date(now * 1000).toISOString(),
+      },
+    ],
+    mmr,
+    nativeRosterReader: 'on',
+  }),
 );
 const feed = join(directory, 'account-feed.json');
 async function measured() {
@@ -235,6 +267,9 @@ function summary(id, days, filter) {
     duration: 1900,
     player_slot: 0,
     radiant_win: noise('r', id, k) > 0,
+    kills: stat(2, 10, 'recent-k', id, k),
+    deaths: stat(1, 8, 'recent-d', id, k),
+    assists: stat(4, 15, 'recent-a', id, k),
     // Mostly the usual role, sometimes another one.
     position: `POSITION_${k % 6 === 5 ? 1 + ((n + k) % 5) : roles[n - 1]}`,
   }));
@@ -352,7 +387,10 @@ try {
     ANCIENT_TEST_ACCOUNT_FEED: feed,
     ANCIENT_STATS_URL: `http://127.0.0.1:${service.address().port}`,
   });
+  await app.resize(1740, 1240);
   const info = await app.call('getInfo');
+  // Prime the own-history cache before the match screen asks for saved meetings only.
+  await app.call('getHistory', own, 0);
   // Spectator GSI: ten players with picked heroes.
   const payload = {
     auth: { token: 'b'.repeat(64) },
@@ -382,8 +420,18 @@ try {
     'Demo match did not load',
   );
   await app.capture(join(out, 'match-screen.png'));
+  await app.execute(
+    'document.querySelector(".match-player").dispatchEvent(new MouseEvent("mouseover",{bubbles:true,relatedTarget:document.body}))',
+  );
+  await waitFor(
+    () => app.execute('return !!document.querySelector(".player-preview .preview-together")'),
+    'Player hover card with earlier meetings did not open',
+  );
+  await app.execute('document.querySelector(".tooltip").style.background = "#141c2a"');
+  await app.capture(join(out, 'player-card.png'), '.tooltip');
+  await app.execute('document.body.dispatchEvent(new MouseEvent("mousedown",{bubbles:true}))');
   // The third analysis panel needs a wider window than the main screenshot.
-  await app.resize(2300, 1240);
+  await app.resize(3200, 1900);
   await waitFor(
     () => app.execute('return !!document.querySelector(`[aria-label^="Third panel"]`)'),
     'Third analysis panel did not appear',
@@ -391,6 +439,28 @@ try {
   await app.click('Left panel: Lanes');
   await app.click('Right panel: Picks for Radiant');
   await app.click('Third panel: Counter picks against Dire');
+  await waitFor(
+    () => app.execute('return document.querySelectorAll(".analysis-strip.three .analysis-panel").length === 3'),
+    'Three analysis panels did not remain visible after layout settled',
+  );
+  // The fit zoom responds over several frames after resize and panel changes.
+  let previousLayout;
+  let stableLayouts = 0;
+  await waitFor(async () => {
+    const layout = await app.execute(
+      'return JSON.stringify([...document.querySelectorAll(".match-fit,.analysis-panel,.analysis-content")].map(el=>{const r=el.getBoundingClientRect(); return [r.width,r.height,el.scrollWidth,el.scrollHeight]}))',
+    );
+    stableLayouts = layout === previousLayout ? stableLayouts + 1 : 0;
+    previousLayout = layout;
+    return stableLayouts >= 3;
+  }, 'Analysis layout did not settle');
+  await waitFor(
+    () =>
+      app.execute(
+        'return [...document.querySelectorAll(".analysis-content")].every(el=>el.scrollWidth<=el.clientWidth+1 && el.scrollHeight<=el.clientHeight+1)',
+      ),
+    'Analysis content would be clipped in the documentation image',
+  );
   await app.capture(join(out, 'draft-panels.png'), '.analysis-strip');
   await app.resize(1600, 1240);
   // The profile has a window of its own, open from the start.
@@ -425,5 +495,6 @@ try {
   clearInterval(feeder);
   await app?.close();
   await new Promise((done) => service.close(done));
-  await rm(directory, { recursive: true, force: true });
+  // WebView2 releases its profile files shortly after the app exits.
+  await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
 }

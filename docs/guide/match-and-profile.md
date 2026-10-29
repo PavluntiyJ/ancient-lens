@@ -15,6 +15,10 @@ The match window's header has four icons: **Match and draft**, **My profile**, *
 The interface scale is in **Settings → Interface → Appearance**; the match screen also fits
 itself to the window, so the scale rarely needs to change during a match.
 
+The match window's title bar shows the phase, match ID, profile-loading progress, statistics
+period and refresh control. The match clock is no longer shown above the table. If one
+profile fails to load, its row says **Could not load**; hover the player for the reason.
+
 Tools without a header icon open where they are needed:
 
 - While no game data arrives, the match screen links **Manual draft** (compare heroes against
@@ -37,10 +41,19 @@ Two teams of five, one row per player:
 - main positions and their shares;
 - frequent heroes with spam markers, and statistics for the current hero.
 
-Your own row is marked, **With me** counts your earlier matches with the player and your win
-rate in them (hover for the list), and avatars get the in-game slot colour when the slot order
-is known; the country flag sits in the avatar's corner and the site links in the hover card. Missing IDs, private profiles, loading, and stale data
-are shown separately. The match screen fits the window down to 90% scale, then scrolls.
+Your own row is marked. Each player has one role icon before the name: a lane selected in the
+draft, or a dimmer guess. The player's hover card explains which. Avatars get the in-game slot
+colour when the slot order is known, with the country flag in the corner.
+
+**With me** counts earlier matches with or against that player in your loaded history, with
+your win rate over matches whose result is known. Hover or focus the count for both heroes,
+K/D/A and the result from your point of view; click a match to open it on Dotabuff. The current
+match is excluded. An empty cell means no meeting was found in the loaded history, not proof
+you have never met: older or OpenDota history may have no participant lists.
+
+Missing IDs, private profiles, loading and stale data are shown separately. The match screen
+fits the window down to 90% scale, then scrolls. On taller windows the analysis panels grow
+more slowly, leaving more room for the ten player rows.
 
 ## Analysis panels
 
@@ -75,9 +88,24 @@ that match (STRATZ history):
 
 ## Player notes and cards
 
-Searchable notes are linked to Dota IDs; **Notes** in the header lists and edits them. A player card shows the full history, teammates and
-opponents, with Dotabuff, OpenDota, and STRATZ links. The SMURF label is a public-statistics
-heuristic, not proof.
+Hover anywhere in the player cell (avatar, role or name) to open a card beside the row. It
+shows the player's rank and all-time matches, country and Steam name, the selected period,
+streak and main role, your note, and links to Dotabuff, OpenDota, STRATZ and Steam. The card
+lists the newest eight matches in the loaded period and up to ten earlier matches with or
+against you, with both heroes, K/D/A and your result. Earlier meetings come from your own
+history, so they can appear even for a private profile. Missing values stay unknown.
+
+Move the pointer onto the card to use it. Click a match there to open it on STRATZ, or the
+card outside the note and links to open the full player card with history, teammates and
+opponents. The SMURF label is a public-statistics heuristic, not proof.
+
+![Player hover card with a note, site links, recent matches and earlier meetings](../images/player-card.png)
+
+Searchable notes are saved locally by Dota ID; **Notes** in the header lists and edits them.
+Click anywhere in the note block to add, edit or delete a note. The marker and card show its
+date. Notes now have one kind: older Observation, Good teammate and Watch out notes keep
+their text and display the same way. The optional chime and its volume are in
+[Settings → Interface → Sound](setup.md#note-sound).
 
 ## Personal profile
 
