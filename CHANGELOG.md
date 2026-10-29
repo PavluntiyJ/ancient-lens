@@ -4,6 +4,11 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ## Unreleased
 
+## 0.7.0 — October 30, 2026
+
+This release refreshes the match table and player hover cards, simplifies notes, and adds
+release notifications. Existing settings, notes and rating history are kept.
+
 ### New versions
 
 - A notice above the match screen says when a newer Ancient Lens release is out, with

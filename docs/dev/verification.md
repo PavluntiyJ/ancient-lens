@@ -51,7 +51,8 @@ kwin_wayland --virtual --no-lockscreen --width 2560 --height 1600 --socket al-sm
 ## Native coverage
 
 - Ten player rows, shuffled provider responses correctly mapped by ID, two
-  batches of five, lifetime/period statistics, positions, medals and site links.
+  batches of five, lifetime/period statistics, positions, medals and the four profile links
+  in the player hover card (Dotabuff, OpenDota, STRATZ and Steam).
 - Independent carousels and hero pagination, shared recommendation lane,
   automatic initial lane from the local role, no refetch on display-only changes.
 - Anonymous draft, tentative hovers, bans, malformed responses, retry, and

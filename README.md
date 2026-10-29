@@ -19,7 +19,7 @@
   <a href="docs/README.md"><b>Documentation</b></a>
 </p>
 
-> **Early prototype, 0.6.1.** Unsigned prereleases for Windows and Linux are on the
+> **Early prototype, 0.7.0.** Unsigned prereleases for Windows and Linux are on the
 > [releases page](https://github.com/PavluntiyJ/ancient-lens/releases); you can also
 > [build from source](docs/guide/install.md). Not affiliated with Valve.
 
@@ -31,8 +31,12 @@
   meta picks, updated as heroes are picked and banned (needs your STRATZ token).
 - **Profile and MMR:** your rank with confidence, an MMR chart, position breakdown and a
   filterable match history, kept even when your match data is private.
-- **Player notes:** searchable notes on players you met, with links to Dotabuff, OpenDota
-  and STRATZ.
+- **Player cards and notes:** hover a player for recent matches, earlier games with or
+  against you, an editable note, and links to Dotabuff, OpenDota, STRATZ and Steam.
+
+In 0.7.0, match status moves into the title bar, **With me** shows earlier meetings and your
+win rate, and note chimes have a volume control. The app also links to new releases when
+available. See the [changelog](CHANGELOG.md#070--october-30-2026).
 
 Screenshots use invented players. A tour of every panel and shortcut:
 [the match screen and profile](docs/guide/match-and-profile.md).
@@ -60,6 +64,7 @@ Details and troubleshooting: [setup and data](docs/guide/setup.md), and the
 | What you get                                                                      | Needs                                   | Windows                         | Linux                                    |
 | --------------------------------------------------------------------------------- | --------------------------------------- | ------------------------------- | ---------------------------------------- |
 | Public profiles, notes, manual draft, MMR journal, automatic account detection    | Nothing: works out of the box           | Yes                             | Yes                                      |
+| 0.7 match layout, player hover card and note controls                            | Public statistics and your local history | Native fixtures checked          | Desktop check pending; CI checks only    |
 | Ten-player roster and picks while spectating                                      | Dota GSI setup (Quick start above)      | Yes                             | Yes                                      |
 | Matchups, position recommendations, meta and counter picks                        | Your STRATZ token and the local service | Yes                             | Yes                                      |
 | Ten-player roster, picks and bans in **your own** match; exact MMR and confidence | Optional memory reader, off by default  | Yes                             | Yes                                      |

@@ -36,7 +36,7 @@ Extract the complete ZIP and run Ancient Lens.exe as your normal user.
 Microsoft Edge WebView2 Runtime must be installed. This build is unsigned.
 
 FIRST LAUNCH
-1. Open Settings > Connect Dota 2. It shows what is missing; Fix connection
+1. Open Settings > Connections > Dota 2. It shows what is missing; Set up automatically
    installs the GSI file and the launch option. Restart Dota afterwards.
 2. Spectate a match to check the connection. Public OpenDota profiles need no key.
 3. Optional STRATZ setup is offered after the memory-reader question, or later
@@ -46,8 +46,8 @@ FIRST LAUNCH
    If stats-service.exe is missing, the app still uses public OpenDota.
 
 MEMORY READING (OPTIONAL, OFF BY DEFAULT)
-Participant GSI supplies only your own player. Settings > Allow Dota memory reading
-adds the ten-player roster, picks, bans and lanes of your own match, and your exact
+Participant GSI supplies only your own player. In Settings > Connections > Memory reading,
+Allow Dota memory reading adds the ten-player roster, picks, bans and lanes, and your exact
 MMR and rank confidence. It reads the game process only; it never writes, injects
 or calls game code. The anti-cheat response is unknown. Public rank medals are not
 exact MMR.

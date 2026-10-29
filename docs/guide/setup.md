@@ -7,8 +7,8 @@ Dota 2 (GSI), STRATZ and, on Windows and Linux, memory reading. Each says whethe
 connected, needs setup, or is off, with a button to its section. Below, the sections are
 grouped: **Connections** (Dota 2, STRATZ, memory reading), **Match & statistics**,
 **Interface** (appearance and interface scale, shortcuts, sound, window) and **Data** (data
-folder and export). On a wide window the groups are a list on the left; on a narrow one they
-are a row of links above the sections.
+folder, export and update checks). On a wide window the groups are a list on the left; on a
+narrow one they are a row of links above the sections.
 
 ## GSI configuration
 
@@ -161,6 +161,16 @@ configuration folder, beside but not inside the data directory below).
 These are ordinary desktop windows that the system draws on top: nothing is drawn by or
 inside the game, and no input is sent to it. Shortcuts for the analysis panels are listed in
 [the match screen guide](match-and-profile.md#analysis-panels).
+
+## Note sound
+
+**Settings → Interface → Sound** controls **Chime for players with a note** and **Chime
+volume** (80% by default). A player you have a note about triggers two soft notes, once per
+player for the current match you play or watch. Private profiles count too, because notes
+are saved locally by Dota ID. All notes use the same sound; the former Watch out chime is gone.
+
+The chime plays at 30% of the selected volume. Release the volume slider or press **Play
+note** to hear it. The checkbox turns encounter chimes off.
 
 ## Storage and privacy
 

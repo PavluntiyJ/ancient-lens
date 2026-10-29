@@ -589,15 +589,8 @@ try {
   // 49% over ~6000 games is neutral under the four-tone lifetime rule.
   assert.equal(await execute('return document.querySelectorAll(".all-time .win-rate.neutral").length'), 7);
   assert.equal(await execute('return document.querySelectorAll(".match-footnote, .rail-caption").length'), 0);
-  assert.equal(await execute('return document.querySelectorAll(".match-table .player-sites a").length'), 30);
-  await checkHeaderInfo('.match-table', 7);
-  await waitFor(
-    () =>
-      execute(
-        'return [...document.querySelectorAll(".match-table .player-site img")].length === 30 && [...document.querySelectorAll(".match-table .player-site img")].every(img => img.complete && img.naturalWidth > 0)',
-      ),
-    'Local site icons failed to load',
-  );
+  assert.equal(await execute('return document.querySelectorAll(".match-table .player-sites a").length'), 0);
+  await checkHeaderInfo('.match-table', 8);
   // Player 2's country comes with its STRATZ summary, player 4's from the OpenDota fallback.
   await waitFor(
     () =>
@@ -614,12 +607,6 @@ try {
       ['./flags/DE.svg', 'Country: Germany · Steam profile via STRATZ'],
       ['./flags/FI.svg', 'Country: Finland · Steam profile via OpenDota'],
     ],
-  );
-  assert.equal(
-    await execute(
-      'return [...document.querySelectorAll(".match-table .player-sites a")].every(a => a.textContent.trim() === "" && a.getAttribute("aria-label"))',
-    ),
-    true,
   );
   assert.ok(
     await execute('return document.querySelector(".app-toolbar").getBoundingClientRect().height <= 33'),
@@ -662,6 +649,25 @@ try {
   `),
     'Hero intensity is ignored by CSS',
   );
+  // Profile links now live in the interactive player hover card, including Steam.
+  await pointAt(await execute('return document.querySelector(".match-player")'));
+  await waitFor(
+    () => execute('return document.querySelectorAll(".player-preview .player-sites a").length === 4'),
+    'Player hover card did not expose all four profile links',
+  );
+  await waitFor(
+    () =>
+      execute(
+        'return [...document.querySelectorAll(".player-preview .player-site img")].every(img => img.complete && img.naturalWidth > 0)',
+      ),
+    'Local site icons failed to load',
+  );
+  assert.equal(
+    await execute(
+      'return [...document.querySelectorAll(".player-preview .player-sites a")].every(a => a.textContent.trim() && a.getAttribute("aria-label"))',
+    ),
+    true,
+  );
   assert.ok(
     await execute(`
     const el = document.querySelector('.player-site');
@@ -674,18 +680,22 @@ try {
     'Site icon colors change on focus',
   );
   assert.equal(
-    await execute('return document.querySelector(".match-table .site-dotabuff").getAttribute("href")'),
+    await execute('return document.querySelector(".player-preview .site-dotabuff").getAttribute("href")'),
     'https://www.dotabuff.com/players/1',
   );
   assert.equal(await call('openPlayerSite', '76561197960265729', 'stratz'), 'https://stratz.com/players/1');
+  assert.equal(await call('openPlayerSite', '1', 'steam'), 'https://steamcommunity.com/profiles/76561197960265729');
+  await assert.rejects(() => call('openMatchSite', '1', 'steam'));
   await assert.rejects(() => call('openPlayerSite', '1', 'https://untrusted.example'));
   await execute(
-    'window.linkOpened = null; const original = window.ancient.openPlayerSite; window.ancient.openPlayerSite = async (...args) => { const url = await original(...args); window.linkOpened = url; return url; }; document.querySelector(".match-table .site-opendota").click();',
+    'window.linkOpened = null; const original = window.ancient.openPlayerSite; window.ancient.openPlayerSite = async (...args) => { const url = await original(...args); window.linkOpened = url; return url; }; document.querySelector(".player-preview .site-opendota").click();',
   );
   await waitFor(
     () => execute('return window.linkOpened === "https://www.opendota.com/players/1"'),
     'Direct link did not reach native opener',
   );
+  await pointAt();
+  await execute('document.body.dispatchEvent(new MouseEvent("mousedown", {bubbles:true}))');
   await waitFor(
     () => execute('return document.querySelectorAll(".smurf-badge").length === 1'),
     'Lifetime smurf heuristic did not settle',

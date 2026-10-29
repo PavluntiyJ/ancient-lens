@@ -15,6 +15,11 @@ or unverified, and what is planned.
 
 ## Known limitations
 
+- **0.7 match interface on Linux:** the roomier table, player hover card and simplified note
+  controls were inspected on Windows with synthetic native fixtures. Linux has passed the
+  ordinary CI checks for the interface changes, but the new layout and interactions still
+  need a Linux desktop run of `npm run test:native` and visual review. This is a verification
+  gap, not an intentionally Windows-only feature.
 - **Memory readers** are validated on specific game builds (see the
   [maintenance guide](dev/native-reader.md#verified-builds)). A game update can make them
   report `unsupported` until discovery is checked again. The anti-cheat response to external

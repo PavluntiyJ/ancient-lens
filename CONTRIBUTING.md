@@ -62,6 +62,8 @@ compiles; a direct `cargo test` needs an earlier `npm run build:web`.
 The optional pre-push hook runs the main checks: `git config core.hooksPath .githooks`.
 Ordinary tests use fixtures, need no API keys and never start Dota. See
 [verification](docs/dev/verification.md) for the native drivers.
+For version files, documentation screenshots and draft publication, follow
+[release preparation](docs/dev/releases.md).
 
 ## AI-assisted contributions
 

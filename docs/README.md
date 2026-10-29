@@ -25,11 +25,12 @@ user-visible changes in the [changelog](../CHANGELOG.md).
 | [Native readers](dev/native-reader.md)  | Memory readers: discovery, validation, verified builds, game updates |
 | [Verification](dev/verification.md)     | Checks and the claims they support                                   |
 | [AI development tools](dev/ai-tools.md) | Project MCP setup for Claude Code, Codex and OpenCode                |
+| [Release preparation](dev/releases.md) | Version files, documentation, platform checks and draft publication |
 | [Status and roadmap](status.md)         | Known limitations and planned work                                   |
 
 ## Screenshots
 
-Screenshots in `images/` (match screen, analysis panels, profile, ten-player card,
+Screenshots in `images/` (match screen, player hover card, analysis panels, profile, ten-player card,
 memory-reading consent), used by the README and the guides, use isolated fictional fixtures, not personal account captures.
 Regenerate on Linux with WebKitWebDriver or Windows with WebView2:
 
