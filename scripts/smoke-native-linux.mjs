@@ -122,6 +122,8 @@ let neutralDraft = false;
 let hoverDraft = false;
 const pendingDrafts = [];
 let historyRequests = 0;
+// History pages per account: the profile window loads the own account at start.
+const historyById = new Map();
 let failHistory = false;
 let privateHistory = false;
 let delaySummaries = false;
@@ -133,6 +135,7 @@ const service = createServer(async (req, res) => {
     const { ids, days, filter, id, offset, bracket = 'ALL' } = JSON.parse(body);
     if (req.url === '/v1/history') {
       historyRequests++;
+      historyById.set(String(id), (historyById.get(String(id)) ?? 0) + 1);
       if (failHistory) {
         res.writeHead(503).end('{}');
         return;
@@ -723,8 +726,7 @@ try {
     () => execute('return document.querySelectorAll("dialog[open] .card-match-row").length === 25'),
     'Player card history did not load',
   );
-  const cardHistoryRequests = historyRequests;
-  assert.equal(cardHistoryRequests, 1);
+  assert.equal(historyById.get('2'), 1, 'The player card loads one history page');
   await clickButton('Close');
   await execute('document.querySelector(".suggestion-tile img")?.dispatchEvent(new Event("error"));');
   await waitFor(
@@ -752,10 +754,10 @@ try {
   assert.equal(await execute('return document.querySelector(`[aria-label="Next Core heroes"]`).disabled'), true);
   const altArrow = (key) =>
     execute(
-      'window.dispatchEvent(new KeyboardEvent("keydown", {key:arguments[0],altKey:true,bubbles:true,cancelable:true}));',
+      'window.dispatchEvent(new KeyboardEvent("keydown", {key:arguments[0],code:arguments[0],altKey:true,bubbles:true,cancelable:true}));',
       [key],
     );
-  // The lane is shared by both panels and cycles with Alt+↑/↓.
+  // The lane is shared by both panels and cycles with Alt+↑/↓. Shortcuts match `event.code`.
   for (const lane of ['Safe Lane', 'Off Lane', 'Mid Lane', 'All Lanes']) {
     await altArrow('ArrowDown');
     assert.equal(await execute('return document.querySelector(".lane-heading").textContent'), lane);
@@ -796,7 +798,7 @@ try {
   );
   assert.deepEqual(await tileIds('Core'), firstCore, 'Changing lane should reset hero pages');
   await execute(
-    'const select=document.querySelector(`select[aria-label="Statistics period"]`); select.dispatchEvent(new KeyboardEvent("keydown",{key:"ArrowDown",altKey:true,bubbles:true}));',
+    'const select=document.querySelector(`select[aria-label="Statistics period"]`); select.dispatchEvent(new KeyboardEvent("keydown",{key:"ArrowDown",code:"ArrowDown",altKey:true,bubbles:true}));',
   );
   assert.equal(
     await execute('return document.querySelector(".lane-heading").textContent'),
@@ -841,7 +843,7 @@ try {
   // Shift+→ moves only the right panel; Alt+→ only the left one; both wrap.
   const arrow = (key, modifier) =>
     execute(
-      'window.dispatchEvent(new KeyboardEvent("keydown", {key:arguments[0],[arguments[1]]:true,bubbles:true,cancelable:true}));',
+      'window.dispatchEvent(new KeyboardEvent("keydown", {key:arguments[0],code:arguments[0],[arguments[1]]:true,bubbles:true,cancelable:true}));',
       [key, modifier],
     );
   await arrow('ArrowRight', 'shiftKey');
@@ -1369,7 +1371,7 @@ try {
         'My STRATZ profile' && (await profileRows()) === 25,
     'STRATZ profile did not load',
   );
-  assert.equal(historyRequests, cardHistoryRequests + 1);
+  assert.equal(historyById.get('1'), 1, 'Showing the profile window must not reload its history');
   // GPM of the latest match against the bracket average of its hero on the safe lane (600),
   // with the ten players of the match in its card.
   const gpmCell = await execute(
@@ -1401,11 +1403,10 @@ try {
   );
   await pointAt();
   await waitFor(() => execute('return !document.querySelector(".tooltip")'), 'Ten-player card stayed open');
+  // The Bracket column was removed in #25.
   assert.ok(
-    await execute(
-      'return !!document.querySelector(`.profile-table tbody tr:first-child td[data-column="bracket"] .rank-medal`)',
-    ),
-    'The match bracket has no medal',
+    await execute('return !document.querySelector(`.profile-table [data-column="bracket"]`)'),
+    'The removed bracket column is back',
   );
   // MMR chart: hovering opens the card of a measured match; Enter opens its details.
   const plot = await execute(
@@ -1592,7 +1593,7 @@ try {
       players: [{ key: 'self', team: 'dire' }],
       selfTeamSlot: 3,
       draftStatus,
-      draft: { matchId, gameState, source: 'linux', observedAt: now, picks, bans, hovers, lanes, slots },
+      draft: { matchId, gameState, source: 'native', observedAt: now, picks, bans, hovers, lanes, slots },
       ...extra,
     };
     const count = await execute(
@@ -2073,7 +2074,7 @@ try {
   assert.equal(await execute('return document.querySelectorAll(".matchup-cell").length'), 25);
   assert.deepEqual(await matrixShape(), twoHeroShape, 'Full matrix changed size');
   const identity = fullPicks.map((pick) => ({
-    key: pick.slot === 6 ? 'self' : `linux.${pick.slot}`,
+    key: pick.slot === 6 ? 'self' : `native.${pick.slot}`,
     team: pick.team,
     heroId: pick.heroId,
     name: `Visible ${pick.slot}`,
