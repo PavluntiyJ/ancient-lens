@@ -19,7 +19,7 @@
   <a href="docs/README.md"><b>Documentation</b></a>
 </p>
 
-> **Early prototype, 0.6.0.** Unsigned prereleases for Windows and Linux are on the
+> **Early prototype, 0.6.1.** Unsigned prereleases for Windows and Linux are on the
 > [releases page](https://github.com/PavluntiyJ/ancient-lens/releases); you can also
 > [build from source](docs/guide/install.md). Not affiliated with Valve.
 
