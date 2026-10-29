@@ -1,13 +1,17 @@
 # The match screen and your profile
 
-What each part of the window shows. How the draft numbers are calculated is in
+What each part of the two windows shows: the match window (match table, analysis panels,
+Notes and Settings) and the profile window. How they are shown over the game is in
+[setup](setup.md#windows-hotkeys-and-tray). How the draft numbers are calculated is in
 [the draft guide](draft.md); where the data comes from is in [setup and data](setup.md).
 Screenshots use invented players and demonstration statistics; hero portraits are Valve
 assets.
 
 ## Header and tools
 
-The header has four icons: **Match and draft**, **My profile**, **Notes** and **Settings**.
+The match window's header has four icons: **Match and draft**, **My profile**, **Notes** and
+**Settings**. **My profile** brings up the profile window, which has no header of its own;
+`Alt+Num 6` shows or hides it too.
 The interface scale is in **Settings → Interface → Appearance**; the match screen also fits
 itself to the window, so the scale rarely needs to change during a match.
 
@@ -51,7 +55,7 @@ views. Switching panels does not fetch again.
 | `Alt+Num 5` | Bring the window over the game  |
 
 In your own match the assigned position sets the initial lane. The window shortcut, tray and
-fullscreen notes are in [setup](setup.md#window-hotkey-and-tray).
+fullscreen notes are in [setup](setup.md#windows-hotkeys-and-tray).
 
 ![Draft panels: lane summary, Radiant recommendations and counters to Dire](../images/draft-panels.png)
 

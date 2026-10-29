@@ -4,6 +4,17 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ## Unreleased
 
+- **Two windows over the game:** the match window (match table and draft panels) and the
+  profile window open at start. Each is shown or hidden on its own, with its own global key
+  (`Alt+Num 5` for the match, `Alt+Num 6` for the profile, both changeable in Settings →
+  Interface → Shortcuts) or its close button; the app keeps running in the tray. The header's
+  profile icon brings up the profile window.
+- **The game keeps its sound:** both windows stay on top and, on Windows and on Linux with X11,
+  appear without taking the keyboard from the game, so a game that mutes in the background
+  keeps playing sound. Clicks work as usual; clicking a text field or the keyboard button in
+  the title bar lets you type, and the game goes to the background until you click it again.
+  Needs borderless or windowed mode. On Wayland the desktop decides, as before.
+- Each window remembers its size and position.
 - **Memory reading at first start:** the app asks once whether to enable the reader that fills
   the roster, picks and bans of your own match, with its risk and the way back in Settings.
   **Not now** keeps it off, as before.

@@ -100,24 +100,59 @@ When disabled, Windows still identifies your account through Steam registry
 information. Both keep GSI data. How the readers work, what they validate and on which
 game builds they were checked: [native reader guide](../dev/native-reader.md).
 
-## Window, hotkey, and tray
+## Windows, hotkeys, and tray
 
-Ancient Lens has one window. `Alt+Num 5` brings it over the game (on Windows with
-Num Lock on; on Linux the desktop portal binds numpad 5 with Num Lock off);
-pressing it again while the window is in front hides it. On Linux the shortcut is registered through the desktop's GlobalShortcuts portal, so it
-works whichever window has the keyboard; the desktop asks to confirm it once and
-lets you change it (on KDE: **System Settings → Shortcuts → Ancient Lens**).
-Without the portal, an X11 key grab is used, which on Wayland only sees the key
-while an X11 window such as the game is focused. Closing the window keeps the app
-in the system tray, so GSI and the rating reader keep running; quit from the tray
-icon menu, or turn this off in **Settings → Interface → Window**, which also
-shows the shortcut as the desktop bound it. On Linux the tray needs a
-StatusNotifier host (KDE Plasma, or GNOME with the AppIndicator extension);
-without one the option is disabled and closing quits. Exclusive fullscreen can hide the window,
-so use borderless windowed mode or a second monitor. On Wayland the compositor
-controls stacking and position (on KDE: **Keep Above Others** in the window menu),
-and the shortcut depends on the desktop. This is a regular desktop window, not
-an overlay injected into the game renderer. Shortcuts for the analysis panels are listed in
+Ancient Lens has two windows, both open at start: the **match window** (match table and
+draft panels, with Notes and Settings) and the **profile window**. Each is shown or hidden on
+its own, by its global key or by its close button (X):
+
+| Window  | Default key |
+| ------- | ----------- |
+| Match   | `Alt+Num 5` |
+| Profile | `Alt+Num 6` |
+
+A key shows its window when it is hidden or minimized and hides it when it is up. On Windows
+the numpad keys work with Num Lock on; on Linux the desktop portal binds them with Num Lock off.
+The profile icon in the match window's header also brings up the profile window. Change the
+keys in **Settings → Interface → Shortcuts**; a combination another application already owns
+is reported there and the previous keys stay active. On Linux the keys are registered through
+the desktop's GlobalShortcuts portal, so they work whichever window has the keyboard; the
+desktop asks to confirm them once and lets you change them (on KDE: **System Settings →
+Shortcuts → Ancient Lens**). Without the portal, an X11 key grab is used, which on Wayland
+only sees the keys while an X11 window such as the game is focused.
+
+**Over the game, without muting it.** Both windows stay on top of other windows. On Windows,
+and on Linux with X11 when the window manager honours the hint, a window shown by its key or
+clicked does not take the keyboard from the game, so the game stays in front and keeps its
+sound even when Dota is set to mute in the background. Clicking, scrolling and hover cards
+work as usual. Keyboard input:
+
+- Keys you press still go to the game while you click around in Ancient Lens.
+- Clicking a text field (a note, a search, a Steam ID, a shortcut to record) or the keyboard
+  button in the title bar gives that window the keyboard; the button is lit while it has it.
+  The game then goes to the background, as with any other window, until you click back into
+  it.
+- The analysis panel keys (`Alt+←` and the others) work only while the match window has the
+  keyboard. The two global keys always work.
+- Maximizing a window from its title bar also gives it the keyboard.
+
+This works over the game in **borderless or windowed mode** only: exclusive fullscreen covers
+other windows, so use borderless windowed mode or a second monitor. On Wayland the compositor
+controls stacking, focus and position: showing a window activates it, so the game goes to the
+background, and keeping a window above the game is set in its window menu (on KDE: **Keep
+Above Others**, or a window rule).
+
+Closing a window keeps the app in the system tray, so GSI and the rating reader keep running;
+the tray menu shows either window, a left click toggles the match window, and **Quit** ends
+the app. Turn this off in **Settings → Interface → Window**, which also shows the keys as the
+desktop bound them; closing the last visible window then quits. On Linux the tray needs a
+StatusNotifier host (KDE Plasma, or GNOME with the AppIndicator extension); without one the
+option is disabled. Starting Ancient Lens again while it runs brings both windows back. Each
+window remembers its size and position (`.window-state.json` in the system's application
+configuration folder, beside but not inside the data directory below).
+
+These are ordinary desktop windows that the system draws on top: nothing is drawn by or
+inside the game, and no input is sent to it. Shortcuts for the analysis panels are listed in
 [the match screen guide](match-and-profile.md#analysis-panels).
 
 ## Storage and privacy
