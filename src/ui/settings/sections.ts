@@ -21,7 +21,14 @@ export const settingsGroups = [
       ['settings-window', 'Window'],
     ],
   },
-  { id: 'data', name: 'Data', sections: [['settings-data', 'Your data']] },
+  {
+    id: 'data',
+    name: 'Data',
+    sections: [
+      ['settings-data', 'Your data'],
+      ['settings-updates', 'Updates'],
+    ],
+  },
 ] as const;
 export type SettingsSection = (typeof settingsGroups)[number]['sections'][number][0];
 

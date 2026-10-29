@@ -59,6 +59,10 @@ export type LocalState = {
   unassignedMmrCount?: number;
   nativeRosterReader?: 'off' | 'on';
   closeToTray?: boolean;
+  /** Whether the app asks GitHub for new releases; absent = on. */
+  updateCheck?: boolean;
+  /** The release whose notice the user turned away with Skip this version. */
+  skippedVersion?: string | null;
   /** Stored key bindings; absent in an older state update. */
   shortcuts?: import('./shortcuts').Shortcuts;
   /** Matches of the current account in the local match journal. */
@@ -472,6 +476,10 @@ export type HeroAverageRow = {
   killContribution: number | null;
 };
 export type HeroAverages = { source: 'STRATZ'; fetchedAt: string; bracket: RankBracket; rows: HeroAverageRow[] };
+/** A published release newer than this version, from GitHub. */
+export type Release = { version: string; url: string; prerelease: boolean; publishedAt: string | null };
+/** `latest` is `null` until a check found a newer release. */
+export type ReleaseInfo = { current: string; latest: Release | null };
 /** The match window (label `main`) and the profile window. */
 export type WindowName = 'main' | 'profile';
 export type DesktopApi = {
@@ -493,6 +501,13 @@ export type DesktopApi = {
   setAccount(id: string): Promise<LocalState>;
   setNativeRosterReader?(value: 'off' | 'on'): Promise<LocalState>;
   setCloseToTray?(value: boolean): Promise<LocalState>;
+  setUpdateCheck?(value: boolean): Promise<LocalState>;
+  skipVersion?(version: string): Promise<LocalState>;
+  /** This version and the newest newer release the last check found. */
+  getRelease?(): Promise<ReleaseInfo>;
+  onRelease?(callback: (info: ReleaseInfo) => void): () => void;
+  /** Opens the page of the release the last check found. */
+  openRelease?(): Promise<string>;
   setShortcuts?(value: import('./shortcuts').Shortcuts): Promise<LocalState>;
   getPlayer(id: string): Promise<PlayerResult>;
   /** The median medal of the live match's players, kept with its journal record. */

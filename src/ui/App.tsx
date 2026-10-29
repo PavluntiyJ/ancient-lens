@@ -7,7 +7,10 @@ import {
   type LiveState,
   type LocalState,
   type OwnUpdate,
+  type ReleaseInfo,
 } from '../shared/domain';
+import { releaseNotice } from '../shared/release-notice';
+import { ReleaseNotice } from './ReleaseNotice';
 import type { SteamSetup } from '../shared/steam-setup';
 import { Draft } from './Draft';
 import { Roster } from './Roster';
@@ -106,6 +109,9 @@ export function App() {
   const [askReader, setAskReader] = useState(false);
   const [steamSetup, setSteamSetup] = useState<SteamSetup>();
   const [settingsSection, setSettingsSection] = useState<{ id: SettingsSection }>();
+  const [release, setRelease] = useState<ReleaseInfo>();
+  // The version put off with Later; it comes back on the next start.
+  const [releaseLater, setReleaseLater] = useState<string | null>(null);
   const open = (next: Page) => {
     // The profile has a window of its own.
     if (next === 'profile') {
@@ -147,12 +153,23 @@ export function App() {
     const unsubscribeProvider = api.onProvider?.(() => {
       if (active) setProviderRevision((value) => value + 1);
     });
+    // The check runs in the background; a failed one simply leaves no notice.
+    void api.getRelease?.().then(
+      (value) => {
+        if (active) setRelease(value);
+      },
+      () => {},
+    );
+    const unsubscribeRelease = api.onRelease?.((value) => {
+      if (active) setRelease(value);
+    });
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => {
       active = false;
       unsubscribe();
       unsubscribeState?.();
       unsubscribeProvider?.();
+      unsubscribeRelease?.();
       clearInterval(timer);
     };
   }, []);
@@ -194,6 +211,7 @@ export function App() {
     };
   }, [onSettings]);
   const connected = live.status === 'connected' && live.receivedAt !== null && now - live.receivedAt < 30_000;
+  const newRelease = releaseNotice(release, local, releaseLater);
   return (
     <ShortcutsProvider value={shortcuts}>
       <div
@@ -224,6 +242,17 @@ export function App() {
               </Notice>
             )}
             {!ready && !error && <Notice>Opening workspace…</Notice>}
+            {newRelease && release && (
+              <ReleaseNotice
+                release={newRelease}
+                current={release.current}
+                open={() => void api.openRelease?.().catch((e) => setError(errorMessage(e)))}
+                later={() => setReleaseLater(newRelease.version)}
+                skip={() =>
+                  void api.skipVersion?.(newRelease.version).then(updateLocal, (e) => setError(errorMessage(e)))
+                }
+              />
+            )}
             <MatchViewport active={page === 'home'}>
               <MatchScreen
                 ownAccountId={local.accountId}
@@ -270,6 +299,7 @@ export function App() {
                   steamChanged={setSteamSetup}
                   providerRevision={providerRevision}
                   providerChanged={() => setProviderRevision((value) => value + 1)}
+                  release={release}
                 />
               )}
             </Suspense>

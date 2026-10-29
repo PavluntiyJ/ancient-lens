@@ -54,6 +54,7 @@ describe('Settings', () => {
       'settings-shortcuts',
       'settings-sound',
       'settings-statistics',
+      'settings-updates',
       'settings-window',
     ]);
   });

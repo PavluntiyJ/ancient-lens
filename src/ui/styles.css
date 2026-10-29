@@ -580,6 +580,29 @@ details > summary {
   right: 8px;
   color: var(--text-2);
 }
+.release-notice {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding-block: 6px;
+}
+.release-notice > svg {
+  flex: none;
+  color: var(--accent);
+}
+.release-notice b {
+  color: var(--text);
+}
+.release-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+.release-actions .secondary {
+  min-height: 26px;
+  padding: 3px 10px;
+}
 .empty {
   text-align: center;
   padding: 28px 12px;

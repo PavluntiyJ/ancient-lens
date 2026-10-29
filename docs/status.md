@@ -6,8 +6,8 @@ or unverified, and what is planned.
 
 ## Not provided
 
-- No installer signing or automatic updates. Prereleases are on the Releases page
-  ([installation](guide/install.md)).
+- No installer signing or automatic updates. The app announces a new release and links to
+  it; you install it yourself ([installation](guide/install.md#update)).
 - No hosted statistics service. STRATZ features need your own token; **Connect STRATZ** in
   Settings saves it and starts the bundled [statistics service](guide/stats-service.md).
   OpenDota works without one, with fewer features and a rate limit.
