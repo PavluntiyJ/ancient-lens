@@ -1,0 +1,10 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "ancient-lens",
+  "bundle": {
+    "linux": {
+      "deb": { "desktopTemplate": "ancient-lens.desktop" },
+      "rpm": { "desktopTemplate": "ancient-lens.desktop" }
+    }
+  }
+}
