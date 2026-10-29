@@ -8,7 +8,7 @@ computer uses it.
 
 ## Connect STRATZ in the app
 
-1. Open **Settings → Player history**, or press **Connect STRATZ** in an empty
+1. Open **Settings → Connections → STRATZ** (the **Player history** section), or press **Connect STRATZ** in an empty
    draft panel of the match screen.
 2. Press **Open stratz.com/api**, sign in with Steam and copy your token from
    **My Tokens**. Check the current permissions and quota there.

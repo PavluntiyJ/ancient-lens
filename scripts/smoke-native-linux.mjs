@@ -406,10 +406,20 @@ async function checkHeaderInfo(table, count) {
   }
   await pointAt();
 }
-async function clickButton(text) {
+// The interface scale lives in Settings only; the match screen stays mounted meanwhile.
+async function setScale(scale) {
+  await clickButton('Settings');
+  await clickButton(`${scale}%`, '.scale-options button');
+  await waitFor(
+    () => execute('return Number(document.querySelector(".app-shell").style.zoom) === arguments[0] / 100', [scale]),
+    `Scale ${scale}% did not apply`,
+  );
+  await clickButton('Match and draft');
+}
+async function clickButton(text, selector = 'button') {
   const element = await execute(
-    'return [...document.querySelectorAll("button")].find(b => (b.textContent.trim() === arguments[0] || b.getAttribute("aria-label") === arguments[0]))',
-    [text],
+    'return [...document.querySelectorAll(arguments[1])].find(b => (b.textContent.trim() === arguments[0] || b.getAttribute("aria-label") === arguments[0]))',
+    [text, selector],
   );
   assert.ok(element, `Missing button: ${text}`);
   // WebKit may click a partially visible button inside the window resize edge.
@@ -460,16 +470,6 @@ try {
       && panels.every(box => box.bottom <= innerHeight && box.top >= host.top);
   `);
   await waitFor(matchFits, 'Waiting screen does not fit the window');
-  assert.ok(
-    await execute(`
-    const select = document.querySelector('.toolbar-scale'), style = getComputedStyle(select);
-    const canvas = document.createElement('canvas'), context = canvas.getContext('2d');
-    context.font = style.font;
-    return style.appearance === 'none' && select.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
-      >= context.measureText('100%').width && select.clientHeight >= parseFloat(style.lineHeight) + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
-  `),
-    'Scale label is clipped',
-  );
   const payload = {
     auth: { token },
     provider: { appid: 570 },
@@ -993,10 +993,7 @@ try {
   );
   await assertPanelContentsFit();
   for (const scale of [80, 90, 100, 110, 120]) {
-    await execute(
-      'const select=document.querySelector(".toolbar-scale"); select.value=String(arguments[0]); select.dispatchEvent(new Event("change", {bubbles:true}));',
-      [scale],
-    );
+    await setScale(scale);
     for (const lane of [0, 1, 2, 3]) {
       await post(selfPayload);
       await execute(
@@ -1008,9 +1005,7 @@ try {
       await assertPanelContentsFit();
     }
   }
-  await execute(
-    'const select=document.querySelector(".toolbar-scale"); select.value="100"; select.dispatchEvent(new Event("change", {bubbles:true}));',
-  );
+  await setScale(100);
   await execute(
     'const select=document.querySelector(`select[aria-label="Recommendation lane"]`); select.value="0"; select.dispatchEvent(new Event("change", {bubbles:true}));',
   );
@@ -1102,14 +1097,15 @@ try {
   assert.deepEqual(
     await execute('return [...document.querySelectorAll(".settings-sections button")].map(b=>b.textContent)'),
     [
-      'Appearance',
-      'Sound',
-      'Player history',
+      'Dota 2',
+      'STRATZ',
       'Memory reading',
       'Match statistics',
-      'Connect Dota 2',
-      'Your data',
+      'Appearance',
+      'Shortcuts',
+      'Sound',
       'Window',
+      'Your data',
     ],
   );
   await clickButton('Window');
@@ -1207,11 +1203,11 @@ try {
   const scaleDraftRequests = draftRequests;
   const toolbarHeights = [];
   for (const scale of [80, 90, 100, 110, 120]) {
-    await clickButton(`${scale}%`);
+    await clickButton(`${scale}%`, '.scale-options button');
     await waitFor(
       () =>
         execute(
-          'return Number(document.querySelector(".app-shell").style.zoom) === arguments[0] / 100 && document.querySelector(".toolbar-scale").value === String(arguments[0])',
+          'return Number(document.querySelector(".app-shell").style.zoom) === arguments[0] / 100 && document.querySelector(".scale-options button[aria-pressed=true]").textContent === `${arguments[0]}%`',
           [scale],
         ),
       'Scale controls did not stay in sync',
@@ -1268,14 +1264,13 @@ try {
   );
   assert.equal(batches.length, scaleBatches, 'Scaling must not reload player statistics');
   assert.equal(draftRequests, scaleDraftRequests, 'Scaling must not recalculate remote draft data');
-  const setScale = await execute('return document.querySelector(`select[aria-label="Interface scale"]`)');
-  await execute('arguments[0].value="90"; arguments[0].dispatchEvent(new Event("change",{bubbles:true}));', [setScale]);
+  await clickButton('90%', '.scale-options button');
   await waitFor(
     () =>
       execute(
         'return document.querySelector(".app-shell").style.zoom === "0.9" && document.querySelector(".scale-options button[aria-pressed=true]").textContent === "90%"',
       ),
-    'Toolbar scale did not update settings',
+    'Scale buttons did not update the window',
   );
   await new Promise((resolve) => setTimeout(resolve, 250));
   const scaleScreenshot = await request(`/session/${session}/screenshot`);

@@ -1,10 +1,20 @@
 # Connect Dota and understand your data
 
+## Settings at a glance
+
+**Settings** (the gear in the header) opens with **Connections**: one line each for
+Dota 2 (GSI), STRATZ and, on Windows and Linux, memory reading. Each says whether it is
+connected, needs setup, or is off, with a button to its section. Below, the sections are
+grouped: **Connections** (Dota 2, STRATZ, memory reading), **Match & statistics**,
+**Interface** (appearance and interface scale, shortcuts, sound, window) and **Data** (data
+folder and export). On a wide window the groups are a list on the left; on a narrow one they
+are a row of links above the sections.
+
 ## GSI configuration
 
-**Settings → Connect Dota 2** checks the connection on Windows and Linux: the
-Steam installation, the Dota 2 library, Ancient Lens's GSI file, and
-`-gamestateintegration` in Dota's launch options. When something is missing,
+**Settings → Connections → Dota 2** (the **Connect Dota 2** section) checks the
+connection on Windows and Linux: the Steam installation, the Dota 2 library, Ancient
+Lens's GSI file, and `-gamestateintegration` in Dota's launch options. When something is missing,
 **Set up automatically** fixes it:
 
 - It writes `gamestate_integration_ancient_lens.cfg` into
@@ -30,6 +40,9 @@ To set it up by hand instead, open **Set up manually**:
    Find the installation through **Steam → Dota 2 → Manage → Browse local files**.
 2. Add `-gamestateintegration` in **Steam → Dota 2 → Properties → Launch Options**
    and restart Dota 2. Then play or spectate a match.
+
+**Open GSI diagnostics** at the end of that section shows what Dota 2 sends right now: the
+match, the watched hero and the clock. It is the quickest check that events arrive.
 
 Replace older configurations: the current version requests the `draft` block.
 The receiver listens only on `127.0.0.1:32123`, checks a random installation
@@ -95,7 +108,7 @@ lets you change it (on KDE: **System Settings → Shortcuts → Ancient Lens**).
 Without the portal, an X11 key grab is used, which on Wayland only sees the key
 while an X11 window such as the game is focused. Closing the window keeps the app
 in the system tray, so GSI and the rating reader keep running; quit from the tray
-icon menu, or turn this off in **Settings → Window over the game**, which also
+icon menu, or turn this off in **Settings → Interface → Window**, which also
 shows the shortcut as the desktop bound it. On Linux the tray needs a
 StatusNotifier host (KDE Plasma, or GNOME with the AppIndicator extension);
 without one the option is disabled and closing quits. Exclusive fullscreen can hide the window,

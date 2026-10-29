@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { BookOpen, Lock, RefreshCw, Settings, Swords, UserRound } from 'lucide-react';
+import { BookOpen, Lock, RefreshCw, Settings, Swords, UserPlus, UserRound } from 'lucide-react';
 import {
   formatDuration,
   rankName,
@@ -81,6 +81,7 @@ import {
 } from '../shared/draft';
 import { holdMatch, type HeldMatch } from '../shared/match-session';
 import { connectionHint, type SteamSetup } from '../shared/steam-setup';
+import type { SettingsSection } from './settings/sections';
 
 const pct = (wins: number, games: number) => (games ? `${Math.round((wins / games) * 100)}%` : '—');
 const phaseNames: Record<string, string> = {
@@ -223,6 +224,7 @@ export function MatchScreen({
   ownMmr,
   steamSetup,
   setup,
+  openTool,
   connectStratz,
 }: {
   ownAccountId: string;
@@ -237,7 +239,10 @@ export function MatchScreen({
   /** Own seasonal MMR read from the game, for the rank bracket when the medal is hidden. */
   ownMmr?: number | null;
   steamSetup?: SteamSetup;
-  setup(): void;
+  /** Opens Settings at a section. */
+  setup(section?: SettingsSection): void;
+  /** Opens the manual draft or the manual roster. */
+  openTool?(page: 'draft' | 'roster'): void;
   /** Opens the Connect STRATZ prompt. */
   connectStratz?(): void;
 }) {
@@ -823,8 +828,23 @@ export function MatchScreen({
                 connectionHint(steamSetup) ??
                 'The roster and picks will appear when the game sends them. Install the GSI configuration, add -gamestateintegration, and restart Dota 2 to connect.'}
             </p>
+            {openTool && (
+              <p className="match-tools">
+                Without game data:{' '}
+                <button type="button" className="link-button" onClick={() => openTool('draft')}>
+                  Manual draft
+                </button>{' '}
+                ·{' '}
+                <button type="button" className="link-button" onClick={() => openTool('roster')}>
+                  Add players manually
+                </button>
+              </p>
+            )}
           </div>
-          <button className={steamSetup?.state === 'repair' ? 'primary' : 'secondary'} onClick={setup}>
+          <button
+            className={steamSetup?.state === 'repair' ? 'primary' : 'secondary'}
+            onClick={() => setup('settings-game')}
+          >
             <Settings size={15} />
             {steamSetup?.state === 'repair' ? 'Fix connection' : 'Connection'}
           </button>
@@ -841,6 +861,12 @@ export function MatchScreen({
               <p>Waiting for the remaining slots. Statistics load when public IDs become available.</p>
             )}
           </div>
+          {openTool && (
+            <button className="secondary" onClick={() => openTool('roster')}>
+              <UserPlus size={15} />
+              Add players manually
+            </button>
+          )}
         </div>
       ) : null}
       {continuity.suspended && (
@@ -866,7 +892,7 @@ export function MatchScreen({
               <p>{platform === 'win32' ? readerRiskWindows : readerRisk}</p>
             </details>
           </div>
-          <button className="secondary" onClick={setup}>
+          <button className="secondary" onClick={() => setup('settings-reader')}>
             <Settings size={15} />
             Enable in Settings
           </button>

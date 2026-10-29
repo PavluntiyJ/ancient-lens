@@ -1,7 +1,10 @@
 import { Download, Shield } from 'lucide-react';
 import type { AppInfo } from '../../shared/domain';
+import { api } from '../App';
+import { useSavedFile } from './SavedFile';
 
-export function DataSettings({ info, exportData }: { info?: AppInfo; exportData(): void }) {
+export function DataSettings({ info }: { info?: AppInfo }) {
+  const backup = useSavedFile(() => api.exportData());
   return (
     <section className="panel" id="settings-data">
       <div className="panel-icon">
@@ -14,10 +17,11 @@ export function DataSettings({ info, exportData }: { info?: AppInfo; exportData(
       </p>
       <p className="fine-print">Data folder</p>
       <code className="path">{info?.dataPath ?? 'Loading…'}</code>
-      <button className="secondary" onClick={exportData}>
+      <button className="secondary" onClick={backup.run}>
         <Download size={16} />
         Export notes and MMR
       </button>
+      {backup.notice}
     </section>
   );
 }

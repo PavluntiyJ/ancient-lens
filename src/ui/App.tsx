@@ -1,19 +1,5 @@
 import { useEffect, useState, type ReactNode, type CSSProperties } from 'react';
-import {
-  Activity,
-  BookOpen,
-  Crosshair,
-  LayoutDashboard,
-  Minus,
-  Square,
-  Wrench,
-  Search,
-  Settings as SettingsIcon,
-  Swords,
-  UserRound,
-  Users,
-  X,
-} from 'lucide-react';
+import { Crosshair, Minus, Square, Search, X } from 'lucide-react';
 import {
   applyStateUpdate,
   type AppInfo,
@@ -32,10 +18,12 @@ import { Notes } from './LocalTools';
 import { OwnProfile } from './OwnProfile';
 import { Diagnostics } from './Diagnostics';
 import { Settings } from './settings/Settings';
+import type { SettingsSection } from './settings/sections';
+import { HeaderNav, type Page } from './HeaderNav';
 import { TooltipLayer } from './Tooltip';
 import { ShortcutsProvider } from './shortcut-context';
 import { defaultShortcuts, matchesShortcut } from '../shared/shortcuts';
-import { useDisplaySettings, setDisplaySettings, displayScales } from './preferences';
+import { useDisplaySettings } from './preferences';
 import { StratzConnectDialog } from './StratzConnect';
 
 declare global {
@@ -95,17 +83,6 @@ export function Stat({
     </div>
   );
 }
-const nav = [
-  { id: 'home', name: 'Match and draft', icon: LayoutDashboard },
-  { id: 'draft', name: 'Manual draft', icon: Swords },
-  { id: 'roster', name: 'Manual roster', icon: Users },
-  { id: 'profile', name: 'My profile', icon: UserRound },
-  { id: 'notes', name: 'Notes', icon: BookOpen },
-  { id: 'live', name: 'GSI diagnostics', icon: Activity },
-  { id: 'settings', name: 'Settings', icon: SettingsIcon },
-] as const;
-type Page = (typeof nav)[number]['id'];
-
 export function App() {
   const display = useDisplaySettings();
   // The window cannot shrink below the size that shows the whole match screen at this scale.
@@ -123,6 +100,15 @@ export function App() {
   const [providerRevision, setProviderRevision] = useState(0);
   const [stratzOpen, setStratzOpen] = useState(false);
   const [steamSetup, setSteamSetup] = useState<SteamSetup>();
+  const [settingsSection, setSettingsSection] = useState<{ id: SettingsSection }>();
+  const open = (next: Page) => {
+    setPage(next);
+    setError('');
+  };
+  const openSettings = (id?: SettingsSection) => {
+    setSettingsSection(id ? { id } : undefined);
+    open('settings');
+  };
   useEffect(() => {
     let active = true;
     if (!api) {
@@ -216,61 +202,7 @@ export function App() {
               <b>Ancient Lens</b>
             </div>
           </div>
-          <nav aria-label="Sections">
-            {nav
-              .filter((item) => !['draft', 'roster', 'live', 'notes'].includes(item.id))
-              .map((item) => (
-                <button
-                  key={item.id}
-                  className={page === item.id ? 'active' : ''}
-                  aria-label={item.name}
-                  title={item.name}
-                  aria-current={page === item.id ? 'page' : undefined}
-                  onClick={() => {
-                    setPage(item.id);
-                    setError('');
-                  }}
-                >
-                  <item.icon size={16} />
-                  <span className="sr-only">{item.name}</span>
-                </button>
-              ))}
-          </nav>
-          <select
-            className="toolbar-scale"
-            aria-label="Interface scale"
-            title="Interface scale. The match screen also adapts to the window size."
-            value={display.scale}
-            onChange={(event) => setDisplaySettings({ scale: Number(event.target.value) })}
-          >
-            {displayScales.map((value) => (
-              <option key={value} value={value}>
-                {value}%
-              </option>
-            ))}
-          </select>
-          <details className="tools-menu">
-            <summary title="Tools" aria-label="Tools">
-              <Wrench size={16} />
-              <span className="sr-only">Tools</span>
-            </summary>
-            <div>
-              {nav
-                .filter((item) => ['draft', 'roster', 'live'].includes(item.id))
-                .map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={(event) => {
-                      setPage(item.id);
-                      event.currentTarget.closest('details')?.removeAttribute('open');
-                    }}
-                  >
-                    <item.icon size={15} />
-                    {item.name}
-                  </button>
-                ))}
-            </div>
-          </details>
+          <HeaderNav page={page} open={(next) => (next === 'settings' ? openSettings() : open(next))} />
           {api.windowAction && (
             <div className="window-controls">
               <button aria-label="Minimize window" title="Minimize" onClick={() => void windowAction('minimize')}>
@@ -317,7 +249,8 @@ export function App() {
                 notes={local.notes}
                 recordedMatches={local.recordedMatches ?? 0}
                 steamSetup={steamSetup}
-                setup={() => setPage('settings')}
+                setup={openSettings}
+                openTool={open}
                 connectStratz={() => setStratzOpen(true)}
               />
             </MatchViewport>
@@ -330,13 +263,17 @@ export function App() {
             </div>
             {page === 'notes' && <Notes local={local} update={updateLocal} initialId={local.accountId} />}
             {page === 'live' && (
-              <Diagnostics live={live} connected={connected} info={info} setup={() => setPage('settings')} />
+              <Diagnostics live={live} connected={connected} info={info} setup={() => openSettings('settings-game')} />
             )}
             {page === 'settings' && (
               <Settings
                 local={local}
                 update={updateLocal}
                 info={info}
+                live={live}
+                connected={connected}
+                section={settingsSection}
+                openDiagnostics={() => open('live')}
                 steamSetup={steamSetup}
                 steamChanged={setSteamSetup}
                 providerRevision={providerRevision}

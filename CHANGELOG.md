@@ -8,6 +8,13 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
   your token, and the app checks it, saves it in Windows Credential Manager or the Linux
   keyring and starts the statistics service that ships with the app. **Disconnect STRATZ**
   removes the token. On Linux the flow has not been tried on a desktop yet.
+- **Settings** opens with a Connections overview (Dota 2, STRATZ, memory reading: connected,
+  needs setup or off, each with a button to its section) and groups the sections into
+  Connections, Match & statistics, Interface and Data, with a side list on wide windows.
+- The Tools (wrench) menu is gone. **Manual draft** and **Add players manually** open from the
+  match screen while game data is missing or the roster is incomplete, **GSI diagnostics** from
+  Settings → Connect Dota 2, and **Notes** has its own header icon. The interface scale is set
+  in Settings → Appearance only.
 
 ## 0.5.0 — October 28, 2026
 
