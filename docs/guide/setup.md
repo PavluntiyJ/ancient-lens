@@ -79,8 +79,10 @@ unavailable, your own GSI events. **Set profile manually** is the fallback on bo
 
 ## Memory reading
 
-**Allow Dota memory reading** is off by default. Changes apply immediately and
-are saved as `nativeRosterReader` in `state.json`.
+**Allow Dota memory reading** is off by default. On the first start Ancient Lens
+asks once whether to enable it (**Enable memory reading** or **Not now**); the
+question is not repeated. Changes apply immediately and are saved as
+`nativeRosterReader` in `state.json`.
 
 ![Memory-reading consent and explanation](../images/memory-consent.png)
 

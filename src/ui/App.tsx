@@ -25,6 +25,8 @@ import { ShortcutsProvider } from './shortcut-context';
 import { defaultShortcuts, matchesShortcut } from '../shared/shortcuts';
 import { useDisplaySettings } from './preferences';
 import { StratzConnectDialog } from './StratzConnect';
+import { ReaderConsentDialog, readerAsked } from './ReaderConsent';
+import { shouldAskReader } from '../shared/reader-notice';
 
 declare global {
   interface Window {
@@ -99,6 +101,7 @@ export function App() {
   const [ready, setReady] = useState(false);
   const [providerRevision, setProviderRevision] = useState(0);
   const [stratzOpen, setStratzOpen] = useState(false);
+  const [askReader, setAskReader] = useState(false);
   const [steamSetup, setSteamSetup] = useState<SteamSetup>();
   const [settingsSection, setSettingsSection] = useState<{ id: SettingsSection }>();
   const open = (next: Page) => {
@@ -122,6 +125,7 @@ export function App() {
         setInfo(appInfo);
         setLive(current);
         setReady(true);
+        setAskReader(!!api.setNativeRosterReader && shouldAskReader(appInfo, state.nativeRosterReader, readerAsked()));
       })
       .catch((e) => {
         if (active) setError(errorMessage(e));
@@ -283,6 +287,13 @@ export function App() {
           </div>
         </main>
       </div>
+      {askReader && (
+        <ReaderConsentDialog
+          windows={info?.platform === 'win32'}
+          update={updateLocal}
+          close={() => setAskReader(false)}
+        />
+      )}
       {stratzOpen && (
         <StratzConnectDialog
           close={() => setStratzOpen(false)}

@@ -35,7 +35,8 @@ shows you. A player with a private profile appears as private.
 
 GSI sends only your own player when you play, so the ten-player table of your own match and
 your exact rating need the optional reader. It is **off by default**, and nothing reads the
-game process until you enable **Allow Dota memory reading** in Settings.
+game process until you enable it: the first start asks once, with the risk below, and
+**Allow Dota memory reading** in Settings turns it on or off at any time.
 
 - The process is opened for reading and querying only. On Windows the handle has no write or
   execute rights; on Linux the kernel's `process_vm_readv` is used.

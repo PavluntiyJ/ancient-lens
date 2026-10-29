@@ -294,7 +294,7 @@ async fn desktop_call(
         "app:info" => {
             let store = state.store.lock().await;
             Ok(
-                json!({"version":env!("CARGO_PKG_VERSION"),"platform":if cfg!(windows){"win32"}else{std::env::consts::OS},"runtime":"Tauri + Rust","wayland":std::env::var_os("WAYLAND_DISPLAY").is_some(),"shortcut":state.shortcut.load(Ordering::Relaxed),"shortcutKey":store.shortcuts()["global"],"shortcutTrigger":state.shortcut_trigger.lock().ok().and_then(|t| t.clone()),"tray":state.tray.load(Ordering::Relaxed),"dataPath":store.directory,"gsiPort":state.port.load(Ordering::Relaxed)}),
+                json!({"version":env!("CARGO_PKG_VERSION"),"platform":if cfg!(windows){"win32"}else{std::env::consts::OS},"runtime":"Tauri + Rust","wayland":std::env::var_os("WAYLAND_DISPLAY").is_some(),"shortcut":state.shortcut.load(Ordering::Relaxed),"shortcutKey":store.shortcuts()["global"],"shortcutTrigger":state.shortcut_trigger.lock().ok().and_then(|t| t.clone()),"tray":state.tray.load(Ordering::Relaxed),"dataPath":store.directory,"gsiPort":state.port.load(Ordering::Relaxed),"readerPrompt":reader_prompt()}),
             )
         }
         "player:site" => {
@@ -561,6 +561,12 @@ async fn desktop_call(
         }
         _ => Err("Unknown command".into()),
     }
+}
+/// Whether the page may ask once to enable the memory reader. Isolated test runs skip the
+/// question so automation never meets a modal, unless ANCIENT_READER_PROMPT=1 asks for it.
+fn reader_prompt() -> bool {
+    std::env::var_os("ANCIENT_TEST_DATA").is_none()
+        || std::env::var_os("ANCIENT_READER_PROMPT").is_some_and(|v| v == "1")
 }
 /// The main window comes from tauri.conf.json but is built here, so that test
 /// runs on Windows can expose WebView2 to the smoke test. wry otherwise sets its

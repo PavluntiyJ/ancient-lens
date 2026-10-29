@@ -4,6 +4,9 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ## Unreleased
 
+- **Memory reading at first start:** the app asks once whether to enable the reader that fills
+  the roster, picks and bans of your own match, with its risk and the way back in Settings.
+  **Not now** keeps it off, as before.
 - **Connect STRATZ** in Settings and in the empty draft panels: open stratz.com/api, paste
   your token, and the app checks it, saves it in Windows Credential Manager or the Linux
   keyring and starts the statistics service that ships with the app. **Disconnect STRATZ**
