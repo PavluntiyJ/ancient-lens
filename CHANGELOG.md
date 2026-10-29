@@ -4,11 +4,22 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ## Unreleased
 
+## 0.6.1 — October 29, 2026
+
+0.6.0 was not published as a release, so this is the first release after 0.5.0 and also
+includes everything listed under [0.6.0](https://github.com/PavluntiyJ/ancient-lens/blob/main/CHANGELOG.md#060--october-29-2026): two windows over the game,
+Connect STRATZ, and the new Settings.
+
+### First start and STRATZ
+
 - First launch offers optional STRATZ setup after either memory-reader choice,
   explains faster player loading and extra match statistics, and remembers **Not
   now**. Provider settings are clearly titled **Connect STRATZ**.
 - Website links use system libraries outside a Linux AppImage and check the
   browser launch result. STRATZ setup shows failures and an address to copy manually.
+
+### Linux packages
+
 - Releases include a Fedora package (`.rpm`), installed with `sudo dnf install`.
 - Linux windows show the Ancient Lens icon in the task switcher and taskbar instead of
   a generic one: the desktop entry is now `ancient-lens.desktop`, matching the window.
