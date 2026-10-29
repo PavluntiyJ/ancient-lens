@@ -19,10 +19,20 @@ keys, local research archive, or running Dota game.
 
 Native checks use isolated `ANCIENT_TEST_DATA` and loopback fixtures. They do not
 inspect the real game process or call live STRATZ. The page's local storage stays inside
-that directory too: `XDG_DATA_HOME` on Linux, a WebView2 data folder on Windows. Linux needs a desktop session
-and `WebKitWebDriver`; Windows uses WebView2 and the Playwright CDP connection.
-Build first and close competing Ancient Lens windows. The optional
-`ANCIENT_NATIVE_BINARY` selects an alternate Linux executable.
+that directory too: `XDG_DATA_HOME` on Linux, a WebView2 data folder on Windows.
+
+One scenario, `scripts/smoke-native-scenario.mjs`, runs on both systems through the driver in
+`scripts/native-capture.mjs`: `WebKitWebDriver` on Linux (needs a desktop session), Playwright
+over the WebView2 debugging protocol on Windows. Both give the scenario element references,
+real pointer and keyboard input, and the native window size; on Windows the size comes from an
+isolated-only `window:test-size` command. Build first and close competing Ancient Lens windows.
+The optional `ANCIENT_NATIVE_BINARY` selects an alternate executable.
+
+Window size and maximize checks need a screen of at least 1740×1100. On a smaller screen,
+such as the 1024×768 Windows CI runner, the scenario checks only the minimum window the app
+computes for that screen and logs what it skipped. A Linux window is stopped at its minimum
+by the window manager; Windows applies the minimum only while the user resizes, so there the
+scenario sets the window to that minimum.
 
 Hover checks move the real WebDriver pointer. WebKitWebDriver hangs on pointer
 actions while the window lacks keyboard focus (another application in front), so
@@ -34,6 +44,8 @@ session:
 kwin_wayland --virtual --no-lockscreen --width 2560 --height 1600 --socket al-smoke \
   --exit-with-session "/bin/sh -c 'WAYLAND_DISPLAY=al-smoke npm run test:native'"
 ```
+
+`--width 1024 --height 768` reproduces the Windows CI screen.
 
 ## Native coverage
 
@@ -59,9 +71,8 @@ WebKit scrolls a target button into view before a normal WebDriver click to
 avoid the window-resize edge. A fixture test is not proof that a participating
 Dota client exposes the same fields in every game mode.
 
-The Windows smoke (`scripts/smoke-native-windows.mjs`, Playwright over the WebView2
-debugging protocol) covers fewer areas than the Linux one; `scripts/smoke-roster-windows.mjs`
-adds the memory-reader consent and the isolated reader worker.
+On Windows, `scripts/smoke-roster-windows.mjs` adds the memory-reader consent and the isolated
+reader worker after the shared scenario.
 
 ## Live evidence
 
@@ -85,7 +96,7 @@ ordinary tests.
 
 `.github/workflows/build.yml` checks formatting, frontend, Rust, Python and the service on
 GitHub-hosted Ubuntu and Windows for every code change and pull request. Tags and manual runs
-build Linux and Windows distributions; Windows also runs the native smoke. Linux native smoke
-is a local desktop check, not currently a CI job. `docs.yml` runs the public-source and link
+build Linux and Windows distributions; Windows also runs the shared native scenario on the
+runner's 1024×768 screen. On Linux it is a local desktop check, not currently a CI job. `docs.yml` runs the public-source and link
 check for documentation-only changes, and `audit.yml` audits the lockfiles weekly. Distribution artifacts expire and
 are not a published release. Public pull requests must never use a personal runner.
