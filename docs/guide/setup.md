@@ -86,10 +86,10 @@ question is not repeated. Changes apply immediately and are saved as
 
 ![Memory-reading consent and explanation](../images/memory-consent.png)
 
-| Platform | Readable data                                                                                                                               | Method                                                                                            |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Linux    | Current roster, picks, hovers, selected lanes, bans; own MMR, confidence, behavior and communication                                        | `process_vm_readv`, Source 2 schema and code-shape discovery                                      |
-| Windows  | Current roster, picks, hovers, selected lanes, bans (not yet checked in a live match); own MMR, rank confidence, behavior and communication | `ReadProcessMemory`, Source 2 schema, PE relocations and MSVC RTTI; rating polled every 3 seconds |
+| Platform | Readable data                                                                                             | Method                                                                                            |
+| -------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Linux    | Current roster, picks, hovers, selected lanes, bans; own MMR, confidence, behavior and communication      | `process_vm_readv`, Source 2 schema and code-shape discovery                                      |
+| Windows  | Current roster, picks, hovers, selected lanes, bans; own MMR, rank confidence, behavior and communication | `ReadProcessMemory`, Source 2 schema, PE relocations and MSVC RTTI; rating polled every 3 seconds |
 
 Neither implementation writes game memory, injects code, hooks the game, or
 calls game functions. An unfamiliar layout gives an unsupported status instead
