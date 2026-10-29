@@ -511,6 +511,10 @@ details > summary {
   max-width: 1280px;
   margin-inline: auto;
 }
+/* The profile window is the profile alone, so its table may use the window's width. */
+.profile-shell .content {
+  max-width: 1680px;
+}
 .match-content {
   min-height: 0;
   padding: 0 14px 12px;

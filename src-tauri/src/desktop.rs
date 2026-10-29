@@ -918,8 +918,8 @@ pub fn run() {
                 tauri::async_runtime::spawn(match_details(app.handle().clone()));
             }
             // First start: the match window nearly fills the screen, the profile window is
-            // smaller; later starts restore where the user left each one.
-            for (label, most) in [(MATCH, (1740., 1280.)), (PROFILE, (1280., 900.))] {
+            // a little smaller; later starts restore where the user left each one.
+            for (label, most) in [(MATCH, (1740., 1280.)), (PROFILE, (1600., 1000.))] {
                 let Some(w) = app.get_webview_window(label) else {
                     continue;
                 };
