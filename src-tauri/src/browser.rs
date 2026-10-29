@@ -41,7 +41,9 @@ fn clean_appimage(command: &mut Command) {
         "LD_LIBRARY_PATH",
         "LD_PRELOAD",
         "GDK_PIXBUF_MODULE_FILE",
+        "GI_TYPELIB_PATH",
         "GIO_EXTRA_MODULES",
+        "GIO_MODULE_DIR",
         "GSETTINGS_SCHEMA_DIR",
         "GST_PLUGIN_SYSTEM_PATH",
         "GST_PLUGIN_SYSTEM_PATH_1_0",
@@ -49,6 +51,7 @@ fn clean_appimage(command: &mut Command) {
         "GTK_EXE_PREFIX",
         "GTK_IM_MODULE_FILE",
         "GTK_PATH",
+        "GTK_THEME",
         "QT_PLUGIN_PATH",
         "PERLLIB",
         "PYTHONHOME",
@@ -152,12 +155,17 @@ mod tests {
         let mut command = Command::new("xdg-open");
         command.env("LD_LIBRARY_PATH", "/bundle/usr/lib");
         command.env("GTK_PATH", "/bundle/usr/lib/gtk");
+        command.env("GIO_MODULE_DIR", "/bundle/usr/lib/gio/modules");
+        command.env("GTK_THEME", "Adwaita:light");
         command.env("DISPLAY", ":42");
         command.env("DBUS_SESSION_BUS_ADDRESS", "unix:path=/fixture/bus");
         clean_appimage(&mut command);
         let env: std::collections::HashMap<_, _> = command.get_envs().collect();
         assert_eq!(env[std::ffi::OsStr::new("LD_LIBRARY_PATH")], None);
         assert_eq!(env[std::ffi::OsStr::new("GTK_PATH")], None);
+        // linuxdeploy's GTK hook forces a light theme and bundled GIO modules.
+        assert_eq!(env[std::ffi::OsStr::new("GIO_MODULE_DIR")], None);
+        assert_eq!(env[std::ffi::OsStr::new("GTK_THEME")], None);
         assert_eq!(
             env[std::ffi::OsStr::new("DISPLAY")],
             Some(std::ffi::OsStr::new(":42"))
