@@ -1269,45 +1269,67 @@ try {
     'Display reset did not restore rank column',
   );
   await clickButton('Match and draft');
-  const resizeFits = [];
-  for (const [width, height] of [
-    [800, 600],
-    [1280, 800],
-    [1740, 1100],
-  ]) {
-    await app.resize(width, height);
-    await waitFor(matchFits, `Match does not fit ${width}×${height}`);
-    if (width === 800) {
-      // The window stops at the size that shows the whole match screen at 100%: no scrolling.
-      await waitFor(
-        () =>
-          execute(
-            'return innerWidth >= 1029 && innerHeight >= 919 && !document.querySelector(".match-page").classList.contains("match-scroll") && document.documentElement.scrollWidth <= innerWidth + 2',
-          ),
-        'Window shrank below the match minimum or the match scrolls',
-      );
+  // Native window sizes need a desktop-sized screen; the Windows CI runner has 1024×768.
+  const desktopScreen = await execute('return screen.availWidth >= 1740 && screen.availHeight >= 1100');
+  if (desktopScreen) {
+    const resizeFits = [];
+    for (const [width, height] of [
+      [800, 600],
+      [1280, 800],
+      [1740, 1100],
+    ]) {
+      await app.resize(width, height);
+      await waitFor(matchFits, `Match does not fit ${width}×${height}`);
+      if (width === 800) {
+        // The window stops at the size that shows the whole match screen at 100%: no scrolling.
+        await waitFor(
+          () =>
+            execute(
+              'return innerWidth >= 1029 && innerHeight >= 919 && !document.querySelector(".match-page").classList.contains("match-scroll") && document.documentElement.scrollWidth <= innerWidth + 2',
+            ),
+          'Window shrank below the match minimum or the match scrolls',
+        );
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      await assertPanelContentsFit();
+      resizeFits.push(await execute('return Number(document.querySelector(".match-fit").style.zoom)'));
+      await screenshot(`fit-${width}`);
     }
+    assert.ok(resizeFits[2] > resizeFits[0], 'Match did not grow back after enlarging the window');
+    await app.resize(1710, 927);
+    await waitFor(() => execute('return innerHeight <= 940 && innerWidth <= 1720'), 'Native window did not resize');
+    await waitFor(matchFits, 'Match does not fit screenshot-sized window');
+    const fitted = await execute(
+      'const panels=[...document.querySelectorAll(".analysis-panel")].map(p=>p.getBoundingClientRect()); return {roster:document.querySelector(".match-roster").getBoundingClientRect().bottom,tops:panels.map(p=>p.top),lefts:panels.map(p=>p.left),overflow:document.documentElement.scrollWidth > innerWidth+2}',
+    );
+    assert.ok(
+      !fitted.overflow &&
+        Math.abs(fitted.tops[0] - fitted.tops[1]) < 3 &&
+        fitted.lefts[1] > fitted.lefts[0] &&
+        fitted.tops[0] >= fitted.roster,
+      `Screenshot-sized window does not fit: ${JSON.stringify(fitted)}`,
+    );
     await new Promise((resolve) => setTimeout(resolve, 250));
+    await screenshot('fit-927');
+  } else {
+    // The window still cannot shrink below the minimum the app computes for this screen.
+    const minimum = await call('setWindowMinSize', 100);
+    await app.resize(800, 600);
+    await waitFor(
+      () =>
+        execute('return innerWidth >= arguments[0] - 2 && innerHeight >= arguments[1] - 2', [
+          minimum.width,
+          minimum.height,
+        ]),
+      `Window shrank below its minimum ${JSON.stringify(minimum)}`,
+    );
+    await waitFor(matchFits, 'Match does not fit the smallest window');
     await assertPanelContentsFit();
-    resizeFits.push(await execute('return Number(document.querySelector(".match-fit").style.zoom)'));
-    await screenshot(`fit-${width}`);
+    console.log(
+      `Window size checks limited to the minimum: screen ${await execute('return [screen.availWidth, screen.availHeight]')}.`,
+    );
+    await app.resize(1710, 927);
   }
-  assert.ok(resizeFits[2] > resizeFits[0], 'Match did not grow back after enlarging the window');
-  await app.resize(1710, 927);
-  await waitFor(() => execute('return innerHeight <= 940 && innerWidth <= 1720'), 'Native window did not resize');
-  await waitFor(matchFits, 'Match does not fit screenshot-sized window');
-  const fitted = await execute(
-    'const panels=[...document.querySelectorAll(".analysis-panel")].map(p=>p.getBoundingClientRect()); return {roster:document.querySelector(".match-roster").getBoundingClientRect().bottom,tops:panels.map(p=>p.top),lefts:panels.map(p=>p.left),overflow:document.documentElement.scrollWidth > innerWidth+2}',
-  );
-  assert.ok(
-    !fitted.overflow &&
-      Math.abs(fitted.tops[0] - fitted.tops[1]) < 3 &&
-      fitted.lefts[1] > fitted.lefts[0] &&
-      fitted.tops[0] >= fitted.roster,
-    `Screenshot-sized window does not fit: ${JSON.stringify(fitted)}`,
-  );
-  await new Promise((resolve) => setTimeout(resolve, 250));
-  await screenshot('fit-927');
   // The header icon brings up the profile window, which has the profile alone.
   await clickButton('My profile');
   await useWindow('profile');
