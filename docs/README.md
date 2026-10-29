@@ -38,6 +38,10 @@ npm run build
 npm run docs:screenshots
 ```
 
+For a hands-on review, `npm run demo` opens the built app on deliberately awkward invented
+data (long and non-Latin names, private and missing profiles, notes, a 150-match history) and
+switches between watching, playing and a step-by-step draft from the terminal.
+
 Close the ordinary application first. The capture script uses native IPC and its own
 temporary data directory; hero portraits may require network access. On Linux, running it in
 a nested `kwin_wayland --virtual` session (see [verification](dev/verification.md)) keeps the
