@@ -92,10 +92,22 @@ jobs:
           if [ "$RUNNER_OS" = Windows ]; then
             grep -q '/oname=stats-service.exe' src-tauri/target/release/nsis/x64/installer.nsi
           else
-            dpkg-deb -c src-tauri/target/release/bundle/deb/*.deb | grep -q ' ./usr/bin/stats-service$'
+            # Read each listing whole before matching: under pipefail, `grep -q` closing the pipe
+            # early fails the producer, and a silent failure here hides which package is wrong.
+            deb=$(ls src-tauri/target/release/bundle/deb/*.deb)
+            listing=$(dpkg-deb -c "$deb")
+            if ! grep -q ' \./usr/bin/stats-service$' <<<"$listing"; then
+              echo "::error::stats-service is missing from $deb"
+              echo "$listing"
+              exit 1
+            fi
             appimage=$(ls "$PWD"/src-tauri/target/release/bundle/appimage/*.AppImage)
-            cd "$RUNNER_TEMP" && "$appimage" --appimage-extract usr/bin/stats-service > /dev/null
-            test -x "$RUNNER_TEMP/squashfs-root/usr/bin/stats-service"
+            (cd "$RUNNER_TEMP" && "$appimage" --appimage-extract 'usr/bin/stats-service')
+            if [ ! -x "$RUNNER_TEMP/squashfs-root/usr/bin/stats-service" ]; then
+              echo "::error::stats-service is missing from $appimage"
+              find "$RUNNER_TEMP/squashfs-root" -maxdepth 3 | head -40
+              exit 1
+            fi
           fi
       # The portable ZIP copies the executable the installer build just produced.
       - name: Windows portable ZIP
