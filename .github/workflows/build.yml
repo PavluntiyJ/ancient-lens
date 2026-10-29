@@ -96,7 +96,8 @@ jobs:
             # early fails the producer, and a silent failure here hides which package is wrong.
             deb=$(ls src-tauri/target/release/bundle/deb/*.deb)
             listing=$(dpkg-deb -c "$deb")
-            if ! grep -q ' \./usr/bin/stats-service$' <<<"$listing"; then
+            # dpkg-deb prints `./usr/bin/...` or `usr/bin/...` depending on how the archive was built.
+            if ! grep -qE ' (\./)?usr/bin/stats-service$' <<<"$listing"; then
               echo "::error::stats-service is missing from $deb"
               echo "$listing"
               exit 1
