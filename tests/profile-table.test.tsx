@@ -10,7 +10,7 @@ vi.mock('../src/ui/MatchScreen', () => ({
   Portrait: () => <span className="portrait" />,
 }));
 
-const text = (html: string) => html.replace(/<[^>]+>/g, '');
+const text = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
 const heroes = [{ id: 33, localized_name: 'Enigma', primary_attr: 'int', attack_type: 'Ranged', roles: [] }];
 const lineup: LineupEntry[] = Array.from({ length: 10 }, (_, i) => ({
   radiant: i < 5,
@@ -137,7 +137,7 @@ it('colours a just-recorded match from its queue position and live medal before 
 it('shows MMR as value then change, and only when measured', () => {
   const ratings = new Map([[9001, { mmr: 4380, delta: 24 }]]);
   const html = table([enigma], { ratings, measured: true });
-  expect(text(html)).toContain('4,380 (+24)');
+  expect(text(html)).toContain('4,380 ( +24 )');
   // As in the mockup: the change is green or red inside grey brackets.
   expect(html).toMatch(/<small class="profile-mmr-change">\(<span class="green">\+24<\/span>\)<\/small>/);
   expect(html).toContain('data-column="mmr"');

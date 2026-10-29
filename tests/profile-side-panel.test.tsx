@@ -64,7 +64,7 @@ it('shows both teams, the own row, MMR and the match links', () => {
   expect(text(html)).toContain('Radiant');
   expect(text(html)).toContain('Dire');
   expect(html.match(/class="profile-player own"/g)?.length).toBe(1);
-  expect(html.replace(/<[^>]+>/g, '')).toContain('4,380 (+24)');
+  expect(text(html)).toContain('4,380 ( +24 )');
   expect(text(html)).toContain('Win');
   for (const site of ['Dotabuff', 'OpenDota', 'STRATZ']) expect(html).toContain(site);
   // A player without a public name goes by the hero, as in the hover cards.
