@@ -18,7 +18,8 @@ keys, local research archive, or running Dota game.
 | `npm run docs:screenshots`                                                                   | English native screenshots with synthetic players/statistics            |
 
 Native checks use isolated `ANCIENT_TEST_DATA` and loopback fixtures. They do not
-inspect the real game process or call live STRATZ. Linux needs a desktop session
+inspect the real game process or call live STRATZ. The page's local storage stays inside
+that directory too: `XDG_DATA_HOME` on Linux, a WebView2 data folder on Windows. Linux needs a desktop session
 and `WebKitWebDriver`; Windows uses WebView2 and the Playwright CDP connection.
 Build first and close competing Ancient Lens windows. The optional
 `ANCIENT_NATIVE_BINARY` selects an alternate Linux executable.

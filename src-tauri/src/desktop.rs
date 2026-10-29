@@ -685,7 +685,11 @@ fn build_window(app: &tauri::App, label: &str) -> tauri::Result<()> {
         .focused(!passive)
         .focusable(!passive);
     #[cfg(windows)]
-    if std::env::var_os("ANCIENT_TEST_DATA").is_some() {
+    if let Some(test_data) = std::env::var_os("ANCIENT_TEST_DATA") {
+        // WebView2 otherwise keeps local storage under %LOCALAPPDATA% for every run, so tests
+        // would share first-run answers with each other and with the user's real profile.
+        // Linux tests isolate WebKit through XDG_DATA_HOME instead.
+        builder = builder.data_directory(std::path::PathBuf::from(test_data).join("webview2"));
         if let Some(port) = std::env::var("ANCIENT_WEBVIEW_DEBUG_PORT")
             .ok()
             .and_then(|v| v.parse::<u16>().ok())
