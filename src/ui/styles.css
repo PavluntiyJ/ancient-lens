@@ -2799,9 +2799,6 @@ td small {
 .profile-table th[data-column='kda'] {
   width: 112px;
 }
-.profile-table th[data-column='bracket'] {
-  width: 120px;
-}
 .profile-table th[data-column='mmr'] {
   width: 120px;
 }
@@ -2871,17 +2868,6 @@ td small {
 .profile-table .profile-mmr-change {
   font-size: 12px;
   color: var(--faint);
-}
-.profile-bracket {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12.5px;
-  color: var(--muted);
-}
-.profile-bracket .rank-medal {
-  width: 24px;
-  height: 24px;
 }
 /* Statistics against the bracket average: shades of red and green; the extremes on a soft tint. */
 .stat-band-0 {
@@ -3243,9 +3229,6 @@ button.profile-heroes-row:hover {
   .profile-table th[data-column='kda'] {
     width: 130px;
   }
-  .profile-table th[data-column='bracket'] {
-    width: 140px;
-  }
   .profile-table th[data-column='mmr'] {
     width: 140px;
   }
@@ -3259,13 +3242,6 @@ button.profile-heroes-row:hover {
   .profile-hero .role-icon {
     width: 18px;
     height: 18px;
-  }
-  .profile-bracket {
-    font-size: 14px;
-  }
-  .profile-bracket .rank-medal {
-    width: 28px;
-    height: 28px;
   }
   .profile-side h3 {
     font-size: 16px;
@@ -3296,9 +3272,6 @@ button.profile-heroes-row:hover {
     width: 170px;
   }
   .profile-table th[data-column='kda'] {
-    width: 100px;
-  }
-  .profile-table th[data-column='bracket'] {
     width: 100px;
   }
   .profile-table th[data-column='mmr'] {

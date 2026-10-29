@@ -21,6 +21,7 @@ describe('account state delivery', () => {
     };
     expect(ownProfileRank(local, null, null, 2000).tier).toBe(80);
     expect(ownProfileRank(local, 65, 123, 2000).leaderboard).toBeNull();
+    expect(ownProfileRank(local, 80, 3741, 2000).leaderboard).toBeNull();
     expect(ownProfileRank({ ...local, accountId: '456' }, null, null, 2000).tier).toBeNull();
     expect(ownProfileRank(local, 65, null, 20000).tier).toBe(65);
   });

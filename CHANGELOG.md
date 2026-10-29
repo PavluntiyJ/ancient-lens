@@ -15,6 +15,8 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
   match screen while game data is missing or the roster is incomplete, **GSI diagnostics** from
   Settings → Connect Dota 2, and **Notes** has its own header icon. The interface scale is set
   in Settings → Appearance only.
+- **Profile:** removed the Bracket column from match history. A current MMR reading no longer
+  shows a leaderboard position from cached public profile data.
 
 ## 0.5.0 — October 28, 2026
 
