@@ -20,8 +20,8 @@ or unverified, and what is planned.
   report `unsupported` until discovery is checked again. The anti-cheat response to external
   reading is unknown; reading is off by default.
 - **Connect STRATZ on Linux** saves the token with `secret-tool` and starts the
-  `stats-service` shipped in the packages. It is covered by the build and the unit tests
-  only; the keyring save and the service start have not been run on a Linux desktop yet.
+  `stats-service` shipped in the packages. Checked on a Fedora 44 KDE desktop; other
+  desktops and keyrings are covered by the build and the unit tests only.
 - **Windows over the game:** on Windows the match and profile windows are shown and clicked
   without taking the keyboard from the game; that Dota keeps its sound with a window shown has
   not yet been checked in a live match. Exclusive fullscreen covers the windows. On Linux the
