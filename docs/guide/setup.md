@@ -79,8 +79,10 @@ unavailable, your own GSI events. **Set profile manually** is the fallback on bo
 
 ## Memory reading
 
-**Allow Dota memory reading** is off by default. Changes apply immediately and
-are saved as `nativeRosterReader` in `state.json`.
+**Allow Dota memory reading** is off by default. On the first start Ancient Lens
+asks once whether to enable it (**Enable memory reading** or **Not now**); the
+question is not repeated. Changes apply immediately and are saved as
+`nativeRosterReader` in `state.json`.
 
 ![Memory-reading consent and explanation](../images/memory-consent.png)
 
@@ -100,9 +102,9 @@ game builds they were checked: [native reader guide](../dev/native-reader.md).
 
 ## Window, hotkey, and tray
 
-Ancient Lens has one window. `Alt+Num 5` (numpad 5 with Num Lock off) brings it
-over the game; pressing it again while the window is in front hides it. On Linux
-the shortcut is registered through the desktop's GlobalShortcuts portal, so it
+Ancient Lens has one window. `Alt+Num 5` brings it over the game (on Windows with
+Num Lock on; on Linux the desktop portal binds numpad 5 with Num Lock off);
+pressing it again while the window is in front hides it. On Linux the shortcut is registered through the desktop's GlobalShortcuts portal, so it
 works whichever window has the keyboard; the desktop asks to confirm it once and
 lets you change it (on KDE: **System Settings → Shortcuts → Ancient Lens**).
 Without the portal, an X11 key grab is used, which on Wayland only sees the key
