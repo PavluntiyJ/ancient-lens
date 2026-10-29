@@ -77,9 +77,10 @@ own medal (or rating), otherwise all ranks; **Settings → Match statistics** ca
 bracket instead. STRATZ groups Immortal with Divine. Patch is not filtered: the data is
 STRATZ's published week. Predictive quality has not been measured.
 
-## Manual draft (Tools)
+## Manual draft
 
-The manual tool uses OpenDota `GET /heroes/{enemy}/matchups`. Results are inverted
+Open it from the match screen while no game data arrives (**Manual draft**). The manual tool
+uses OpenDota `GET /heroes/{enemy}/matchups`. Results are inverted
 because the API describes the opponent's wins, then smoothed with 100 virtual
 50%-win-rate matches. Pairs below 30 observations are excluded.
 

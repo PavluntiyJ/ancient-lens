@@ -397,78 +397,10 @@ details > summary {
   color: var(--accent);
   border-bottom-color: var(--accent);
 }
-.toolbar-scale {
-  appearance: none;
-  align-self: center;
-  flex: 0 0 74px;
-  width: 74px;
-  height: 26px;
-  margin: 0 4px;
-  padding: 2px 22px 2px 8px;
-  font-size: 12px;
-  line-height: 18px;
-  background-color: var(--surface);
-  background-image:
-    linear-gradient(45deg, transparent 50%, var(--text) 50%), linear-gradient(135deg, var(--text) 50%, transparent 50%);
-  background-position:
-    calc(100% - 11px) 50%,
-    calc(100% - 7px) 50%;
-  background-size: 4px 4px;
-  background-repeat: no-repeat;
-  border-color: var(--line);
-}
 .app-toolbar > .icon-button {
   align-self: center;
   width: 30px;
   height: 28px;
-}
-.tools-menu {
-  position: relative;
-  align-self: center;
-}
-.tools-menu > summary {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 28px;
-  list-style: none;
-  color: var(--text-2);
-  border-radius: 4px;
-}
-.tools-menu > summary::-webkit-details-marker {
-  display: none;
-}
-.tools-menu > summary:hover,
-.tools-menu[open] > summary {
-  background: var(--surface);
-  color: var(--text);
-}
-.tools-menu > div {
-  position: absolute;
-  right: 0;
-  top: 32px;
-  width: 210px;
-  padding: 4px;
-  background: var(--raised);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
-  box-shadow: 0 12px 32px #000a;
-  z-index: 60;
-}
-.tools-menu > div button {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 8px 10px;
-  border-radius: 4px;
-  font-size: 13px;
-  color: var(--text-2);
-  text-align: left;
-}
-.tools-menu > div button:hover {
-  background: #2a2e34;
-  color: var(--text);
 }
 .window-controls {
   display: flex;
@@ -3520,13 +3452,167 @@ button.profile-heroes-row:hover {
   gap: 8px;
   margin-top: 10px;
 }
-/* Settings: section list, consequence lines right under their option, labelled slider stops. */
-.settings-sections {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
-  margin: 0 0 12px;
+/* Settings: connection overview, grouped section list (a side column on wide windows, a wrapped
+   row on narrow ones), consequence lines right under their option, labelled slider stops. */
+.connections-overview {
+  margin-bottom: 16px;
+}
+.connections-overview ul {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.connection-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 132px 96px;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  background: var(--elevated);
+}
+.connection-icon {
+  display: inline-flex;
+  padding: 6px;
+  border-radius: 6px;
+  color: var(--accent);
+  background: #58b4e326;
+}
+.connection-text b {
+  display: block;
+  font-weight: 500;
+}
+.connection-text small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.connection-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-2);
   font-size: 13px;
+}
+.connection-state.on {
+  color: var(--radiant);
+}
+.connection-state.on .dot {
+  background: var(--radiant);
+}
+.connection-state.setup {
+  color: var(--warn);
+}
+.connection-state.setup .dot {
+  background: var(--warn);
+}
+.connection-row button {
+  justify-self: end;
+  min-width: 88px;
+}
+.settings-layout {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.settings-sections {
+  position: sticky;
+  top: 0;
+  display: grid;
+  gap: 14px;
+  font-size: 13px;
+}
+.settings-nav-group {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+}
+.settings-nav-label {
+  margin-bottom: 2px;
+  color: var(--faint);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.settings-sections .link-button {
+  width: 100%;
+  padding: 4px 10px;
+  border-left: 2px solid var(--line);
+  color: var(--text-2);
+  text-align: left;
+}
+.settings-sections .link-button:hover {
+  color: var(--text);
+}
+.settings-sections .link-button.active {
+  border-left-color: var(--accent);
+  color: var(--accent);
+}
+.settings-body {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+}
+.settings-group {
+  display: grid;
+  gap: 12px;
+}
+.settings-group-title {
+  color: var(--faint);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.settings-group > .panel,
+.settings-group > div > .panel {
+  margin-bottom: 0;
+}
+.settings-group [id^='settings-'] {
+  scroll-margin-top: 12px;
+}
+.diagnostics-link {
+  margin-top: 12px;
+}
+.diagnostics-link .link-button,
+.match-tools .link-button {
+  color: var(--accent);
+}
+.diagnostics-link .link-button:hover,
+.match-tools .link-button:hover {
+  text-decoration: underline;
+}
+@container app-layout (max-width: 900px) {
+  .settings-layout {
+    grid-template-columns: 1fr;
+  }
+  .settings-sections {
+    position: static;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 20px;
+  }
+  .settings-nav-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 12px;
+  }
+  .settings-sections .link-button {
+    width: auto;
+    padding: 0;
+    border-left: 0;
+  }
+  .connection-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .connection-row button {
+    grid-column: 2 / -1;
+    justify-self: start;
+  }
 }
 .stats-preferences .fine-print,
 .display-settings .fine-print,
@@ -3598,16 +3684,6 @@ kbd {
   font-weight: 600;
   line-height: 1.4;
   text-align: center;
-}
-.settings-grid {
-  display: grid;
-  grid-template-columns: 1.1fr 1fr;
-  gap: 12px;
-  align-items: start;
-}
-.settings-stack {
-  display: grid;
-  gap: 12px;
 }
 .setup-steps {
   padding-left: 18px;
@@ -3928,7 +4004,6 @@ kbd {
 
 /* The match viewport fits the roster and both carousels together. */
 @container app-layout (max-width: 900px) {
-  .settings-grid,
   .notes-layout,
   .live-layout,
   .draft-layout {

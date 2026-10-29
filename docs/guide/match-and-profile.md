@@ -5,6 +5,24 @@ What each part of the window shows. How the draft numbers are calculated is in
 Screenshots use invented players and demonstration statistics; hero portraits are Valve
 assets.
 
+## Header and tools
+
+The header has four icons: **Match and draft**, **My profile**, **Notes** and **Settings**.
+The interface scale is in **Settings → Interface → Appearance**; the match screen also fits
+itself to the window, so the scale rarely needs to change during a match.
+
+Tools without a header icon open where they are needed:
+
+- While no game data arrives, the match screen links **Manual draft** (compare heroes against
+  picks you enter) and **Add players manually** (the manual roster: paste up to ten Dota IDs or
+  profile links).
+- When the game provides fewer than ten players, **Add players manually** appears beside that
+  message.
+- **GSI diagnostics** opens from **Settings → Connect Dota 2**.
+
+The match icon stays lit while the manual draft or roster is open, and the Settings icon while
+the diagnostics are.
+
 ## Match table
 
 Two teams of five, one row per player:
@@ -52,7 +70,7 @@ that match (STRATZ history):
 
 ## Player notes and cards
 
-Searchable notes are linked to Dota IDs. A player card shows the full history, teammates and
+Searchable notes are linked to Dota IDs; **Notes** in the header lists and edits them. A player card shows the full history, teammates and
 opponents, with Dotabuff, OpenDota, and STRATZ links. The SMURF label is a public-statistics
 heuristic, not proof.
 
