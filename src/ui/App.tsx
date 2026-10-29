@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode, type CSSProperties } from 'react';
+import { lazy, Suspense, useEffect, useState, type ReactNode, type CSSProperties } from 'react';
 import { Crosshair, Search, X } from 'lucide-react';
 import {
   applyStateUpdate,
@@ -13,9 +13,6 @@ import { Draft } from './Draft';
 import { Roster } from './Roster';
 import { MatchScreen } from './MatchScreen';
 import { MatchViewport } from './MatchViewport';
-import { Notes } from './LocalTools';
-import { Diagnostics } from './Diagnostics';
-import { Settings } from './settings/Settings';
 import type { SettingsSection } from './settings/sections';
 import { HeaderNav, type Page } from './HeaderNav';
 import { TooltipLayer } from './Tooltip';
@@ -27,6 +24,11 @@ import { ReaderConsentDialog, readerAsked } from './ReaderConsent';
 import { shouldAskReader } from '../shared/reader-notice';
 import { shouldAskStratz } from '../shared/stratz-notice';
 import { ResizeEdges, TitleBar, useFallbackShortcuts, useKeyboardOnDemand } from './WindowFrame';
+
+// Pages opened from the header load on first use, so the match screen starts with less code.
+const Notes = lazy(() => import('./LocalTools').then((module) => ({ default: module.Notes })));
+const Diagnostics = lazy(() => import('./Diagnostics').then((module) => ({ default: module.Diagnostics })));
+const Settings = lazy(() => import('./settings/Settings').then((module) => ({ default: module.Settings })));
 
 declare global {
   interface Window {
@@ -245,25 +247,32 @@ export function App() {
             <div hidden={page !== 'roster'}>
               <Roster active={page === 'roster'} notes={local.notes} />
             </div>
-            {page === 'notes' && <Notes local={local} update={updateLocal} initialId={local.accountId} />}
-            {page === 'live' && (
-              <Diagnostics live={live} connected={connected} info={info} setup={() => openSettings('settings-game')} />
-            )}
-            {page === 'settings' && (
-              <Settings
-                local={local}
-                update={updateLocal}
-                info={info}
-                live={live}
-                connected={connected}
-                section={settingsSection}
-                openDiagnostics={() => open('live')}
-                steamSetup={steamSetup}
-                steamChanged={setSteamSetup}
-                providerRevision={providerRevision}
-                providerChanged={() => setProviderRevision((value) => value + 1)}
-              />
-            )}
+            <Suspense fallback={null}>
+              {page === 'notes' && <Notes local={local} update={updateLocal} initialId={local.accountId} />}
+              {page === 'live' && (
+                <Diagnostics
+                  live={live}
+                  connected={connected}
+                  info={info}
+                  setup={() => openSettings('settings-game')}
+                />
+              )}
+              {page === 'settings' && (
+                <Settings
+                  local={local}
+                  update={updateLocal}
+                  info={info}
+                  live={live}
+                  connected={connected}
+                  section={settingsSection}
+                  openDiagnostics={() => open('live')}
+                  steamSetup={steamSetup}
+                  steamChanged={setSteamSetup}
+                  providerRevision={providerRevision}
+                  providerChanged={() => setProviderRevision((value) => value + 1)}
+                />
+              )}
+            </Suspense>
           </div>
         </main>
       </div>
