@@ -9,10 +9,12 @@ pub type Result<T> = std::result::Result<T, String>;
 pub fn now() -> String {
     chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
 }
-/// Keyboard shortcuts of this app. The global one is bound by the operating system or the
-/// desktop portal; the others are read by the page itself on both platforms.
-pub const SHORTCUT_NAMES: [&str; 7] = [
+/// Keyboard shortcuts of this app. The two global ones, `global` for the match window and
+/// `profile` for the profile window, are bound by the operating system or the desktop portal;
+/// the others are read by the page itself on both platforms.
+pub const SHORTCUT_NAMES: [&str; 8] = [
     "global",
+    "profile",
     "leftPrevious",
     "leftNext",
     "rightPrevious",
@@ -23,6 +25,7 @@ pub const SHORTCUT_NAMES: [&str; 7] = [
 pub fn default_shortcuts() -> Value {
     json!({
         "global": "Alt+Numpad5",
+        "profile": "Alt+Numpad6",
         "leftPrevious": "Alt+ArrowLeft",
         "leftNext": "Alt+ArrowRight",
         "rightPrevious": "Shift+ArrowLeft",
@@ -41,6 +44,16 @@ fn shortcut_modifier(token: &str) -> Option<&'static str> {
 }
 fn shortcut_key(token: &str) -> Option<String> {
     let upper = token.to_ascii_uppercase();
+    // The canonical form the settings page records ("KeyP", "Digit1") is accepted as typed.
+    let upper = match (upper.strip_prefix("KEY"), upper.strip_prefix("DIGIT")) {
+        (Some(rest), _) if rest.len() == 1 && rest.as_bytes()[0].is_ascii_alphabetic() => {
+            rest.to_owned()
+        }
+        (_, Some(rest)) if rest.len() == 1 && rest.as_bytes()[0].is_ascii_digit() => {
+            rest.to_owned()
+        }
+        _ => upper,
+    };
     if upper.len() == 1 && upper.as_bytes()[0].is_ascii_alphabetic() {
         return Some(format!("Key{upper}"));
     }
@@ -718,9 +731,17 @@ mod tests {
         legacy.as_object_mut().unwrap().remove("shortcuts");
         legacy["accountId"] = json!("123");
         atomic_json(&dir.path().join("state.json"), &legacy).unwrap();
-        let mut migrated = Store::open(dir.path().into()).unwrap();
+        let migrated = Store::open(dir.path().into()).unwrap();
         assert_eq!(migrated.public()["shortcuts"]["global"], "Alt+Numpad5");
         assert_eq!(migrated.public()["accountId"], "123");
+        // A file saved before the profile window had its own key gains that key's default.
+        let mut seven = legacy.clone();
+        let mut old = default_shortcuts();
+        old.as_object_mut().unwrap().remove("profile");
+        seven["shortcuts"] = old;
+        atomic_json(&dir.path().join("state.json"), &seven).unwrap();
+        let mut migrated = Store::open(dir.path().into()).unwrap();
+        assert_eq!(migrated.public()["shortcuts"]["profile"], "Alt+Numpad6");
         // Accepted aliases are stored in one canonical form.
         let saved = migrated
             .change(
@@ -737,6 +758,7 @@ mod tests {
             )
             .unwrap();
         assert_eq!(saved["shortcuts"]["global"], "Ctrl+Shift+F9");
+        assert_eq!(saved["shortcuts"]["profile"], "Alt+Numpad6");
         assert_eq!(saved["shortcuts"]["leftPrevious"], "Alt+ArrowLeft");
         assert_eq!(
             Store::open(dir.path().into()).unwrap().public()["shortcuts"]["laneNext"],
@@ -749,6 +771,7 @@ mod tests {
             json!({"global":"Alt+Backspace"}),
             json!({"unknown":"Alt+F9"}),
             json!({"global":"Alt+F9","laneNext":"alt+f9"}),
+            json!({"global":"Alt+F9","profile":"Alt+F9"}),
             json!({"global":5}),
             json!("Alt+F9"),
         ] {
@@ -765,6 +788,14 @@ mod tests {
             )
             .unwrap();
         assert_eq!(migrated.public()["shortcuts"]["leftNext"], "Alt+ArrowRight");
+        // The profile window's key is rebound like any other.
+        let saved = migrated
+            .change(
+                "state:shortcuts",
+                &json!({"shortcuts":{"global":"Alt+F10","profile":"Ctrl+Alt+KeyP"}}),
+            )
+            .unwrap();
+        assert_eq!(saved["shortcuts"]["profile"], "Ctrl+Alt+KeyP");
     }
     #[test]
     fn shortcut_keys_are_recognized_and_super_is_reserved() {
@@ -779,6 +810,17 @@ mod tests {
         );
         assert_eq!(normalize_shortcut("Ctrl+1").as_deref(), Some("Ctrl+Digit1"));
         assert_eq!(normalize_shortcut("Ctrl+A").as_deref(), Some("Ctrl+KeyA"));
+        // The settings page sends the canonical form back.
+        assert_eq!(
+            normalize_shortcut("Ctrl+Alt+KeyP").as_deref(),
+            Some("Ctrl+Alt+KeyP")
+        );
+        assert_eq!(
+            normalize_shortcut("Alt+Digit7").as_deref(),
+            Some("Alt+Digit7")
+        );
+        assert_eq!(normalize_shortcut("Alt+Key1").as_deref(), None);
+        assert_eq!(normalize_shortcut("Alt+DigitA").as_deref(), None);
         assert_eq!(
             normalize_shortcut("Ctrl+ArrowLeft").as_deref(),
             Some("Ctrl+ArrowLeft")

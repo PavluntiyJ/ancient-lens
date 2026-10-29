@@ -11,10 +11,25 @@ use zbus::{
 const DESTINATION: &str = "org.freedesktop.portal.Desktop";
 const PATH: &str = "/org/freedesktop/portal/desktop";
 const INTERFACE: &str = "org.freedesktop.portal.GlobalShortcuts";
-pub const SHORTCUT_ID: &str = "toggle";
-/// Alt with the numpad 5 key while Num Lock is off (keysym KP_Begin), in the portal's format.
-/// The desktop asks the user to confirm it once and lets them choose another one.
-const PREFERRED_TRIGGER: &str = "ALT+NUM+KP_Begin";
+/// The match window's shortcut; the ID is kept from when it was the only one, so a desktop
+/// that remembered the user's choice still finds it.
+pub const MATCH_ID: &str = "toggle";
+pub const PROFILE_ID: &str = "profile";
+/// The shortcuts this app asks for: ID, description and preferred trigger in the portal's
+/// format. Alt with numpad 5 (keysym KP_Begin) or numpad 6 (KP_Right) while Num Lock is off;
+/// the desktop asks the user to confirm them once and lets them choose others.
+pub const SHORTCUTS: [(&str, &str, &str); 2] = [
+    (
+        MATCH_ID,
+        "Show or hide the Ancient Lens match window",
+        "ALT+NUM+KP_Begin",
+    ),
+    (
+        PROFILE_ID,
+        "Show or hide the Ancient Lens profile window",
+        "ALT+NUM+KP_Right",
+    ),
+];
 
 type Results = HashMap<String, OwnedValue>;
 
@@ -76,15 +91,16 @@ fn text(value: &OwnedValue) -> Option<String> {
     }
 }
 
-/// A bound shortcut; keep it alive for as long as the shortcut should work.
+/// Bound shortcuts; keep it alive for as long as the shortcuts should work.
 pub struct Binding {
     connection: Connection,
     session: String,
-    /// The key the desktop assigned, as it describes it (e.g. "Alt+Num+Clear").
-    pub trigger: String,
+    /// The keys the desktop assigned by shortcut ID, as it describes them (e.g.
+    /// "Alt+Num+Clear"). A shortcut the user declined is missing.
+    pub triggers: HashMap<String, String>,
 }
 impl Binding {
-    pub fn bind(description: &str) -> Result<Self, String> {
+    pub fn bind() -> Result<Self, String> {
         let connection = Connection::session().map_err(|e| e.to_string())?;
         // Apps started outside their desktop file have no ID the portal could use for them.
         if let Ok(registry) = Proxy::new(
@@ -115,16 +131,21 @@ impl Binding {
             zbus::zvariant::ObjectPath::try_from(session.as_str()).map_err(|e| e.to_string())?;
         let handle = token();
         let bound = request(&connection, &handle, || {
-            let shortcut: HashMap<&str, Value> = HashMap::from([
-                ("description", Value::from(description)),
-                ("preferred_trigger", Value::from(PREFERRED_TRIGGER)),
-            ]);
+            let shortcuts: Vec<(&str, HashMap<&str, Value>)> = SHORTCUTS
+                .iter()
+                .map(|(id, description, trigger)| {
+                    (
+                        *id,
+                        HashMap::from([
+                            ("description", Value::from(*description)),
+                            ("preferred_trigger", Value::from(*trigger)),
+                        ]),
+                    )
+                })
+                .collect();
             let options: HashMap<&str, Value> =
                 HashMap::from([("handle_token", Value::from(handle.as_str()))]);
-            portal.call(
-                "BindShortcuts",
-                &(&session_path, vec![(SHORTCUT_ID, shortcut)], "", options),
-            )
+            portal.call("BindShortcuts", &(&session_path, shortcuts, "", options))
         })?;
         let shortcuts = bound
             .get("shortcuts")
@@ -132,7 +153,7 @@ impl Binding {
         let Value::Array(list) = &**shortcuts else {
             return Err("Unexpected portal answer".into());
         };
-        let mut trigger = None;
+        let mut triggers = HashMap::new();
         for item in list.iter() {
             let Value::Structure(entry) = item else {
                 continue;
@@ -140,24 +161,26 @@ impl Binding {
             let [Value::Str(id), Value::Dict(details)] = entry.fields() else {
                 continue;
             };
-            if id.as_str() == SHORTCUT_ID {
-                trigger = Some(
-                    details
-                        .get::<&str, String>(&"trigger_description")
-                        .ok()
-                        .flatten()
-                        .unwrap_or_default(),
-                );
+            if SHORTCUTS.iter().any(|(known, _, _)| *known == id.as_str()) {
+                let trigger = details
+                    .get::<&str, String>(&"trigger_description")
+                    .ok()
+                    .flatten()
+                    .unwrap_or_default();
+                triggers.insert(id.to_string(), trigger);
             }
+        }
+        if triggers.is_empty() {
+            return Err("The desktop bound no shortcut".into());
         }
         Ok(Self {
             connection,
             session,
-            trigger: trigger.ok_or("The desktop bound no shortcut")?,
+            triggers,
         })
     }
-    /// Calls `pressed` for each press until the connection ends.
-    pub fn listen(&self, pressed: impl Fn()) -> Result<(), String> {
+    /// Calls `pressed` with the shortcut ID for each press until the connection ends.
+    pub fn listen(&self, pressed: impl Fn(&str)) -> Result<(), String> {
         let portal = Proxy::new(&self.connection, DESTINATION, PATH, INTERFACE)
             .map_err(|e| e.to_string())?;
         for message in portal
@@ -170,8 +193,8 @@ impl Binding {
             else {
                 continue;
             };
-            if session.as_str() == self.session && id == SHORTCUT_ID {
-                pressed();
+            if session.as_str() == self.session && self.triggers.contains_key(&id) {
+                pressed(&id);
             }
         }
         Err("The shortcut portal connection ended".into())

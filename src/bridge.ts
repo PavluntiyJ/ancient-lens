@@ -1,5 +1,6 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import {
   draftInputSchema,
   normalizeLive,
@@ -23,6 +24,19 @@ if (isTauri()) {
     }
   }
   const native: DesktopApi = {
+    windowName: getCurrentWindow().label === 'profile' ? 'profile' : 'main',
+    setKeyboard: (on) => call('window:keyboard', { on }),
+    showWindow: (window) => call('window:show', { window }),
+    onProvider: (callback) => {
+      let disposed = false;
+      const pending = listen('provider:update', () => {
+        if (!disposed) callback();
+      });
+      return () => {
+        disposed = true;
+        void pending.then((unlisten) => unlisten()).catch(() => {});
+      };
+    },
     resizeWindow: (edge) => call('window:resize', { edge }),
     windowAction: (action) => call('window:action', { action }),
     setWindowMinSize: (scale) => call('window:min-size', { scale }),
@@ -98,7 +112,7 @@ if (isTauri()) {
     getSteamSetup: () => call('steam:status'),
     repairSteamSetup: (launch) => call('steam:repair', { launch }),
     exportData: () => call('data:export'),
-    toggleWindow: () => call('window:toggle'),
+    toggleWindow: (window = 'main') => call('window:toggle', { window }),
     onLive: (callback) => {
       let disposed = false;
       const pending = listen<LiveState>('live:update', (event) => {

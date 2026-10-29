@@ -72,6 +72,11 @@ const service = createServer(async (req, res) => {
       .end(JSON.stringify({ source: 'STRATZ', bracket, fetchedAt: new Date().toISOString(), positions, matchups }));
     return;
   }
+  // The profile window, open from the start, asks for its own history; this fixture has none.
+  if (!Array.isArray(ids)) {
+    res.writeHead(404).end();
+    return;
+  }
   batches.push(ids);
   const summaries = [...ids].reverse().map((id) => ({
     accountId: id,
@@ -135,13 +140,19 @@ try {
   browser = await chromium.connectOverCDP(endpoint);
   const context = browser.contexts()[0];
   await context.route('https://**/*', (route) => route.abort());
-  let page;
-  for (let i = 0; i < 100; i++) {
-    page = context.pages().find((p) => p.url().includes('tauri.localhost'));
-    if (page) break;
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-  if (!page) throw new Error('Tauri page unavailable');
+  // Two windows load the same page; the bridge tells the match window from the profile window.
+  const windowPage = async (name) => {
+    for (let i = 0; i < 100; i++) {
+      for (const candidate of context.pages().filter((p) => p.url().includes('tauri.localhost')))
+        if ((await candidate.evaluate(() => window.ancient?.windowName).catch(() => undefined)) === name)
+          return candidate;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    throw new Error(`Tauri ${name} window unavailable`);
+  };
+  const page = await windowPage('main');
+  const profile = await windowPage('profile');
+  profile.on('pageerror', (error) => failures.push(error.message));
   page.on('pageerror', (error) => failures.push(error.message));
   await expect(page.getByRole('heading', { name: 'Match players', exact: true })).toBeVisible();
   const info = await page.evaluate(() => window.ancient.getInfo());
@@ -290,8 +301,8 @@ try {
   await expect(page.locator('input[type=password]')).toHaveCount(0);
   // Rebind the global key through the page, then restore it; app:info proves the native
   // registration changed, not merely the displayed keycap.
-  const showHide = page.locator('.shortcut-row').filter({ hasText: 'Show or hide the window' });
-  await showHide.getByRole('button', { name: 'Change Show or hide the window' }).click();
+  const showHide = page.locator('.shortcut-row').filter({ hasText: 'Show or hide the match window' });
+  await showHide.getByRole('button', { name: 'Change Show or hide the match window' }).click();
   await page.keyboard.press('Control+Alt+F10');
   await expect(showHide.locator('.keycaps')).toHaveAttribute('aria-label', 'Ctrl + Alt + F10');
   await expect
@@ -300,8 +311,21 @@ try {
   await expect(page.getByText('Shortcut saved and registered.')).toBeVisible();
   const rebound = await page.evaluate(() => window.ancient.getState());
   if (rebound.shortcuts.global !== 'Ctrl+Alt+F10') throw new Error('Global shortcut was not stored');
+  // The profile window's key is registered separately and cannot take the match window's key.
+  const profileKey = page.locator('.shortcut-row').filter({ hasText: 'Show or hide the profile window' });
+  await profileKey.getByRole('button', { name: 'Change Show or hide the profile window' }).click();
+  await page.keyboard.press('Control+Alt+F10');
+  await expect(page.getByText('Already used for “Show or hide the match window”.')).toBeVisible();
+  await profileKey.getByRole('button', { name: 'Change Show or hide the profile window' }).click();
+  await page.keyboard.press('Control+Alt+F11');
+  await expect(profileKey.locator('.keycaps')).toHaveAttribute('aria-label', 'Ctrl + Alt + F11');
+  await expect
+    .poll(() => page.evaluate(() => window.ancient.getInfo()))
+    .toMatchObject({ shortcutKey: 'Ctrl+Alt+F10', profileShortcutKey: 'Ctrl+Alt+F11', profileShortcut: true });
   await page.getByRole('button', { name: 'Reset shortcuts' }).click();
-  await expect.poll(() => page.evaluate(() => window.ancient.getInfo())).toMatchObject({ shortcutKey: 'Alt+Numpad5' });
+  await expect
+    .poll(() => page.evaluate(() => window.ancient.getInfo()))
+    .toMatchObject({ shortcutKey: 'Alt+Numpad5', profileShortcutKey: 'Alt+Numpad6' });
   await page.evaluate(async () => {
     await window.ancient.addMmr(5000);
     await window.ancient.saveNote({ accountId: '2', name: 'Second', text: 'Native IPC persistence', tag: 'neutral' });
@@ -311,12 +335,37 @@ try {
     throw new Error('Native save changed or lost data');
   if (JSON.parse(await readFile(join(directory, 'state.pre-tauri.json'), 'utf8')).notes[0].text !== 'Keep this note')
     throw new Error('No recoverable migration backup');
+  // The profile window: the profile alone, without the match header, above the game and
+  // shown and hidden on its own.
+  await expect(profile.locator('.compact-brand')).toHaveText('My profile');
+  await expect(profile.locator('.own-profile')).toBeVisible();
+  await expect(profile.locator('nav[aria-label="Sections"]')).toHaveCount(0);
+  const profileInfo = await profile.evaluate(() => window.ancient.getInfo());
+  if (!profileInfo.overlay) throw new Error('Windows did not report the overlay windows');
+  if ((await page.evaluate(() => window.ancient.toggleWindow('profile'))) !== false)
+    throw new Error('Profile key did not hide the visible profile window');
+  if ((await page.evaluate(() => window.ancient.toggleWindow('main'))) !== false)
+    throw new Error('Match key did not hide the visible match window');
+  // Both hidden at once; each comes back on its own.
+  if ((await page.evaluate(() => window.ancient.toggleWindow('main'))) !== true)
+    throw new Error('Match key did not show the hidden match window');
+  await page.getByRole('button', { name: 'My profile', exact: true }).click();
+  if ((await page.evaluate(() => window.ancient.toggleWindow('profile'))) !== false)
+    throw new Error('The header icon did not show the profile window');
+  if ((await page.evaluate(() => window.ancient.toggleWindow('profile'))) !== true)
+    throw new Error('Profile key did not show the profile window again');
+  // Closing the profile window hides it while the match window stays; the app keeps running.
+  await profile.getByRole('button', { name: 'Close window' }).click();
+  await expect.poll(() => page.evaluate(() => window.ancient.toggleWindow('profile'))).toBe(true);
+  if (child.exitCode !== null) throw new Error('Closing the profile window quit the app');
+  await profile.evaluate(() => window.ancient.setKeyboard(true));
+  await profile.screenshot({ path: 'test-results/native-profile-window.png' });
   await page.getByRole('button', { name: 'Match and draft', exact: true }).click();
   await mkdir('test-results', { recursive: true });
   await page.screenshot({ path: 'test-results/native-desktop.png', fullPage: true });
   if (failures.length) throw new Error(failures.join('\n'));
   console.log(
-    'Native Tauri smoke passed: real Rust IPC + HTTP GSI, 10 profiles / 2 batches, reordered identity mapping, migration, MMR/notes, no manual keys.',
+    'Native Tauri smoke passed: real Rust IPC + HTTP GSI, 10 profiles / 2 batches, reordered identity mapping, migration, MMR/notes, no manual keys, match and profile windows with their own keys.',
   );
 } finally {
   await browser?.close();

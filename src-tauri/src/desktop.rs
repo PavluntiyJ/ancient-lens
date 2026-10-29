@@ -1,6 +1,6 @@
 use crate::{
     api::Api,
-    gsi,
+    gsi, overlay,
     stats::Filter,
     steam_setup,
     store::{Result, Store},
@@ -27,9 +27,14 @@ struct Desktop {
     /// The roster reader (Linux and Windows) is switched through it; elsewhere it is just kept alive.
     #[cfg_attr(not(any(target_os = "linux", windows)), allow(dead_code))]
     gsi: Arc<gsi::Control>,
+    /// Whether the match window's (`shortcut`) and the profile window's global keys are bound.
     shortcut: AtomicBool,
-    /// How the desktop portal describes the bound shortcut (Linux); `None` for the fixed key.
+    profile_shortcut: AtomicBool,
+    /// How the desktop portal describes the bound shortcuts (Linux); `None` for a fixed key.
     shortcut_trigger: std::sync::Mutex<Option<String>>,
+    profile_trigger: std::sync::Mutex<Option<String>>,
+    /// The registered global combinations, match window first, so a press finds its window.
+    global_keys: std::sync::Mutex<[String; 2]>,
     /// Set once a tray icon exists; without one, closing the window must still quit.
     tray: AtomicBool,
     /// Copy of the stored setting, read by the close handler without awaiting the store.
@@ -63,70 +68,128 @@ impl Desktop {
         Ok(())
     }
 }
-/// Default global key, used by the X11 fallback and by a state file without a binding.
+/// Default global keys of the match and profile windows, used by the X11 fallback and by a
+/// state file without a binding.
 const SHORTCUT: &str = "Alt+Numpad5";
-/// Binds the shortcut through the desktop portal, which reaches the app whichever window has
+const PROFILE_SHORTCUT: &str = "Alt+Numpad6";
+/// Window labels. The match window keeps the label of the former single window.
+const MATCH: &str = "main";
+const PROFILE: &str = "profile";
+const WINDOWS: [&str; 2] = [MATCH, PROFILE];
+/// The two global combinations of a `shortcuts` object, match window first.
+fn global_keys(shortcuts: &Value) -> [String; 2] {
+    [
+        shortcuts["global"].as_str().unwrap_or(SHORTCUT).to_owned(),
+        shortcuts["profile"]
+            .as_str()
+            .unwrap_or(PROFILE_SHORTCUT)
+            .to_owned(),
+    ]
+}
+/// The window whose global key was pressed; the match window when nothing else matches.
+fn pressed_window(
+    app: &tauri::AppHandle,
+    shortcut: &tauri_plugin_global_shortcut::Shortcut,
+) -> &'static str {
+    let profile = app
+        .try_state::<Desktop>()
+        .and_then(|desktop| desktop.global_keys.lock().ok().map(|keys| keys[1].clone()));
+    match profile.and_then(|key| key.parse::<tauri_plugin_global_shortcut::Shortcut>().ok()) {
+        Some(profile) if profile == *shortcut => PROFILE,
+        _ => MATCH,
+    }
+}
+/// Binds both shortcuts through the desktop portal, which reaches the app whichever window has
 /// the keyboard; without a portal, or when the user declines, it falls back to an X11 grab.
 #[cfg(target_os = "linux")]
-fn portal_shortcut(app: tauri::AppHandle) {
-    std::thread::spawn(move || {
-        match crate::shortcut_portal::Binding::bind("Show or hide Ancient Lens") {
-            Ok(binding) => {
-                eprintln!("Shortcut: bound by the desktop as {:?}", binding.trigger);
-                let desktop = app.state::<Desktop>();
-                desktop.shortcut.store(true, Ordering::Relaxed);
-                if let Ok(mut trigger) = desktop.shortcut_trigger.lock() {
-                    *trigger = Some(binding.trigger.clone());
+fn portal_shortcut(app: tauri::AppHandle, keys: [String; 2]) {
+    use crate::shortcut_portal::{Binding, MATCH_ID, PROFILE_ID};
+    std::thread::spawn(move || match Binding::bind() {
+        Ok(binding) => {
+            eprintln!("Shortcut: bound by the desktop as {:?}", binding.triggers);
+            let desktop = app.state::<Desktop>();
+            for (id, bound, trigger) in [
+                (MATCH_ID, &desktop.shortcut, &desktop.shortcut_trigger),
+                (
+                    PROFILE_ID,
+                    &desktop.profile_shortcut,
+                    &desktop.profile_trigger,
+                ),
+            ] {
+                let found = binding.triggers.get(id).cloned();
+                bound.store(found.is_some(), Ordering::Relaxed);
+                if let Ok(mut trigger) = trigger.lock() {
+                    *trigger = found;
                 }
-                let handle = app.clone();
-                let ended = binding.listen(move || {
-                    let app = handle.clone();
-                    let _ = handle.run_on_main_thread(move || {
-                        let _ = toggle_main(&app);
-                    });
-                });
-                eprintln!("Shortcut: {}", ended.unwrap_err());
             }
-            Err(error) => {
-                eprintln!("Shortcut: portal unavailable ({error}); using an X11 key grab");
-                let grabbed = app.global_shortcut().register(SHORTCUT).is_ok();
-                app.state::<Desktop>()
-                    .shortcut
-                    .store(grabbed, Ordering::Relaxed);
+            let handle = app.clone();
+            let ended = binding.listen(move |id| {
+                let app = handle.clone();
+                let label = if id == PROFILE_ID { PROFILE } else { MATCH };
+                let _ = handle.run_on_main_thread(move || {
+                    let _ = toggle(&app, label);
+                });
+            });
+            eprintln!("Shortcut: {}", ended.unwrap_err());
+        }
+        Err(error) => {
+            eprintln!("Shortcut: portal unavailable ({error}); using an X11 key grab");
+            let desktop = app.state::<Desktop>();
+            for (key, bound) in keys
+                .iter()
+                .zip([&desktop.shortcut, &desktop.profile_shortcut])
+            {
+                let grabbed = app.global_shortcut().register(key.as_str()).is_ok();
+                bound.store(grabbed, Ordering::Relaxed);
             }
         }
     });
 }
-/// Brings the main window up, or hides it when it is already in front: the hotkey and the
-/// tray use this one window instead of a separate match panel. A window that is open but
-/// buried under the game is raised, not hidden, so one press always shows it.
-fn toggle_main(app: &tauri::AppHandle) -> Result<bool> {
+/// Brings a window up, or hides it when it is already up: the hotkeys and the tray use this.
+/// It stays above the game without taking the keyboard from it (see `overlay`).
+fn toggle(app: &tauri::AppHandle, label: &str) -> Result<bool> {
     let w = app
-        .get_webview_window("main")
-        .ok_or("Main window is missing")?;
-    let front = w.is_visible().unwrap_or(false)
-        && !w.is_minimized().unwrap_or(false)
-        && w.is_focused().unwrap_or(false);
-    if front {
-        w.hide().map_err(|e| e.to_string())?;
+        .get_webview_window(label)
+        .ok_or("The window is missing")?
+        .as_ref()
+        .window();
+    if overlay::in_front(&w) {
+        overlay::hide(&w);
         Ok(false)
     } else {
-        show_main(app);
+        overlay::show(&w);
         Ok(true)
     }
 }
-fn show_main(app: &tauri::AppHandle) {
-    if let Some(w) = app.get_webview_window("main") {
-        // A Wayland window cannot take the focus while it stays mapped; the compositor
-        // activates it when it is mapped again, so a window behind the game is re-shown.
-        #[cfg(target_os = "linux")]
-        if w.is_visible().unwrap_or(false) && !w.is_focused().unwrap_or(false) {
-            let _ = w.hide();
-        }
-        let _ = w.unminimize();
-        let _ = w.show();
-        let _ = w.set_focus();
+fn show(app: &tauri::AppHandle, label: &str) {
+    if let Some(w) = app.get_webview_window(label) {
+        overlay::show(&w.as_ref().window());
     }
+}
+/// Moves the two global keys from `previous` to `next`. Another application may own a
+/// requested combination; then every binding is put back and the conflict is reported.
+#[cfg(not(target_os = "linux"))]
+fn rebind(app: &tauri::AppHandle, previous: &[String; 2], next: &[String; 2]) -> Result<()> {
+    let manager = app.global_shortcut();
+    let changed: Vec<usize> = (0..2).filter(|&i| previous[i] != next[i]).collect();
+    for &i in &changed {
+        let _ = manager.unregister(previous[i].as_str());
+    }
+    for &i in &changed {
+        if manager.register(next[i].as_str()).is_err() {
+            for &j in &changed {
+                let _ = manager.unregister(next[j].as_str());
+            }
+            for &j in &changed {
+                let _ = manager.register(previous[j].as_str());
+            }
+            return Err(format!(
+                "{} is already used by another application. The previous shortcuts are still active.",
+                next[i]
+            ));
+        }
+    }
+    Ok(())
 }
 /// Hiding to the tray is only safe when something shows the icon. Linux needs a
 /// StatusNotifier host (KDE, or GNOME with the AppIndicator extension); without one the
@@ -148,19 +211,21 @@ fn tray_host() -> bool {
 fn tray(app: &tauri::App) -> tauri::Result<()> {
     use tauri::menu::{Menu, MenuItem};
     use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-    let show = MenuItem::with_id(app, "show", "Show Ancient Lens", true, None::<&str>)?;
+    let show_match = MenuItem::with_id(app, "show", "Show match window", true, None::<&str>)?;
+    let show_profile = MenuItem::with_id(app, "profile", "Show profile", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&show, &quit])?;
+    let menu = Menu::with_items(app, &[&show_match, &show_profile, &quit])?;
     let mut builder = TrayIconBuilder::with_id("main")
         .tooltip("Ancient Lens")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {
-            "show" => show_main(app),
+            "show" => show(app, MATCH),
+            "profile" => show(app, PROFILE),
             "quit" => app.exit(0),
             _ => {}
         })
-        // Linux trays only open the menu; a left click toggles the window elsewhere.
+        // Linux trays only open the menu; a left click toggles the match window elsewhere.
         .on_tray_icon_event(|tray, event| {
             if let TrayIconEvent::Click {
                 button: MouseButton::Left,
@@ -168,7 +233,7 @@ fn tray(app: &tauri::App) -> tauri::Result<()> {
                 ..
             } = event
             {
-                let _ = toggle_main(tray.app_handle());
+                let _ = toggle(tray.app_handle(), MATCH);
             }
         });
     if let Some(icon) = app.default_window_icon() {
@@ -182,14 +247,16 @@ fn tray(app: &tauri::App) -> tauri::Result<()> {
 /// match screen's lowest zoom; 20px more covers taller rows (the smoke fixture needs 906).
 /// 1030 wide is the zoomed canvas plus the page margins.
 const MATCH_MIN: (f64, f64) = (1030., 920.);
+/// The profile window scrolls; it only needs its header, the filter bar and a few rows.
+const PROFILE_MIN: (f64, f64) = (900., 600.);
 /// The minimum window for an interface scale (percent): everything grows with the scale, so
 /// does the minimum. Never larger than the monitor's work area; only there can the match
 /// screen still scroll.
-fn match_min_size(scale: f64, work_area: (f64, f64)) -> (f64, f64) {
+fn min_size(base: (f64, f64), scale: f64, work_area: (f64, f64)) -> (f64, f64) {
     let factor = scale / 100.;
     (
-        (MATCH_MIN.0 * factor).ceil().min(work_area.0),
-        (MATCH_MIN.1 * factor).ceil().min(work_area.1),
+        (base.0 * factor).ceil().min(work_area.0),
+        (base.1 * factor).ceil().min(work_area.1),
     )
 }
 fn trusted(url: &tauri::Url) -> bool {
@@ -203,7 +270,7 @@ async fn desktop_call(
     command: String,
     args: Value,
 ) -> Result<Value> {
-    if window.label() != "main" || !trusted(&window.url().map_err(|e| e.to_string())?) {
+    if !WINDOWS.contains(&window.label()) || !trusted(&window.url().map_err(|e| e.to_string())?) {
         return Err("Untrusted window".into());
     }
     match command.as_str() {
@@ -230,7 +297,13 @@ async fn desktop_call(
                 .ok_or("No monitor")?;
             let factor = monitor.scale_factor();
             let work = monitor.work_area().size;
-            let (width, height) = match_min_size(
+            let base = if window.label() == PROFILE {
+                PROFILE_MIN
+            } else {
+                MATCH_MIN
+            };
+            let (width, height) = min_size(
+                base,
                 scale,
                 (work.width as f64 / factor, work.height as f64 / factor),
             );
@@ -257,7 +330,10 @@ async fn desktop_call(
         "window:action" => {
             match args["action"].as_str().unwrap_or("") {
                 "drag" => window.start_dragging(),
-                "minimize" => window.minimize(),
+                "minimize" => {
+                    overlay::minimize(&window.as_ref().window());
+                    Ok(())
+                }
                 "maximize" => {
                     if window.is_maximized().map_err(|e| e.to_string())? {
                         window.unmaximize()
@@ -283,6 +359,7 @@ async fn desktop_call(
                 .gsi
                 .set_reader(value["nativeRosterReader"] == "on")
                 .await;
+            let _ = app.emit("state:update", &value);
             Ok(value)
         }
         "state:get" => Ok(state.store.lock().await.public()),
@@ -294,7 +371,7 @@ async fn desktop_call(
         "app:info" => {
             let store = state.store.lock().await;
             Ok(
-                json!({"version":env!("CARGO_PKG_VERSION"),"platform":if cfg!(windows){"win32"}else{std::env::consts::OS},"runtime":"Tauri + Rust","wayland":std::env::var_os("WAYLAND_DISPLAY").is_some(),"shortcut":state.shortcut.load(Ordering::Relaxed),"shortcutKey":store.shortcuts()["global"],"shortcutTrigger":state.shortcut_trigger.lock().ok().and_then(|t| t.clone()),"tray":state.tray.load(Ordering::Relaxed),"dataPath":store.directory,"gsiPort":state.port.load(Ordering::Relaxed),"readerPrompt":reader_prompt()}),
+                json!({"version":env!("CARGO_PKG_VERSION"),"platform":if cfg!(windows){"win32"}else{std::env::consts::OS},"runtime":"Tauri + Rust","wayland":std::env::var_os("WAYLAND_DISPLAY").is_some(),"shortcut":state.shortcut.load(Ordering::Relaxed),"shortcutKey":store.shortcuts()["global"],"shortcutTrigger":state.shortcut_trigger.lock().ok().and_then(|t| t.clone()),"profileShortcut":state.profile_shortcut.load(Ordering::Relaxed),"profileShortcutKey":store.shortcuts()["profile"],"profileShortcutTrigger":state.profile_trigger.lock().ok().and_then(|t| t.clone()),"overlay":overlay::passive(),"window":window.label(),"tray":state.tray.load(Ordering::Relaxed),"dataPath":store.directory,"gsiPort":state.port.load(Ordering::Relaxed),"readerPrompt":reader_prompt()}),
             )
         }
         "player:site" => {
@@ -354,6 +431,8 @@ async fn desktop_call(
             };
             let directory = state.store.lock().await.directory.join("cache");
             state.use_service(directory, outcome.service)?;
+            // The other window reloads what depends on the provider.
+            let _ = app.emit("provider:update", Value::Null);
             Ok(state.provider(Some(outcome.message)))
         }
         "heroes:get" => state.api().resource("heroes", 3_600_000).await,
@@ -451,39 +530,58 @@ async fn desktop_call(
                 serde_json::from_value(args["ids"].clone()).map_err(|_| "Invalid heroes")?;
             state.api().matchups(&ids).await
         }
-        "window:toggle" => Ok(json!(toggle_main(&app)?)),
+        // Either window by label; the match window when none is given.
+        "window:toggle" | "window:show" => {
+            let label = match args["window"].as_str() {
+                None | Some(MATCH) => MATCH,
+                Some(PROFILE) => PROFILE,
+                Some(_) => return Err("Unknown window".into()),
+            };
+            if command == "window:show" {
+                show(&app, label);
+                Ok(json!(true))
+            } else {
+                Ok(json!(toggle(&app, label)?))
+            }
+        }
+        // The user clicked a text field or the keyboard button of this window.
+        "window:keyboard" => {
+            overlay::keyboard(&window.as_ref().window(), args["on"] == true);
+            Ok(Value::Null)
+        }
         "state:tray" => {
             let value = state.store.lock().await.change(&command, &args)?;
             state
                 .close_to_tray
                 .store(value["closeToTray"] == true, Ordering::Relaxed);
+            let _ = app.emit("state:update", &value);
             Ok(value)
         }
-        // The global binding can fail because another application owns the combination; in
+        // A global binding can fail because another application owns the combination; in
         // that case the store keeps the old object and the page shows the conflict.
         "state:shortcuts" => {
             let requested = crate::store::validate_shortcuts(&args["shortcuts"])?;
             let mut store = state.store.lock().await;
+            let next = global_keys(&requested);
             #[cfg(not(target_os = "linux"))]
             {
-                let previous = store.shortcuts()["global"]
-                    .as_str()
-                    .unwrap_or(SHORTCUT)
-                    .to_owned();
-                let next = requested["global"].as_str().unwrap_or(SHORTCUT);
-                if next != previous {
-                    let manager = app.global_shortcut();
-                    let _ = manager.unregister(previous.as_str());
-                    if manager.register(next).is_err() {
-                        // Restore the working binding before reporting the conflict.
-                        let _ = manager.register(previous.as_str());
-                        return Err(format!(
-                            "{next} is already used by another application. The previous shortcut is still active."
-                        ));
+                let previous = global_keys(&store.shortcuts());
+                rebind(&app, &previous, &next)?;
+                for (i, bound) in [&state.shortcut, &state.profile_shortcut]
+                    .into_iter()
+                    .enumerate()
+                {
+                    if previous[i] != next[i] {
+                        bound.store(true, Ordering::Relaxed);
                     }
                 }
             }
-            store.change(&command, &json!({"shortcuts":requested}))
+            let value = store.change(&command, &json!({"shortcuts":requested}))?;
+            if let Ok(mut keys) = state.global_keys.lock() {
+                *keys = next;
+            }
+            let _ = app.emit("state:update", &value);
+            Ok(value)
         }
         // Isolated test runs never look at or touch this computer's Steam.
         "steam:status" | "steam:repair" if std::env::var_os("ANCIENT_TEST_DATA").is_some() => {
@@ -568,22 +666,27 @@ fn reader_prompt() -> bool {
     std::env::var_os("ANCIENT_TEST_DATA").is_none()
         || std::env::var_os("ANCIENT_READER_PROMPT").is_some_and(|v| v == "1")
 }
-/// The main window comes from tauri.conf.json but is built here, so that test
+/// The match and profile windows come from tauri.conf.json but are built here, so that test
 /// runs on Windows can expose WebView2 to the smoke test. wry otherwise sets its
 /// own browser arguments, which hide WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS.
 /// A debugging port lets any local process drive the app, so it is only ever
-/// opened in isolated test mode (ANCIENT_TEST_DATA).
-fn main_window(app: &tauri::App) -> tauri::Result<()> {
+/// opened in isolated test mode (ANCIENT_TEST_DATA). Both windows share one WebView2
+/// environment, so they get the same arguments and one port shows both pages.
+fn build_window(app: &tauri::App, label: &str) -> tauri::Result<()> {
     let config = app
         .config()
         .app
         .windows
         .iter()
-        .find(|w| w.label == "main")
+        .find(|w| w.label == label)
         .cloned()
-        .expect("main window config");
+        .expect("window config");
+    // Shown without taking the keyboard from the game where the desktop allows it.
+    let passive = overlay::passive();
     #[allow(unused_mut)]
-    let mut builder = tauri::WebviewWindowBuilder::from_config(app, &config)?;
+    let mut builder = tauri::WebviewWindowBuilder::from_config(app, &config)?
+        .focused(!passive)
+        .focusable(!passive);
     #[cfg(windows)]
     if std::env::var_os("ANCIENT_TEST_DATA").is_some() {
         if let Some(port) = std::env::var("ANCIENT_WEBVIEW_DEBUG_PORT")
@@ -600,37 +703,73 @@ fn main_window(app: &tauri::App) -> tauri::Result<()> {
     builder.build()?;
     Ok(())
 }
+/// Each window's size, position and maximized state; not whether it is shown.
+const WINDOW_STATE: tauri_plugin_window_state::StateFlags =
+    tauri_plugin_window_state::StateFlags::SIZE
+        .union(tauri_plugin_window_state::StateFlags::POSITION)
+        .union(tauri_plugin_window_state::StateFlags::MAXIMIZED);
 pub fn run() {
-    let builder = tauri::Builder::default()
+    let isolated = std::env::var_os("ANCIENT_TEST_DATA").is_some();
+    let mut builder = tauri::Builder::default()
+        // Starting the app again brings both windows back.
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
-            show_main(app)
+            for label in WINDOWS {
+                show(app, label);
+            }
         }))
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
-                .with_handler(|app, _, event| {
+                .with_handler(|app, shortcut, event| {
                     if event.state() == ShortcutState::Pressed {
-                        let _ = toggle_main(app);
+                        let _ = toggle(app, pressed_window(app, shortcut));
                     }
                 })
                 .build(),
-        )
+        );
+    // Isolated test runs neither read nor write this computer's saved window places.
+    if !isolated {
+        builder = builder.plugin(
+            tauri_plugin_window_state::Builder::new()
+                .with_state_flags(WINDOW_STATE)
+                // Restored in setup, after the first-start size.
+                .skip_initial_state(MATCH)
+                .skip_initial_state(PROFILE)
+                .build(),
+        );
+    }
+    let builder = builder
         .invoke_handler(tauri::generate_handler![desktop_call])
         .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                if window.label() != "main" {
-                    return;
+            if !WINDOWS.contains(&window.label()) {
+                return;
+            }
+            match event {
+                // A window that had the keyboard gives it back with the focus, so the next
+                // click on it leaves the game in front again.
+                tauri::WindowEvent::Focused(false) => overlay::keyboard(window, false),
+                // Closing hides the window. The app keeps running in the tray, so GSI and the
+                // rating reader go on; Quit is in its menu. Without a tray, closing the last
+                // visible window quits.
+                tauri::WindowEvent::CloseRequested { api, .. } => {
+                    let desktop = window.state::<Desktop>();
+                    let tray = desktop.tray.load(Ordering::Relaxed)
+                        && desktop.close_to_tray.load(Ordering::Relaxed);
+                    let other = WINDOWS
+                        .iter()
+                        .filter(|label| **label != window.label())
+                        .filter_map(|label| window.app_handle().get_webview_window(label))
+                        .any(|w| w.is_visible().unwrap_or(false));
+                    if tray || other {
+                        api.prevent_close();
+                        overlay::hide(window);
+                    } else {
+                        window.app_handle().exit(0);
+                    }
                 }
-                // Hide to the tray, so GSI and the rating reader keep running; Quit is in its menu.
-                let tray = window.state::<Desktop>();
-                if tray.tray.load(Ordering::Relaxed) && tray.close_to_tray.load(Ordering::Relaxed) {
-                    api.prevent_close();
-                    let _ = window.hide();
-                } else {
-                    window.app_handle().exit(0);
-                }
+                _ => {}
             }
         })
-        .setup(|app| {
+        .setup(move |app| {
             let directory = std::env::var_os("ANCIENT_TEST_DATA")
                 .map(std::path::PathBuf::from)
                 .unwrap_or_else(|| {
@@ -688,14 +827,15 @@ pub fn run() {
                 },
             ))
             .map_err(std::io::Error::other)?;
-            main_window(app)?;
-            // Linux binds the shortcut through the desktop portal in the background below.
-            let global = store.shortcuts()["global"]
-                .as_str()
-                .unwrap_or(SHORTCUT)
-                .to_owned();
-            let shortcut = !cfg!(target_os = "linux")
-                && app.global_shortcut().register(global.as_str()).is_ok();
+            for label in WINDOWS {
+                build_window(app, label)?;
+            }
+            // Linux binds the shortcuts through the desktop portal in the background below.
+            let keys = global_keys(&store.shortcuts());
+            let [shortcut, profile_shortcut] = [0, 1].map(|i| {
+                !cfg!(target_os = "linux")
+                    && app.global_shortcut().register(keys[i].as_str()).is_ok()
+            });
             // Isolated test runs keep the old close-to-quit behaviour and leave the tray alone.
             let has_tray =
                 std::env::var_os("ANCIENT_TEST_DATA").is_none() && tray_host() && tray(app).is_ok();
@@ -709,15 +849,17 @@ pub fn run() {
                 port: AtomicU16::new(port),
                 gsi,
                 shortcut: AtomicBool::new(shortcut),
+                profile_shortcut: AtomicBool::new(profile_shortcut),
                 shortcut_trigger: std::sync::Mutex::new(None),
+                profile_trigger: std::sync::Mutex::new(None),
+                global_keys: std::sync::Mutex::new(keys.clone()),
                 tray: AtomicBool::new(has_tray),
                 close_to_tray: AtomicBool::new(close_to_tray),
                 steam_repair: Mutex::new(()),
             });
-            let isolated = std::env::var_os("ANCIENT_TEST_DATA").is_some();
             #[cfg(target_os = "linux")]
             if !isolated {
-                portal_shortcut(app.handle().clone());
+                portal_shortcut(app.handle().clone(), keys);
             }
             // Optional fixture feed only in isolated tests; never read it in a normal session.
             let test_feed = isolated
@@ -775,13 +917,22 @@ pub fn run() {
             if !isolated {
                 tauri::async_runtime::spawn(match_details(app.handle().clone()));
             }
-            if let Some(w) = app.get_webview_window("main") {
+            // First start: the match window nearly fills the screen, the profile window is
+            // smaller; later starts restore where the user left each one.
+            for (label, most) in [(MATCH, (1740., 1280.)), (PROFILE, (1280., 900.))] {
+                let Some(w) = app.get_webview_window(label) else {
+                    continue;
+                };
                 if let Ok(Some(m)) = w.current_monitor() {
                     let scale = m.scale_factor();
-                    let width = (m.size().width as f64 / scale - 40.).min(1740.);
-                    let height = (m.size().height as f64 / scale - 90.).min(1280.);
+                    let width = (m.size().width as f64 / scale - 40.).min(most.0);
+                    let height = (m.size().height as f64 / scale - 90.).min(most.1);
                     let _ = w.set_size(tauri::LogicalSize::new(width, height));
                     let _ = w.center();
+                }
+                if !isolated {
+                    use tauri_plugin_window_state::WindowExt;
+                    let _ = w.restore_state(WINDOW_STATE);
                 }
             }
             Ok(())
@@ -857,10 +1008,22 @@ mod window_tests {
     use super::*;
     #[test]
     fn minimum_window_follows_the_scale_within_the_work_area() {
-        assert_eq!(match_min_size(100., (2560., 1400.)), (1030., 920.));
-        assert_eq!(match_min_size(120., (2560., 1400.)), (1236., 1104.));
-        assert_eq!(match_min_size(80., (1366., 768.)), (824., 736.));
+        assert_eq!(min_size(MATCH_MIN, 100., (2560., 1400.)), (1030., 920.));
+        assert_eq!(min_size(MATCH_MIN, 120., (2560., 1400.)), (1236., 1104.));
+        assert_eq!(min_size(MATCH_MIN, 80., (1366., 768.)), (824., 736.));
         // A screen too small for the scale caps the minimum at its work area.
-        assert_eq!(match_min_size(120., (1920., 1036.)), (1236., 1036.));
+        assert_eq!(min_size(MATCH_MIN, 120., (1920., 1036.)), (1236., 1036.));
+        assert_eq!(min_size(PROFILE_MIN, 100., (1366., 768.)), (900., 600.));
+    }
+    #[test]
+    fn global_keys_fall_back_to_the_defaults() {
+        assert_eq!(
+            global_keys(&json!({"global":"Ctrl+Alt+F10","profile":"Alt+F11"})),
+            ["Ctrl+Alt+F10".to_owned(), "Alt+F11".to_owned()]
+        );
+        assert_eq!(
+            global_keys(&json!({})),
+            [SHORTCUT.to_owned(), PROFILE_SHORTCUT.to_owned()]
+        );
     }
 }

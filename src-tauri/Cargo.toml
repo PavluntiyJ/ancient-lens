@@ -12,7 +12,7 @@ name = "ancient_lens"
 
 [features]
 default = ["desktop"]
-desktop = ["dep:tauri", "dep:tauri-build", "dep:tauri-plugin-single-instance", "dep:tauri-plugin-global-shortcut", "dep:rfd", "dep:open", "dep:zbus"]
+desktop = ["dep:tauri", "dep:tauri-build", "dep:tauri-plugin-single-instance", "dep:tauri-plugin-global-shortcut", "dep:tauri-plugin-window-state", "dep:rfd", "dep:open", "dep:zbus"]
 
 [[bin]]
 name = "ancient-lens"
@@ -26,6 +26,8 @@ tauri-build = { version = "2", features = [], optional = true }
 tauri = { version = "2", features = ["tray-icon"], optional = true }
 tauri-plugin-single-instance = { version = "2", optional = true }
 tauri-plugin-global-shortcut = { version = "2", optional = true }
+# Remembers the size and place of the match and profile windows.
+tauri-plugin-window-state = { version = "2", optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["full"] }
@@ -55,7 +57,7 @@ zbus = { version = "5.9", optional = true }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 winreg = "0.55"
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Diagnostics_ToolHelp", "Win32_System_Diagnostics_Debug", "Win32_System_Threading", "Win32_Security_Credentials"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Diagnostics_ToolHelp", "Win32_System_Diagnostics_Debug", "Win32_System_Threading", "Win32_Security_Credentials", "Win32_UI_WindowsAndMessaging"] }
 
 [profile.release]
 strip = true

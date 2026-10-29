@@ -9,6 +9,8 @@ pub mod history;
 pub mod journal;
 pub mod local_service;
 pub mod match_details;
+#[cfg(feature = "desktop")]
+pub mod overlay;
 pub mod own_account;
 pub mod player_sites;
 #[cfg(any(target_os = "linux", windows))]

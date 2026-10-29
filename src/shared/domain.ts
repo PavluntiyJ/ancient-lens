@@ -335,6 +335,12 @@ export type AppInfo = {
   shortcutKey?: string;
   /** The desktop portal's description of the bound shortcut (Linux); absent for the fixed key. */
   shortcutTrigger?: string | null;
+  /** The same three for the profile window's key. */
+  profileShortcut?: boolean;
+  profileShortcutKey?: string;
+  profileShortcutTrigger?: string | null;
+  /** The windows stay above the game and do not take the keyboard until a text field is clicked. */
+  overlay?: boolean;
   tray?: boolean;
   dataPath: string;
   gsiPort: number;
@@ -466,7 +472,17 @@ export type HeroAverageRow = {
   killContribution: number | null;
 };
 export type HeroAverages = { source: 'STRATZ'; fetchedAt: string; bracket: RankBracket; rows: HeroAverageRow[] };
+/** The match window (label `main`) and the profile window. */
+export type WindowName = 'main' | 'profile';
 export type DesktopApi = {
+  /** Which window this page is in. */
+  windowName?: WindowName;
+  /** Gives this window the keyboard, so typing reaches it (the game goes to the background). */
+  setKeyboard?(on: boolean): Promise<void>;
+  /** Brings a window up without taking the keyboard from the game. */
+  showWindow?(window: WindowName): Promise<boolean>;
+  /** Called when STRATZ was connected or disconnected, in either window. */
+  onProvider?(callback: () => void): () => void;
   resizeWindow?(edge: WindowEdge): Promise<void>;
   windowAction?(action: 'drag' | 'minimize' | 'maximize' | 'close'): Promise<void>;
   /** Minimum window for an interface scale (percent), capped at the monitor's work area. */
@@ -514,6 +530,6 @@ export type DesktopApi = {
   getSteamSetup?(): Promise<import('./steam-setup').SteamSetup>;
   repairSteamSetup?(launch: boolean): Promise<import('./steam-setup').SteamRepair>;
   exportData(): Promise<string | null>;
-  toggleWindow(): Promise<boolean>;
+  toggleWindow(window?: WindowName): Promise<boolean>;
   onLive(callback: (state: LiveState) => void): () => void;
 };

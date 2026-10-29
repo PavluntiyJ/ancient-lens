@@ -89,14 +89,26 @@ export async function nativeCapture(directory, extraEnv) {
         () => false,
       );
     }, 'Native capture did not start; close other Ancient Lens windows and retry.');
-    let execute, call, screenshot, resize;
+    // The app has a match window (label `main`) and a profile window; `useWindow` switches
+    // every following call to one of them.
+    let execute, call, screenshot, resize, useWindow;
     if (windows) {
       const endpoint = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json();
       browser = await chromium.connectOverCDP(endpoint.webSocketDebuggerUrl);
       const context = browser.contexts()[0];
+      const label = (p) => p.evaluate(() => window.ancient?.windowName).catch(() => undefined);
+      const pageFor = async (name) => {
+        for (const p of context.pages().filter((p) => p.url().includes('tauri.localhost')))
+          if ((await label(p)) === name) return p;
+      };
       let page;
-      await waitFor(() => !!(page = context.pages().find((p) => p.url().includes('tauri.localhost'))), 'No app window');
+      await waitFor(async () => !!(page = await pageFor('main')), 'No app window');
       await page.setViewportSize({ width: 1600, height: 1240 });
+      useWindow = async (name) => {
+        let found;
+        await waitFor(async () => !!(found = await pageFor(name)), `No ${name} window`);
+        page = found;
+      };
       resize = (width, height) => page.setViewportSize({ width, height });
       execute = (script, args = []) =>
         page.evaluate(({ script, args }) => new Function(script)(...args), { script, args });
@@ -107,9 +119,19 @@ export async function nativeCapture(directory, extraEnv) {
       session = (
         await request('/session', { capabilities: { alwaysMatch: { 'webkitgtk:browserOptions': { binary } } } })
       ).sessionId;
+      execute = (script, args = []) => request(`/session/${session}/execute/sync`, { script, args });
+      useWindow = async (name) => {
+        await waitFor(async () => {
+          for (const handle of await request(`/session/${session}/window/handles`)) {
+            await request(`/session/${session}/window`, { handle });
+            if ((await execute('return window.ancient?.windowName')) === name) return true;
+          }
+          return false;
+        }, `No ${name} window`);
+      };
+      await useWindow('main');
       await request(`/session/${session}/window/rect`, { width: 1600, height: 1240 });
       resize = (width, height) => request(`/session/${session}/window/rect`, { width, height });
-      execute = (script, args = []) => request(`/session/${session}/execute/sync`, { script, args });
       call = async (name, ...args) => {
         const result = await request(`/session/${session}/execute/async`, {
           script:
@@ -152,7 +174,7 @@ export async function nativeCapture(directory, extraEnv) {
       if (/[\u0400-\u04ff]/u.test(text)) throw new Error('Non-English UI text found in documentation screenshot');
       await screenshot(path, selector);
     };
-    return { execute, call, click, capture, close, resize };
+    return { execute, call, click, capture, close, resize, useWindow };
   } catch (error) {
     await close();
     throw error;
