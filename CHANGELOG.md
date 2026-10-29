@@ -15,6 +15,8 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
   the title bar lets you type, and the game goes to the background until you click it again.
   Needs borderless or windowed mode. On Wayland the desktop decides, as before.
 - Each window remembers its size and position.
+- **Windows:** reading the draft of your own match (picks, hovers, bans, lanes) and the
+  ten-player roster after it are confirmed in a live ranked game on build 6969.
 - **Memory reading at first start:** the app asks once whether to enable the reader that fills
   the roster, picks and bans of your own match, with its risk and the way back in Settings.
   **Not now** keeps it off, as before.
