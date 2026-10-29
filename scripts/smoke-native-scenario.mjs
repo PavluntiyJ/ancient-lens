@@ -285,7 +285,16 @@ const service = createServer(async (req, res) => {
       ...(req.url === '/v1/totals'
         ? { total: { games: (Number(id) <= 3 ? 1000 : 6000) + Number(id), wins: Number(id) <= 3 ? 600 : 2940 } }
         : {}),
-      matches: [],
+      // Three of four matches on one position, for the position share columns.
+      matches: Array.from({ length: 4 }, (_, k) => ({
+        match_id: Number(id) * 100 + k,
+        hero_id: Number(id),
+        start_time: Math.floor(Date.now() / 1000) - 86400 * (k + 1),
+        duration: 1800,
+        player_slot: 0,
+        radiant_win: k % 2 === 0,
+        position: `POSITION_${k === 3 ? 5 : (Number(id) % 5) + 1}`,
+      })),
       heroes: [{ hero_id: Number(id), games: 20, win: Number(id) % 2 ? 12 : 6 }],
       limited: false,
       stale: false,
@@ -462,6 +471,12 @@ try {
   );
   assert.equal(batches.length, 2);
   assert.ok(batches.every((ids) => ids.length === 5));
+  // Player and hero position columns: 3 of 4 known matches on the main position.
+  await waitFor(
+    () => execute('return document.querySelectorAll(".position-share").length === 20'),
+    'Position share columns missing',
+  );
+  assert.ok((await execute('return document.querySelector(".position-share").textContent')).includes('75%'));
   await waitFor(
     () => execute('return [...document.querySelectorAll(".all-time")].every(cell => cell.textContent.includes("%"))'),
     'Lifetime totals did not arrive',
@@ -2062,6 +2077,91 @@ try {
   await post({ ...readerPayload, map: { matchid: '0', game_state: 'DOTA_GAMERULES_STATE_INIT' } });
   console.log('Reader opt-in passed: legacy off, UI toggle, persistence, isolated start/stop and permission message.');
 
+  // Player mode: the own side is labelled, and a reconnect keeps the match until it is reset.
+  const playing = {
+    auth: { token },
+    provider: { appid: 570 },
+    map: { matchid: 'native-player', game_state: 'DOTA_GAMERULES_STATE_GAME_IN_PROGRESS', clock_time: 300 },
+    player: { steamid: String(76561197960265728n + 1n), name: 'Fixture 1', team_name: 'radiant' },
+    hero: { id: 1, name: heroes[0].name },
+  };
+  const menu = { auth: { token }, provider: { appid: 570 } };
+  const shows = (text) => execute('return document.body.innerText.includes(arguments[0])', [text]);
+  const hasButton = (label) =>
+    execute(
+      'return [...document.querySelectorAll("button")].some(b => b.textContent.trim() === arguments[0] || b.getAttribute("aria-label") === arguments[0])',
+      [label],
+    );
+  assert.equal((await post(playing)).status, 200);
+  await waitFor(
+    () => execute('return !!document.querySelector(".team-radiant .own-team-label")'),
+    'Own side not labelled',
+  );
+  assert.equal((await post(menu)).status, 200);
+  await waitFor(() => shows('Connection to match #native-player interrupted'), 'No reconnect notice');
+  assert.ok(await hasButton('Fixture 1'), 'A reconnect wait cleared the match');
+  await screenshot('reconnect');
+  assert.equal((await post(playing)).status, 200);
+  await waitFor(() => execute('return !document.querySelector(".reconnect-notice")'), 'Reconnect notice stayed');
+  assert.equal((await post(menu)).status, 200);
+  await waitFor(() => execute('return !!document.querySelector(".reconnect-notice")'), 'No second reconnect notice');
+  await clickButton('Reset match');
+  await waitFor(() => execute('return !document.querySelector(".reconnect-notice")'), 'Reset kept the notice');
+  assert.equal(await hasButton('Fixture 1'), false, 'Reset kept the match');
+  // The own assigned role (lane flags from the native draft) picks the lane once per match.
+  const laneValue = () => execute('return document.querySelector(".lane-select")?.value');
+  await emitDraft('auto-lane', [], undefined, [], [], [{ slot: 6, team: 'dire', flags: 2 }]); // position 3
+  await waitFor(async () => (await laneValue()) === '2', 'The own role did not pick the Off Lane');
+  await execute(
+    'const select=document.querySelector(".lane-select"); select.value = "0"; select.dispatchEvent(new Event("change", {bubbles:true}));',
+  );
+  await emitDraft('auto-lane', [], undefined, [], [], [{ slot: 6, team: 'dire', flags: 16 }]);
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  assert.equal(await laneValue(), '0', 'A later role overrode the chosen lane');
+  await emitDraft('0', [], 'DOTA_GAMERULES_STATE_INIT');
+  // Shortcuts: one key cannot serve two actions.
+  const pressKey = (code, modifiers) =>
+    execute(
+      'window.dispatchEvent(new KeyboardEvent("keydown", {key: arguments[0], code: arguments[0], ...arguments[1], bubbles: true, cancelable: true}));',
+      [code, modifiers],
+    );
+  const shortcutRow = (label) =>
+    `[...document.querySelectorAll(".shortcut-row")].find(row => row.textContent.includes(${JSON.stringify(label)}))`;
+  const keycaps = (label) =>
+    execute(`return ${shortcutRow(label)}.querySelector(".keycaps").getAttribute("aria-label")`);
+  await clickButton('Settings');
+  await clickButton('Change Previous recommendation lane');
+  await pressKey('ArrowDown', { altKey: true });
+  await waitFor(() => shows('Already used for “Next recommendation lane”.'), 'Duplicate in-page key accepted');
+  if (platform === 'windows') {
+    // The two show/hide keys are registered with Windows; app:info proves the native
+    // registration changed, not merely the displayed keycap. On Linux the desktop portal
+    // assigns them, and the isolated session has none.
+    await clickButton('Change Show or hide the match window');
+    await pressKey('F10', { ctrlKey: true, altKey: true });
+    await waitFor(async () => (await keycaps('Show or hide the match window')) === 'Ctrl + Alt + F10', 'Key not shown');
+    await waitFor(async () => {
+      const keys = await call('getInfo');
+      return keys.shortcutKey === 'Ctrl+Alt+F10' && keys.shortcut === true;
+    }, 'Match window key was not registered');
+    await waitFor(() => shows('Shortcut saved and registered.'), 'No registration message');
+    assert.equal((await call('getState')).shortcuts.global, 'Ctrl+Alt+F10');
+    await clickButton('Change Show or hide the profile window');
+    await pressKey('F10', { ctrlKey: true, altKey: true });
+    await waitFor(() => shows('Already used for “Show or hide the match window”.'), 'Profile key took the match key');
+    await clickButton('Change Show or hide the profile window');
+    await pressKey('F11', { ctrlKey: true, altKey: true });
+    await waitFor(async () => {
+      const keys = await call('getInfo');
+      return keys.profileShortcutKey === 'Ctrl+Alt+F11' && keys.profileShortcut === true;
+    }, 'Profile window key was not registered');
+    await clickButton('Reset shortcuts');
+    await waitFor(async () => {
+      const keys = await call('getInfo');
+      return keys.shortcutKey === 'Alt+Numpad5' && keys.profileShortcutKey === 'Alt+Numpad6';
+    }, 'Shortcuts were not reset');
+  }
+  await clickButton('Match and draft');
   await call('addMmr', 5000);
   await call('saveNote', { accountId: '2', name: 'Second', text: 'Native IPC persistence', tag: 'neutral' });
   const saved = JSON.parse(await readFile(join(directory, 'state.json'), 'utf8'));
@@ -2079,6 +2179,19 @@ try {
     if (!first) assert.equal(await call('toggleWindow', name), true);
   }
   assert.equal(await app.windowCount(), 2);
+  // Both hidden at once; each comes back on its own, and the header icon shows the profile.
+  assert.equal(await call('toggleWindow', 'profile'), false, 'Profile key did not hide the profile window');
+  assert.equal(await call('toggleWindow', 'main'), false, 'Match key did not hide the match window');
+  assert.equal(await call('toggleWindow', 'main'), true, 'Match key did not show the match window');
+  await clickButton('My profile');
+  assert.equal(await call('toggleWindow', 'profile'), false, 'The header icon did not show the profile window');
+  assert.equal(await call('toggleWindow', 'profile'), true, 'Profile key did not show the profile window again');
+  // Closing the profile window hides it; the match window and the app keep running.
+  await useWindow('profile');
+  await clickButton('Close window');
+  await useWindow('main');
+  await waitFor(async () => (await call('toggleWindow', 'profile')) === true, 'Close quit the profile window');
+  assert.equal(await app.windowCount(), 2, 'Closing the profile window destroyed it');
   // X11 shows the windows without taking the keyboard; Wayland decides by itself.
   if (!info.wayland) assert.equal((await call('getInfo')).overlay, true);
   assert.equal((await call('getInfo')).gsiPort, info.gsiPort);

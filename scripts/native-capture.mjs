@@ -268,7 +268,7 @@ export async function nativeCapture(directory, extraEnv) {
       'Some images did not load; check the Steam CDN connection.',
     );
     const text = await execute('return document.body.innerText');
-    if (/[Ѐ-ӿ]/u.test(text)) throw new Error('Non-English UI text found in documentation screenshot');
+    if (/[\u0400-\u04ff]/u.test(text)) throw new Error('Non-English UI text found in documentation screenshot');
     await writeFile(path, await driver.screenshot(selector));
   };
   const { call, close, resize, useWindow } = driver;
