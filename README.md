@@ -56,12 +56,12 @@ Details and troubleshooting: [setup and data](docs/guide/setup.md), and the
 
 ## What works on each platform
 
-| What you get                                                                      | Needs                                   | Windows                         | Linux                                   |
-| --------------------------------------------------------------------------------- | --------------------------------------- | ------------------------------- | --------------------------------------- |
-| Public profiles, notes, manual draft, MMR journal, automatic account detection    | Nothing: works out of the box           | Yes                             | Yes                                     |
-| Ten-player roster and picks while spectating                                      | Dota GSI setup (Quick start above)      | Yes                             | Yes                                     |
-| Matchups, position recommendations, meta and counter picks                        | Your STRATZ token and the local service | Yes                             | Yes, Connect not yet tried on a desktop |
-| Ten-player roster, picks and bans in **your own** match; exact MMR and confidence | Optional memory reader, off by default  | Yes, draft not yet checked live | Yes                                     |
+| What you get                                                                      | Needs                                   | Windows | Linux                                   |
+| --------------------------------------------------------------------------------- | --------------------------------------- | ------- | --------------------------------------- |
+| Public profiles, notes, manual draft, MMR journal, automatic account detection    | Nothing: works out of the box           | Yes     | Yes                                     |
+| Ten-player roster and picks while spectating                                      | Dota GSI setup (Quick start above)      | Yes     | Yes                                     |
+| Matchups, position recommendations, meta and counter picks                        | Your STRATZ token and the local service | Yes     | Yes, Connect not yet tried on a desktop |
+| Ten-player roster, picks and bans in **your own** match; exact MMR and confidence | Optional memory reader, off by default  | Yes     | Yes                                     |
 
 In your own match Dota's GSI sends only your own player, on both systems. With the reader
 off, an empty enemy roster there is expected, not a failed installation. **Connect STRATZ**

@@ -123,13 +123,13 @@ falls back to GSI data for every status but `ready`.
 
 ## Verified builds
 
-| Reader | Platform | Evidence                                                                            |
-| ------ | -------- | ----------------------------------------------------------------------------------- |
-| Rating | Windows  | Live on the October 14, 2026 build; offline on build 6969                           |
-| Rating | Linux    | Live on build 6962 (October 19 and 23, 2026)                                        |
-| Roster | Linux    | Live in spectator mode and as a participant (October 13–14, 2026)                   |
-| Roster | Windows  | Offline on build 6969; live while watching a match on build 6969 (October 28, 2026) |
-| Draft  | Windows  | Offline only; not yet run during a live hero selection                              |
+| Reader | Platform | Evidence                                                                                                                  |
+| ------ | -------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Rating | Windows  | Live on the October 14, 2026 build; offline on build 6969                                                                 |
+| Rating | Linux    | Live on build 6962 (October 19 and 23, 2026)                                                                              |
+| Roster | Linux    | Live in spectator mode and as a participant (October 13–14, 2026)                                                         |
+| Roster | Windows  | Offline on build 6969; live while watching a match (October 28, 2026) and as a participant (October 29, 2026), build 6969 |
+| Draft  | Windows  | Live during an own role-queue ranked hero selection on build 6969 (October 29, 2026): picks, hovers, bans, lanes          |
 
 Synthetic tests cover the shared logic on both systems. None of this establishes behaviour on
 future builds or the anti-cheat response.

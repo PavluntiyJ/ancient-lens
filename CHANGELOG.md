@@ -4,6 +4,8 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ## Unreleased
 
+- **Windows:** reading the draft of your own match (picks, hovers, bans, lanes) and the
+  ten-player roster after it are confirmed in a live ranked game on build 6969.
 - **Connect STRATZ** in Settings and in the empty draft panels: open stratz.com/api, paste
   your token, and the app checks it, saves it in Windows Credential Manager or the Linux
   keyring and starts the statistics service that ships with the app. **Disconnect STRATZ**

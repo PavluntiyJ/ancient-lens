@@ -6,11 +6,11 @@ or unverified, and what is planned.
 
 ## Not provided
 
-- No published binaries, installer signing or automatic updates. Build from source
+- No installer signing or automatic updates. Prereleases are on the Releases page
   ([installation](guide/install.md)).
-- No hosted statistics service. STRATZ features need your own token and the local
-  [statistics service](guide/stats-service.md); OpenDota works without one, with fewer
-  features and a rate limit.
+- No hosted statistics service. STRATZ features need your own token; **Connect STRATZ** in
+  Settings saves it and starts the bundled [statistics service](guide/stats-service.md).
+  OpenDota works without one, with fewer features and a rate limit.
 - macOS is not supported.
 
 ## Known limitations
@@ -22,8 +22,6 @@ or unverified, and what is planned.
 - **Connect STRATZ on Linux** saves the token with `secret-tool` and starts the
   `stats-service` shipped in the packages. It is covered by the build and the unit tests
   only; the keyring save and the service start have not been run on a Linux desktop yet.
-- **Windows draft reading** in your own match is implemented but has not yet been checked
-  during a live hero selection.
 - **Recorded matches** have no damage, net worth or game mode until a provider has the
   match; participant GSI does not send them.
 - **Profile filters:** party size and season need data the app does not load. History is
