@@ -5,6 +5,7 @@ import {
   normalizeShortcut,
   shortcutConflicts,
   shortcutFromEvent,
+  shortcutNames,
   shortcutProblem,
 } from '../src/shared/shortcuts';
 
@@ -63,5 +64,19 @@ describe('conflicts', () => {
   });
   it('accepts an unused combination', () => {
     expect(shortcutProblem(defaultShortcuts, 'leftNext', 'Ctrl+Alt+F9')).toBeNull();
+  });
+});
+
+describe('profile window key', () => {
+  it('is a second global key with its own default', () => {
+    expect(shortcutNames.filter((entry) => entry.global).map((entry) => entry.name)).toEqual(['global', 'profile']);
+    expect(defaultShortcuts.profile).toBe('Alt+Numpad6');
+    expect(shortcutConflicts(defaultShortcuts)).toEqual({});
+  });
+  it('cannot share a combination with the match window or a panel key', () => {
+    expect(shortcutProblem(defaultShortcuts, 'profile', 'Alt+Numpad5')).toContain('Show or hide the match window');
+    expect(shortcutProblem(defaultShortcuts, 'global', 'Alt+Numpad6')).toContain('Show or hide the profile window');
+    expect(shortcutProblem(defaultShortcuts, 'profile', 'Alt+ArrowLeft')).toContain('Left panel: previous page');
+    expect(shortcutProblem(defaultShortcuts, 'profile', 'Alt+F4')).toContain('closes the window');
   });
 });

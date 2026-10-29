@@ -1,13 +1,19 @@
 // Rebindable keys. The same names and canonical form are used by the Rust store and the
 // settings page, so a stored combination is always in `Ctrl+Alt+Shift+Code` order.
 export type ShortcutName =
-  'global' | 'leftPrevious' | 'leftNext' | 'rightPrevious' | 'rightNext' | 'lanePrevious' | 'laneNext';
+  'global' | 'profile' | 'leftPrevious' | 'leftNext' | 'rightPrevious' | 'rightNext' | 'lanePrevious' | 'laneNext';
 export type Shortcuts = Record<ShortcutName, string>;
 
 export const shortcutNames: { name: ShortcutName; label: string; detail: string; global?: boolean }[] = [
   {
     name: 'global',
-    label: 'Show or hide the window',
+    label: 'Show or hide the match window',
+    detail: 'Works while Dota 2 has the keyboard. On Linux the desktop assigns this key.',
+    global: true,
+  },
+  {
+    name: 'profile',
+    label: 'Show or hide the profile window',
     detail: 'Works while Dota 2 has the keyboard. On Linux the desktop assigns this key.',
     global: true,
   },
@@ -21,6 +27,7 @@ export const shortcutNames: { name: ShortcutName; label: string; detail: string;
 
 export const defaultShortcuts: Shortcuts = {
   global: 'Alt+Numpad5',
+  profile: 'Alt+Numpad6',
   leftPrevious: 'Alt+ArrowLeft',
   leftNext: 'Alt+ArrowRight',
   rightPrevious: 'Shift+ArrowLeft',

@@ -393,7 +393,9 @@ try {
   await app.click('Third panel: Counter picks against Dire');
   await app.capture(join(out, 'draft-panels.png'), '.analysis-strip');
   await app.resize(1600, 1240);
-  await app.click('My profile');
+  // The profile has a window of its own, open from the start.
+  await app.useWindow('profile');
+  await app.resize(1600, 1240);
   await waitFor(
     () =>
       app.execute(
@@ -414,6 +416,7 @@ try {
   await app.execute('document.querySelector(".tooltip").style.background = "#141c2a"');
   await app.capture(join(out, 'match-card.png'), '.tooltip');
   await app.execute('document.body.dispatchEvent(new MouseEvent("mousedown",{bubbles:true}))');
+  await app.useWindow('main');
   await app.click('Settings');
   await app.capture(join(out, 'memory-consent.png'), '.reader-settings');
   console.log(`Screenshots written to ${out}`);

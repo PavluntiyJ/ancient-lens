@@ -24,7 +24,7 @@ export function ShortcutSettings({
 }: {
   local: LocalState;
   update(value: LocalState): void;
-  info?: { platform: string; shortcut?: boolean; shortcutTrigger?: string | null };
+  info?: { platform: string; shortcutTrigger?: string | null; profileShortcutTrigger?: string | null };
 }) {
   const shortcuts = { ...defaultShortcuts, ...local.shortcuts };
   const [recording, setRecording] = useState<ShortcutName>();
@@ -46,11 +46,8 @@ export function ShortcutSettings({
     setMessage('');
     try {
       update(await api.setShortcuts!(next));
-      setMessage(
-        changed && changed !== 'global'
-          ? 'Shortcut saved. It works on the match screen.'
-          : 'Shortcut saved and registered.',
-      );
+      const global = !changed || shortcutNames.some((entry) => entry.name === changed && entry.global);
+      setMessage(global ? 'Shortcut saved and registered.' : 'Shortcut saved. It works on the match screen.');
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -94,7 +91,9 @@ export function ShortcutSettings({
       </p>
       <div className="shortcut-list">
         {shortcutNames.map((entry) => {
-          const shown = linux && entry.global ? info?.shortcutTrigger : shortcuts[entry.name];
+          // On Linux the desktop portal assigns the global keys and describes them itself.
+          const trigger = entry.name === 'profile' ? info?.profileShortcutTrigger : info?.shortcutTrigger;
+          const shown = linux && entry.global ? trigger : shortcuts[entry.name];
           return (
             <div className="shortcut-row" key={entry.name}>
               <div>
@@ -104,7 +103,7 @@ export function ShortcutSettings({
               <Keycaps combo={shown || shortcuts[entry.name]} />
               {entry.global && linux ? (
                 <span className="fine-print">
-                  {info?.shortcutTrigger
+                  {trigger
                     ? 'Assigned by your desktop. Change it in system settings under Shortcuts → Ancient Lens.'
                     : 'The desktop did not bind this key.'}
                 </span>
@@ -112,6 +111,7 @@ export function ShortcutSettings({
                 <button
                   type="button"
                   className="secondary"
+                  data-needs-keyboard
                   aria-label={`Change ${entry.label}`}
                   disabled={busy}
                   onClick={() => {
@@ -133,8 +133,8 @@ export function ShortcutSettings({
         </button>
         <small className="fine-print">
           {linux
-            ? 'In-page keys apply to the match screen. The show/hide key comes from the desktop portal.'
-            : 'The show/hide key is registered with Windows. If another application owns it, the previous key stays active.'}
+            ? 'In-page keys apply to the match screen. The two show/hide keys come from the desktop portal.'
+            : 'The two show/hide keys are registered with Windows. If another application owns one, the previous keys stay active.'}
         </small>
       </div>
       {message && <Notice>{message}</Notice>}

@@ -12,8 +12,10 @@ anti-cheat treats any tool.
 - It does not modify the game: no game files are changed apart from the Game State
   Integration (GSI) file and launch option it installs with your consent (see below), no code
   is injected, no game memory is written, and no game function is called.
-- It does not draw into the game. Ancient Lens is an ordinary desktop window; it is not an
-  overlay hooked into the game's rendering.
+- It does not draw into the game. Ancient Lens has two ordinary desktop windows that the
+  system keeps on top of the game window; nothing is drawn by or inside the game, and its
+  rendering is not hooked. Showing or clicking them sends nothing to the game: they simply do
+  not take the keyboard from it.
 - It does not reveal what the game hides from you. During hero selection, when names are
   hidden in ranked drafts, the optional reader takes only picks, hovers, lanes and bans; it
   reads player identities only after hero selection, when the game shows them.

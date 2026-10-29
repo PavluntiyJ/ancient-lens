@@ -38,7 +38,8 @@ a token from Windows Credential Manager on Windows), or uses `ANCIENT_STATS_URL`
 
 | Module                                                                  | Responsibility                                                                                        |
 | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `desktop.rs`                                                            | Tauri setup: window, tray, shortcuts, single instance, the `desktop_call` IPC command                 |
+| `desktop.rs`                                                            | Tauri setup: match and profile windows, tray, shortcuts, single instance, the `desktop_call` command  |
+| `overlay.rs`                                                            | Shows the windows above the game without taking its keyboard (Windows, X11); keyboard on demand       |
 | `gsi.rs`, `gsi/diagnostics.rs`                                          | GSI HTTP server: token check, normalization into the live state, optional structure-only diagnostics  |
 | `roster.rs`, `roster/`                                                  | Optional roster and draft reader (see below)                                                          |
 | `own_account.rs`, `own_account/`                                        | Account detection and the optional own-rating reader                                                  |
@@ -56,7 +57,8 @@ a token from Windows Credential Manager on Windows), or uses `ANCIENT_STATS_URL`
 | Path                                                        | Responsibility                                                                                                                      |
 | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `bridge.ts`                                                 | `window.ancient`: typed IPC calls (`invoke('desktop_call', …)`) and event subscriptions                                             |
-| `ui/App.tsx`                                                | The header and the pages of the one window: match and draft, manual draft and roster, profile, notes, GSI diagnostics, settings     |
+| `ui/App.tsx`                                                | The match window: header and pages for match and draft, manual draft and roster, notes, GSI diagnostics, settings                   |
+| `ui/ProfileWindow.tsx`, `ui/WindowFrame.tsx`                | The profile window; title bar, window buttons and keyboard-on-demand shared by both windows                                         |
 | `ui/settings/`                                              | The Settings page, one component per section                                                                                        |
 | `ui/MatchScreen.tsx`, `ui/Roster.tsx`, `ui/DraftPanels.tsx` | Ten-player table and the analysis carousels                                                                                         |
 | `ui/OwnProfile.tsx`, `ui/profile/`                          | Personal profile: header, filters, history table, side panel                                                                        |

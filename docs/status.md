@@ -22,6 +22,13 @@ or unverified, and what is planned.
 - **Connect STRATZ on Linux** saves the token with `secret-tool` and starts the
   `stats-service` shipped in the packages. It is covered by the build and the unit tests
   only; the keyring save and the service start have not been run on a Linux desktop yet.
+- **Windows over the game:** on Windows the match and profile windows are shown and clicked
+  without taking the keyboard from the game; that Dota keeps its sound with a window shown has
+  not yet been checked in a live match. Exclusive fullscreen covers the windows. On Linux the
+  same works on X11 when the window manager honours the focus hint (the X11 path has not been
+  run on a desktop yet); on **Wayland** the compositor decides stacking and focus, so the
+  windows cannot be kept above the game or shown without activation by the app (KDE: **Keep
+  Above Others** or a window rule) and showing one puts the game in the background.
 - **Recorded matches** have no damage, net worth or game mode until a provider has the
   match; participant GSI does not send them.
 - **Profile filters:** party size and season need data the app does not load. History is

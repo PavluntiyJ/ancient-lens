@@ -337,6 +337,16 @@ async function waitFor(check, message, timeout = 15000) {
   throw new Error(message);
 }
 const execute = (script, args = []) => request(`/session/${session}/execute/sync`, { script, args });
+/** Points the session at the match window (`main`) or the profile window; both load one page. */
+async function useWindow(name) {
+  await waitFor(async () => {
+    for (const handle of await request(`/session/${session}/window/handles`)) {
+      await request(`/session/${session}/window`, { handle });
+      if ((await execute('return window.ancient?.windowName')) === name) return true;
+    }
+    return false;
+  }, `No ${name} window`);
+}
 async function call(name, ...args) {
   const result = await request(`/session/${session}/execute/async`, {
     script:
@@ -437,6 +447,7 @@ try {
   }, 'WebKitWebDriver did not start');
   session = (await request('/session', { capabilities: { alwaysMatch: { 'webkitgtk:browserOptions': { binary } } } }))
     .sessionId;
+  await useWindow('main');
   await waitFor(
     () => execute('return !!window.ancient && document.body.innerText.includes("Match players")'),
     'Native UI did not load',
@@ -1331,7 +1342,15 @@ try {
     'test-results/native-linux-fit-927.png',
     Buffer.from(await request(`/session/${session}/screenshot`), 'base64'),
   );
+  // The header icon brings up the profile window, which has the profile alone.
   await clickButton('My profile');
+  await useWindow('profile');
+  await execute(
+    'window.smokeErrors = []; addEventListener("error", e => window.smokeErrors.push(e.message)); addEventListener("unhandledrejection", e => window.smokeErrors.push(String(e.reason)));',
+  );
+  await request(`/session/${session}/window/rect`, { width: 1710, height: 927 });
+  assert.equal(await execute('return document.querySelector(".compact-brand")?.textContent'), 'My profile');
+  assert.equal(await execute('return document.querySelectorAll("nav[aria-label=Sections]").length'), 0);
   assert.equal(
     await execute(
       'return [...document.querySelectorAll("nav button")].some(b => ["Player profile", "My rating"].includes(b.textContent.trim()))',
@@ -1536,6 +1555,9 @@ try {
   const savedHistory = JSON.parse(await readFile(join(cache, 'history-STRATZ-1.json'), 'utf8'));
   assert.equal(savedHistory.matches.length, 49);
   assert.equal(savedHistory.source, 'STRATZ');
+
+  assert.deepEqual(await execute('return window.smokeErrors'), []);
+  await useWindow('main');
 
   // Deliver draft fixtures to the native event listener; keep frontend emit ACL closed.
   // The memory reader/worker are exercised separately by Rust fixtures, never Dota.
@@ -2138,15 +2160,19 @@ try {
     JSON.parse(await readFile(join(directory, 'state.pre-tauri.json'), 'utf8')).notes[0].text,
     'Keep this note',
   );
-  // The hotkey toggles the main window; no second window is created. Whether the first
-  // press hides or raises depends on focus under the driver, so two presses end visible.
-  const first = await call('toggleWindow');
-  if (!first) assert.equal(await call('toggleWindow'), true);
-  assert.equal((await request(`/session/${session}/window/handles`)).length, 1);
+  // Each key toggles its own window; no further window is created. On Wayland whether the
+  // first press hides or raises depends on focus under the driver, so two presses end visible.
+  for (const name of ['main', 'profile']) {
+    const first = await call('toggleWindow', name);
+    if (!first) assert.equal(await call('toggleWindow', name), true);
+  }
+  assert.equal((await request(`/session/${session}/window/handles`)).length, 2);
+  // X11 shows the windows without taking the keyboard; Wayland decides by itself.
+  if (!info.wayland) assert.equal((await call('getInfo')).overlay, true);
   assert.equal((await call('getInfo')).gsiPort, info.gsiPort);
   assert.deepEqual(await execute('return window.smokeErrors'), []);
   console.log(
-    `Linux native smoke passed: WebKitGTK rendering, Rust IPC, authenticated HTTP GSI, 10 profiles in 2 batches, reordered identity mapping, migration, MMR/notes, settings and window toggle. Wayland: ${info.wayland}.`,
+    `Linux native smoke passed: WebKitGTK rendering, Rust IPC, authenticated HTTP GSI, 10 profiles in 2 batches, reordered identity mapping, migration, MMR/notes, settings, match and profile windows. Wayland: ${info.wayland}.`,
   );
 } finally {
   pendingDrafts.splice(0).forEach((resolve) => resolve());

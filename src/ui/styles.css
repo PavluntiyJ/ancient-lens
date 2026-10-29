@@ -402,6 +402,23 @@ details > summary {
   width: 30px;
   height: 28px;
 }
+/* Lit while the window has the keyboard; otherwise the game keeps it. */
+.keyboard-button {
+  width: 36px;
+  display: grid;
+  place-items: center;
+  margin-left: 4px;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+}
+.keyboard-button:hover {
+  color: var(--text);
+  background: var(--surface);
+}
+.keyboard-button.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
 .window-controls {
   display: flex;
   margin-left: 4px;
@@ -493,6 +510,10 @@ details > summary {
   width: 100%;
   max-width: 1280px;
   margin-inline: auto;
+}
+/* The profile window is the profile alone, so its table may use the window's width. */
+.profile-shell .content {
+  max-width: 1680px;
 }
 .match-content {
   min-height: 0;

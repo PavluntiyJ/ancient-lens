@@ -1,6 +1,6 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "desktop",
-  "windows": ["main"],
+  "windows": ["main", "profile"],
   "permissions": ["core:event:allow-listen", "core:event:allow-unlisten"]
 }

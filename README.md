@@ -45,8 +45,8 @@ Screenshots use invented players. A tour of every panel and shortcut:
    GSI file and, after you confirm, restarts Steam to add the `-gamestateintegration`
    launch option.
 3. Restart Dota 2 and spectate a match: ten players should appear.
-4. Open **My profile**. Your account is detected from Steam; **Set profile manually** is
-   the fallback.
+4. Look at the profile window (`Alt+Num 6` shows or hides it, `Alt+Num 5` the match window).
+   Your account is detected from Steam; **Set profile manually** is the fallback.
 5. Optional: press **Connect STRATZ** in Settings for draft recommendations
    ([details](docs/guide/stats-service.md)), and decide whether to enable the memory
    reader (below).
@@ -56,12 +56,13 @@ Details and troubleshooting: [setup and data](docs/guide/setup.md), and the
 
 ## What works on each platform
 
-| What you get                                                                      | Needs                                   | Windows | Linux                                   |
-| --------------------------------------------------------------------------------- | --------------------------------------- | ------- | --------------------------------------- |
-| Public profiles, notes, manual draft, MMR journal, automatic account detection    | Nothing: works out of the box           | Yes     | Yes                                     |
-| Ten-player roster and picks while spectating                                      | Dota GSI setup (Quick start above)      | Yes     | Yes                                     |
-| Matchups, position recommendations, meta and counter picks                        | Your STRATZ token and the local service | Yes     | Yes, Connect not yet tried on a desktop |
-| Ten-player roster, picks and bans in **your own** match; exact MMR and confidence | Optional memory reader, off by default  | Yes     | Yes                                     |
+| What you get                                                                      | Needs                                   | Windows                         | Linux                                    |
+| --------------------------------------------------------------------------------- | --------------------------------------- | ------------------------------- | ---------------------------------------- |
+| Public profiles, notes, manual draft, MMR journal, automatic account detection    | Nothing: works out of the box           | Yes                             | Yes                                      |
+| Ten-player roster and picks while spectating                                      | Dota GSI setup (Quick start above)      | Yes                             | Yes                                      |
+| Matchups, position recommendations, meta and counter picks                        | Your STRATZ token and the local service | Yes                             | Yes, Connect not yet tried on a desktop  |
+| Ten-player roster, picks and bans in **your own** match; exact MMR and confidence | Optional memory reader, off by default  | Yes                             | Yes                                      |
+| Match and profile windows above the game that leave it the keyboard (and sound)   | Borderless or windowed game             | Yes, sound not yet checked live | X11 only; on Wayland the desktop decides |
 
 In your own match Dota's GSI sends only your own player, on both systems. With the reader
 off, an empty enemy roster there is expected, not a failed installation. **Connect STRATZ**
@@ -77,10 +78,12 @@ it.
 
 ### Is this a cheat?
 
-No gameplay automation, no input to the game, no overlay inside it, no modified game files
-beyond Valve's own GSI setup, and nothing the game hides from you: during hero selection the
-optional reader takes picks only, not who is playing. What you see is public profile
-statistics and your own match, in a separate window. The one part with an unknown risk is the
+No gameplay automation, no input to the game, nothing drawn by or inside the game, no
+modified game files beyond Valve's own GSI setup, and nothing the game hides from you: during
+hero selection the optional reader takes picks only, not who is playing. What you see is
+public profile statistics and your own match, in two ordinary windows of their own that the
+system keeps on top of the game; the game's rendering is not hooked. The one part with an
+unknown risk is the
 optional memory reader, which is off unless you enable it.
 [Safety and fair play](docs/guide/fair-play.md) explains each point, the data sources and the
 limits of what we can promise.
@@ -91,8 +94,10 @@ limits of what we can promise.
 - Packages are unsigned and there are no automatic updates.
 - There is no hosted STRATZ service; without your own, public OpenDota statistics are used,
   with a rate limit and no draft recommendations.
-- Exclusive fullscreen can hide the window: use borderless windowed mode or a second
-  monitor. On Wayland the desktop controls stacking and the shortcut.
+- Exclusive fullscreen covers the windows: use borderless windowed mode or a second
+  monitor. On Wayland the desktop controls stacking, focus and the shortcuts, so showing a
+  window there puts the game in the background
+  ([details](docs/guide/setup.md#windows-hotkeys-and-tray)).
 - **Privacy:** notes, settings and the MMR journal stay on your computer. No analytics,
   telemetry or cloud account. Statistics providers see your IP address and the player IDs
   requested ([details](docs/guide/setup.md#storage-and-privacy)).
