@@ -1,17 +1,17 @@
-// Exercise the actual WebKitGTK window and Rust IPC, with isolated data and GSI.
-// WebKitWebDriver is the native Linux driver used by tauri-driver:
-// https://github.com/tauri-apps/tauri/tree/dev/crates/tauri-driver
+// One native scenario for both systems: the real app window (WebKitGTK on Linux, WebView2 on
+// Windows) and Rust IPC, with isolated data, fixture statistics and authenticated HTTP GSI.
+// `native-capture.mjs` drives WebKitWebDriver on Linux and the WebView2 debugging protocol on
+// Windows behind the same calls.
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
 import { mkdtemp, mkdir, readFile, writeFile, access, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
+import { nativeDriver } from './native-capture.mjs';
 
-const binary = resolve(process.env.ANCIENT_NATIVE_BINARY || 'src-tauri/target/release/ancient-lens');
-await access(binary);
-const directory = await mkdtemp(join(tmpdir(), 'ancient-native-linux-'));
+const platform = process.platform === 'win32' ? 'windows' : 'linux';
+const directory = await mkdtemp(join(tmpdir(), 'ancient-native-'));
 const cache = join(directory, 'cache');
 await mkdir(cache);
 const token = 'a'.repeat(64);
@@ -296,41 +296,7 @@ const service = createServer(async (req, res) => {
   }
 });
 await new Promise((resolve) => service.listen(0, '127.0.0.1', resolve));
-const probe = createServer();
-await new Promise((resolve) => probe.listen(0, '127.0.0.1', resolve));
-const port = probe.address().port;
-await new Promise((resolve) => probe.close(resolve));
-const driver = spawn(process.env.WEBKIT_WEBDRIVER || 'WebKitWebDriver', [`--port=${port}`, '--host=127.0.0.1'], {
-  detached: true,
-  env: {
-    ...process.env,
-    TAURI_WEBVIEW_AUTOMATION: 'true',
-    ANCIENT_TEST_DATA: directory,
-    ANCIENT_GSI_DRAFT_DIAGNOSTICS: '1',
-    XDG_DATA_HOME: join(directory, 'xdg-data'),
-    XDG_CACHE_HOME: join(directory, 'xdg-cache'),
-    ANCIENT_STATS_URL: `http://127.0.0.1:${service.address().port}`,
-  },
-  stdio: ['ignore', 'pipe', 'pipe'],
-});
-let driverError;
-driver.on('error', (error) => {
-  driverError = error;
-});
-driver.stderr.on('data', (data) => process.stderr.write(data));
-driver.stdout.resume();
-let session;
-async function request(path, data, method = data ? 'POST' : 'GET') {
-  const response = await fetch(`http://127.0.0.1:${port}${path}`, {
-    method,
-    headers: { 'content-type': 'application/json' },
-    body: data ? JSON.stringify(data) : undefined,
-    signal: AbortSignal.timeout(30000),
-  });
-  const { value } = await response.json();
-  if (!response.ok || value?.error) throw new Error(JSON.stringify(value));
-  return value;
-}
+let app;
 async function waitFor(check, message, timeout = 15000) {
   const deadline = Date.now() + timeout;
   while (Date.now() < deadline) {
@@ -339,26 +305,11 @@ async function waitFor(check, message, timeout = 15000) {
   }
   throw new Error(message);
 }
-const execute = (script, args = []) => request(`/session/${session}/execute/sync`, { script, args });
-/** Points the session at the match window (`main`) or the profile window; both load one page. */
-async function useWindow(name) {
-  await waitFor(async () => {
-    for (const handle of await request(`/session/${session}/window/handles`)) {
-      await request(`/session/${session}/window`, { handle });
-      if ((await execute('return window.ancient?.windowName')) === name) return true;
-    }
-    return false;
-  }, `No ${name} window`);
-}
-async function call(name, ...args) {
-  const result = await request(`/session/${session}/execute/async`, {
-    script:
-      'const done = arguments[arguments.length - 1]; window.ancient[arguments[0]](...arguments[1]).then(value => done({value}), error => done({error: String(error)}));',
-    args: [name, args],
-  });
-  if (result.error) throw new Error(result.error);
-  return result.value;
-}
+const execute = (script, args = []) => app.execute(script, args);
+/** Points the driver at the match window (`main`) or the profile window; both load one page. */
+const useWindow = (name) => app.useWindow(name);
+const call = (name, ...args) => app.call(name, ...args);
+const screenshot = async (name) => writeFile(`test-results/native-${platform}-${name}.png`, await app.screenshot());
 /** Moves the WebDriver pointer onto the centre of an element (hover states, cards), or off to
  * a corner. Viewport coordinates, because the zoomed match screen moves element-origin moves.
  * WebKitWebDriver hangs on pointer actions while the window lacks focus (another app is in
@@ -372,7 +323,7 @@ async function pointAt(element) {
         [element],
       )
     : [2, 2];
-  if (!(await execute('return document.hasFocus()'))) {
+  if (!(await app.realPointer())) {
     if (!syntheticPointer) console.log('Window not focused: hover checks use dispatched pointer events.');
     syntheticPointer = true;
     await execute(
@@ -388,16 +339,7 @@ async function pointAt(element) {
     return;
   }
   pointed = element ?? null;
-  await request(`/session/${session}/actions`, {
-    actions: [
-      {
-        type: 'pointer',
-        id: 'mouse',
-        parameters: { pointerType: 'mouse' },
-        actions: [{ type: 'pointerMove', duration: 0, origin: 'viewport', x, y }],
-      },
-    ],
-  });
+  await app.point(x, y);
 }
 /** Every header ⓘ of a table opens its own card under the real pointer, one card at a time. */
 async function checkHeaderInfo(table, count) {
@@ -437,19 +379,13 @@ async function clickButton(text, selector = 'button') {
   assert.ok(element, `Missing button: ${text}`);
   // WebKit may click a partially visible button inside the window resize edge.
   await execute('arguments[0].scrollIntoView({block: "center", inline: "nearest", behavior: "instant"})', [element]);
-  await request(`/session/${session}/element/${element['element-6066-11e4-a52e-4f735466cecf']}/click`, {});
+  await app.clickElement(element);
 }
 try {
-  await waitFor(async () => {
-    if (driverError) throw new Error(`Install WebKitWebDriver for Linux native tests: ${driverError.message}`);
-    if (driver.exitCode !== null) throw new Error(`WebKitWebDriver exited: ${driver.exitCode}`);
-    return request('/status').then(
-      () => true,
-      () => false,
-    );
-  }, 'WebKitWebDriver did not start');
-  session = (await request('/session', { capabilities: { alwaysMatch: { 'webkitgtk:browserOptions': { binary } } } }))
-    .sessionId;
+  app = await nativeDriver(directory, {
+    ANCIENT_GSI_DRAFT_DIAGNOSTICS: '1',
+    ANCIENT_STATS_URL: `http://127.0.0.1:${service.address().port}`,
+  });
   await useWindow('main');
   await waitFor(
     () => execute('return !!window.ancient && document.body.innerText.includes("Match players")'),
@@ -487,7 +423,7 @@ try {
   const payload = {
     auth: { token },
     provider: { appid: 570 },
-    map: { matchid: 'native-linux-fixture', game_state: 'DOTA_GAMERULES_STATE_GAME_IN_PROGRESS', clock_time: 123 },
+    map: { matchid: 'native-fixture', game_state: 'DOTA_GAMERULES_STATE_GAME_IN_PROGRESS', clock_time: 123 },
     player: { team2: {}, team3: {} },
     hero: { team2: {}, team3: {} },
   };
@@ -906,10 +842,7 @@ try {
   await clickButton('Right panel: Counter picks against Dire');
   await mkdir('test-results', { recursive: true });
   await new Promise((resolve) => setTimeout(resolve, 250));
-  await writeFile(
-    'test-results/native-linux-counters.png',
-    Buffer.from(await request(`/session/${session}/screenshot`), 'base64'),
-  );
+  await screenshot('counters');
   await clickButton('Right panel: Picks for Radiant');
   assert.equal(draftRequests, callsBefore, 'Counter tab requested new draft data');
   await clickButton('Right panel: Meta');
@@ -954,10 +887,7 @@ try {
     'Meta role icons failed to load',
   );
   await new Promise((resolve) => setTimeout(resolve, 250));
-  await writeFile(
-    'test-results/native-linux-meta.png',
-    Buffer.from(await request(`/session/${session}/screenshot`), 'base64'),
-  );
+  await screenshot('meta');
   await clickButton('Right panel: Picks for Radiant');
   assert.equal(draftRequests, callsBefore, 'Meta tab or role switching requested draft data');
   // A slow period refresh must retain rows and identify the old selection.
@@ -984,8 +914,7 @@ try {
     'Period did not refresh',
   );
   await mkdir('test-results', { recursive: true });
-  const screenshot = await request(`/session/${session}/screenshot`);
-  await writeFile('test-results/native-linux.png', Buffer.from(screenshot, 'base64'));
+  await screenshot('match');
   // Player-mode GSI supplies only self: unavailable rows must not look like pending API calls.
   const selfPayload = {
     ...payload,
@@ -1071,8 +1000,7 @@ try {
     'Match did not reopen after reader settings',
   );
   await new Promise((resolve) => setTimeout(resolve, 250));
-  const partialScreenshot = await request(`/session/${session}/screenshot`);
-  await writeFile('test-results/native-linux-player.png', Buffer.from(partialScreenshot, 'base64'));
+  await screenshot('player');
   assert.equal((await post(payload)).status, 200);
   await waitFor(
     () =>
@@ -1101,7 +1029,7 @@ try {
   assert.equal(await execute('return document.querySelector(".stats-preferences input").checked'), false);
   const beforeTurboBatches = batches.length;
   const toggle = await execute('return document.querySelector(".stats-preferences input")');
-  await request(`/session/${session}/element/${toggle['element-6066-11e4-a52e-4f735466cecf']}/click`, {});
+  await app.clickElement(toggle);
   await waitFor(
     () => execute('return localStorage.getItem("ancient-include-turbo") === "true"'),
     'Turbo setting was not saved',
@@ -1192,12 +1120,12 @@ try {
   const ranked = await execute(
     'return [...document.querySelectorAll(".stats-preferences label")].find(l=>l.textContent.includes("Ranked statistics only")).querySelector("input")',
   );
-  await request(`/session/${session}/element/${ranked['element-6066-11e4-a52e-4f735466cecf']}/click`, {});
+  await app.clickElement(ranked);
   await waitFor(
     () => execute('return localStorage.getItem("ancient-ranked-only") === "true"'),
     'Ranked-only setting was not saved',
   );
-  await request(`/session/${session}/element/${ranked['element-6066-11e4-a52e-4f735466cecf']}/click`, {});
+  await app.clickElement(ranked);
   await waitFor(
     () => execute('return localStorage.getItem("ancient-ranked-only") === "false"'),
     'Ranked-only setting was not restored',
@@ -1265,8 +1193,7 @@ try {
     toolbarHeights.push(geometry.toolbar);
     if (scale === 80 || scale === 120) {
       await new Promise((resolve) => setTimeout(resolve, 250)); // Let WebKit present the new scale before capture.
-      const screenshot = await request(`/session/${session}/screenshot`);
-      await writeFile(`test-results/native-linux-scale-${scale}.png`, Buffer.from(screenshot, 'base64'));
+      await screenshot(`scale-${scale}`);
     }
     await clickButton('Settings');
     await waitFor(() => execute('return !!document.querySelector(".scale-options")'), 'Scale settings did not render');
@@ -1286,8 +1213,7 @@ try {
     'Scale buttons did not update the window',
   );
   await new Promise((resolve) => setTimeout(resolve, 250));
-  const scaleScreenshot = await request(`/session/${session}/screenshot`);
-  await writeFile('test-results/native-linux-scale-settings.png', Buffer.from(scaleScreenshot, 'base64'));
+  await screenshot('scale-settings');
   await execute('document.querySelector(".display-settings fieldset input").click();');
   await waitFor(
     () => execute('return getComputedStyle(document.querySelector(".rank-cell")).display === "none"'),
@@ -1305,7 +1231,7 @@ try {
     [1280, 800],
     [1740, 1100],
   ]) {
-    await request(`/session/${session}/window/rect`, { width, height });
+    await app.resize(width, height);
     await waitFor(matchFits, `Match does not fit ${width}×${height}`);
     if (width === 800) {
       // The window stops at the size that shows the whole match screen at 100%: no scrolling.
@@ -1320,13 +1246,10 @@ try {
     await new Promise((resolve) => setTimeout(resolve, 250));
     await assertPanelContentsFit();
     resizeFits.push(await execute('return Number(document.querySelector(".match-fit").style.zoom)'));
-    await writeFile(
-      `test-results/native-linux-fit-${width}.png`,
-      Buffer.from(await request(`/session/${session}/screenshot`), 'base64'),
-    );
+    await screenshot(`fit-${width}`);
   }
   assert.ok(resizeFits[2] > resizeFits[0], 'Match did not grow back after enlarging the window');
-  await request(`/session/${session}/window/rect`, { width: 1710, height: 927 });
+  await app.resize(1710, 927);
   await waitFor(() => execute('return innerHeight <= 940 && innerWidth <= 1720'), 'Native window did not resize');
   await waitFor(matchFits, 'Match does not fit screenshot-sized window');
   const fitted = await execute(
@@ -1340,17 +1263,14 @@ try {
     `Screenshot-sized window does not fit: ${JSON.stringify(fitted)}`,
   );
   await new Promise((resolve) => setTimeout(resolve, 250));
-  await writeFile(
-    'test-results/native-linux-fit-927.png',
-    Buffer.from(await request(`/session/${session}/screenshot`), 'base64'),
-  );
+  await screenshot('fit-927');
   // The header icon brings up the profile window, which has the profile alone.
   await clickButton('My profile');
   await useWindow('profile');
   await execute(
     'window.smokeErrors = []; addEventListener("error", e => window.smokeErrors.push(e.message)); addEventListener("unhandledrejection", e => window.smokeErrors.push(String(e.reason)));',
   );
-  await request(`/session/${session}/window/rect`, { width: 1710, height: 927 });
+  await app.resize(1710, 927);
   assert.equal(await execute('return document.querySelector(".compact-brand")?.textContent'), 'My profile');
   assert.equal(await execute('return document.querySelectorAll("nav[aria-label=Sections]").length'), 0);
   assert.equal(
@@ -1419,9 +1339,7 @@ try {
       'MMR point card did not open',
     );
     await pointAt();
-    await request(`/session/${session}/element/${plot['element-6066-11e4-a52e-4f735466cecf']}/value`, {
-      text: '',
-    });
+    await app.type(plot, '');
     await waitFor(
       () => execute('return !!document.querySelector(".profile-aside.open .profile-match")'),
       'A chart point did not open its match',
@@ -1516,8 +1434,7 @@ try {
   );
   await execute('document.querySelector("main").scrollTo(0,0); window.scrollTo(0,0);');
   await new Promise((resolve) => setTimeout(resolve, 250));
-  const ownScreenshot = await request(`/session/${session}/screenshot`);
-  await writeFile('test-results/native-linux-profile.png', Buffer.from(ownScreenshot, 'base64'));
+  await screenshot('profile');
   privateHistory = true;
   const privateResponse = await call('getHistory', '1', 0, false, true);
   assert.ok(privateResponse?.warning?.includes('STRATZ history is private'), 'Private response status was lost');
@@ -1864,11 +1781,8 @@ try {
       'return document.querySelector(".draft-lane-flags").getAttribute("aria-label").includes("Lane selected in the draft")',
     ),
   );
-  await writeFile(
-    'test-results/native-linux-hover.png',
-    Buffer.from(await request(`/session/${session}/screenshot`), 'base64'),
-  );
-  await request(`/session/${session}/window/rect`, { width: 1200, height: 927 });
+  await screenshot('hover');
+  await app.resize(1200, 927);
   await waitFor(() => execute('return innerWidth <= 1210'), 'Hover window did not resize');
   assert.ok(
     await execute(
@@ -1876,7 +1790,7 @@ try {
     ),
     'Fixed matrix and recommendations are misaligned in a narrow window',
   );
-  await request(`/session/${session}/window/rect`, { width: 1710, height: 927 });
+  await app.resize(1710, 927);
   const beforeLane = draftRequests;
   await emitDraft('810001', hoverPicks, undefined, [], hover(14), [{ slot: 6, team: 'dire', flags: 2 }]);
   await new Promise((resolve) => setTimeout(resolve, 500));
@@ -2116,10 +2030,7 @@ try {
     'Reader opt-in was not saved',
   );
   assert.equal(JSON.parse(await readFile(join(directory, 'state.json'), 'utf8')).nativeRosterReader, 'on');
-  await writeFile(
-    'test-results/native-linux-reader.png',
-    Buffer.from(await request(`/session/${session}/screenshot`), 'base64'),
-  );
+  await screenshot('reader');
   const readerPayload = {
     auth: { token },
     provider: { appid: 570 },
@@ -2167,23 +2078,18 @@ try {
     const first = await call('toggleWindow', name);
     if (!first) assert.equal(await call('toggleWindow', name), true);
   }
-  assert.equal((await request(`/session/${session}/window/handles`)).length, 2);
+  assert.equal(await app.windowCount(), 2);
   // X11 shows the windows without taking the keyboard; Wayland decides by itself.
   if (!info.wayland) assert.equal((await call('getInfo')).overlay, true);
   assert.equal((await call('getInfo')).gsiPort, info.gsiPort);
   assert.deepEqual(await execute('return window.smokeErrors'), []);
   console.log(
-    `Linux native smoke passed: WebKitGTK rendering, Rust IPC, authenticated HTTP GSI, 10 profiles in 2 batches, reordered identity mapping, migration, MMR/notes, settings, match and profile windows. Wayland: ${info.wayland}.`,
+    `Native smoke passed on ${platform}: ${platform === 'windows' ? 'WebView2' : 'WebKitGTK'} rendering, Rust IPC, authenticated HTTP GSI, 10 profiles in 2 batches, reordered identity mapping, migration, MMR/notes, settings, match and profile windows. Wayland: ${info.wayland}.`,
   );
 } finally {
   pendingDrafts.splice(0).forEach((resolve) => resolve());
-  if (session) await request(`/session/${session}`, undefined, 'DELETE').catch(() => {});
-  // The process group includes the app, even if a wedged renderer prevented deletion.
-  if (driver.pid) {
-    try {
-      process.kill(-driver.pid, 'SIGTERM');
-    } catch {}
-  }
+  await app?.close();
   await new Promise((resolve) => service.close(resolve));
-  await rm(directory, { recursive: true, force: true });
+  // WebView2 may hold its data folder for a moment after the app stops.
+  await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
 }
