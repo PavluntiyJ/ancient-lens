@@ -22,9 +22,10 @@ import { TooltipLayer } from './Tooltip';
 import { ShortcutsProvider } from './shortcut-context';
 import { defaultShortcuts } from '../shared/shortcuts';
 import { useDisplaySettings } from './preferences';
-import { StratzConnectDialog } from './StratzConnect';
+import { StratzConnectDialog, stratzAsked } from './StratzConnect';
 import { ReaderConsentDialog, readerAsked } from './ReaderConsent';
 import { shouldAskReader } from '../shared/reader-notice';
+import { shouldAskStratz } from '../shared/stratz-notice';
 import { ResizeEdges, TitleBar, useFallbackShortcuts, useKeyboardOnDemand } from './WindowFrame';
 
 declare global {
@@ -99,7 +100,7 @@ export function App() {
   const [now, setNow] = useState(Date.now());
   const [ready, setReady] = useState(false);
   const [providerRevision, setProviderRevision] = useState(0);
-  const [stratzOpen, setStratzOpen] = useState(false);
+  const [stratzOpen, setStratzOpen] = useState<'startup' | 'manual' | null>(null);
   const [askReader, setAskReader] = useState(false);
   const [steamSetup, setSteamSetup] = useState<SteamSetup>();
   const [settingsSection, setSettingsSection] = useState<{ id: SettingsSection }>();
@@ -153,6 +154,21 @@ export function App() {
       clearInterval(timer);
     };
   }, []);
+  // Wait for either reader decision, then offer STRATZ even when reading was skipped.
+  // A failed provider lookup leaves normal startup usable; Settings can retry it later.
+  useEffect(() => {
+    if (!ready || askReader || stratzAsked()) return;
+    let active = true;
+    void api.getProvider().then(
+      (provider) => {
+        if (active && api.connectStratz && shouldAskStratz(info, provider, stratzAsked())) setStratzOpen('startup');
+      },
+      () => {},
+    );
+    return () => {
+      active = false;
+    };
+  }, [ready, askReader, info, providerRevision]);
   const shortcuts = { ...defaultShortcuts, ...local.shortcuts };
   useFallbackShortcuts(info, shortcuts);
   useKeyboardOnDemand(info);
@@ -220,7 +236,7 @@ export function App() {
                 steamSetup={steamSetup}
                 setup={openSettings}
                 openTool={open}
-                connectStratz={() => setStratzOpen(true)}
+                connectStratz={() => setStratzOpen('manual')}
               />
             </MatchViewport>
             <div hidden={page !== 'draft'}>
@@ -258,9 +274,10 @@ export function App() {
           close={() => setAskReader(false)}
         />
       )}
-      {stratzOpen && (
+      {stratzOpen && !askReader && (
         <StratzConnectDialog
-          close={() => setStratzOpen(false)}
+          firstRun={stratzOpen === 'startup'}
+          close={() => setStratzOpen(null)}
           connected={() => setProviderRevision((value) => value + 1)}
         />
       )}

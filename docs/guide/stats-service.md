@@ -8,11 +8,22 @@ computer uses it.
 
 ## Connect STRATZ in the app
 
-1. Open **Settings → Connections → STRATZ** (the **Player history** section), or press **Connect STRATZ** in an empty
-   draft panel of the match screen.
+1. Use the optional **Connect STRATZ** prompt after the first-run memory-reader
+   question, open **Settings → Connections → STRATZ** (the **Connect STRATZ**
+   section), or press **Connect STRATZ** in an empty draft panel of the match screen.
 2. Press **Open stratz.com/api**, sign in with Steam and copy your token from
    **My Tokens**. Check the current permissions and quota there.
 3. Paste the token into the field and press **Connect**.
+
+The startup offer appears after either reader choice. **Not now** or closing it
+remembers the dismissal; Settings remains available later. STRATZ loads players in
+batches of up to five and adds IMP, positions, matchups and pick recommendations.
+It works with memory reading on or off. Without it, public history still loads
+from OpenDota within its rate limits; notes and recorded matches remain available.
+
+The website button opens your system browser, including from a Linux AppImage.
+If the launcher reports an error, the form shows it and a selectable
+`https://stratz.com/api` address to copy into your browser manually.
 
 Ancient Lens then checks the token with one STRATZ request for a public reference
 profile (not your account), saves it in the system secret store and starts the
@@ -109,7 +120,7 @@ $env:ANCIENT_STATS_URL = 'http://127.0.0.1:8788'
 ```
 
 For a development build, use `npm run dev` in that terminal instead. Settings
-should show **Player history · STRATZ**. A successful `/health` response confirms
+should show **STRATZ connection** under **Connections → STRATZ**. A successful `/health` response confirms
 the service is running, not that upstream access is valid. Loading player data
 checks that access.
 

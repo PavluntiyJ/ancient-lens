@@ -6,3 +6,4 @@ if (process.platform === 'linux') {
 } else {
   throw new Error('Native smoke tests support Linux and Windows.');
 }
+await import('./smoke-onboarding.mjs');

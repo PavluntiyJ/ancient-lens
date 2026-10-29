@@ -4,6 +4,12 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ## Unreleased
 
+- First launch offers optional STRATZ setup after either memory-reader choice,
+  explains faster player loading and extra match statistics, and remembers **Not
+  now**. Provider settings are clearly titled **Connect STRATZ**.
+- Website links use system libraries outside a Linux AppImage and check the
+  browser launch result. STRATZ setup shows failures and an address to copy manually.
+
 ## 0.6.0 — October 29, 2026
 
 ### Windows over the game

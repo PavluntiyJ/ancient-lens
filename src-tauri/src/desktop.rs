@@ -380,8 +380,7 @@ async fn desktop_call(
                 args["site"].as_str().unwrap_or(""),
             )?;
             if std::env::var_os("ANCIENT_TEST_DATA").is_none() {
-                open::that_detached(&url)
-                    .map_err(|e| format!("Could not open the browser: {e}"))?;
+                crate::browser::open(&url).await?;
             }
             Ok(json!(url))
         }
@@ -391,8 +390,7 @@ async fn desktop_call(
                 args["site"].as_str().unwrap_or(""),
             )?;
             if std::env::var_os("ANCIENT_TEST_DATA").is_none() {
-                open::that_detached(&url)
-                    .map_err(|e| format!("Could not open the browser: {e}"))?;
+                crate::browser::open(&url).await?;
             }
             Ok(json!(url))
         }
@@ -403,8 +401,7 @@ async fn desktop_call(
         }
         "stratz:tokens" => {
             if std::env::var_os("ANCIENT_TEST_DATA").is_none() {
-                open::that_detached(crate::stratz_token::TOKENS_PAGE)
-                    .map_err(|e| format!("Could not open the browser: {e}"))?;
+                crate::browser::open(crate::stratz_token::TOKENS_PAGE).await?;
             }
             Ok(json!(crate::stratz_token::TOKENS_PAGE))
         }
@@ -660,8 +657,8 @@ async fn desktop_call(
         _ => Err("Unknown command".into()),
     }
 }
-/// Whether the page may ask once to enable the memory reader. Isolated test runs skip the
-/// question so automation never meets a modal, unless ANCIENT_READER_PROMPT=1 asks for it.
+/// Whether the page may offer first-run reader/STRATZ setup. Isolated test runs skip the
+/// dialogs so automation never meets a modal, unless ANCIENT_READER_PROMPT=1 asks for them.
 fn reader_prompt() -> bool {
     std::env::var_os("ANCIENT_TEST_DATA").is_none()
         || std::env::var_os("ANCIENT_READER_PROMPT").is_some_and(|v| v == "1")
