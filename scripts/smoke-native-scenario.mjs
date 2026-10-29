@@ -623,18 +623,20 @@ try {
   await assert.rejects(() => call('windowAction', 'unsupported'));
   await assert.rejects(() => call('resizeWindow', 'unsupported'));
   assert.equal(await execute('return document.querySelectorAll(".window-resize-edge").length'), 8);
-  // The native window size: the page size may be fixed by the driver (Windows), and a
-  // maximized window can be smaller than the configured one on a small screen.
-  const outerSize = () => execute('return [outerWidth, outerHeight]');
+  // The native window size, not the driver's fixed page size (Windows); a maximized window
+  // can be smaller than the configured one on a small screen.
+  await app.nativeSize();
+  const windowSize = () => execute('return [innerWidth, innerHeight]');
   const sameSize = (a, b) => a.every((value, i) => Math.abs(value - b[i]) <= 2);
-  const restoredSize = await outerSize();
+  const restoredSize = await windowSize();
   await execute('document.querySelector(`[aria-label="Maximize or restore window"]`).click();');
   await waitFor(
-    async () => !sameSize(await outerSize(), restoredSize),
+    async () => !sameSize(await windowSize(), restoredSize),
     'Maximize button did not change the native window',
   );
   await call('windowAction', 'maximize');
-  await waitFor(async () => sameSize(await outerSize(), restoredSize), 'Native window did not restore');
+  await waitFor(async () => sameSize(await windowSize(), restoredSize), 'Native window did not restore');
+  await app.resize(1740, 1100);
   assert.equal(await execute('return document.querySelectorAll(".hero-performance.positive").length'), 5);
   assert.equal(await execute('return document.querySelectorAll(".hero-performance.negative").length'), 5);
   assert.ok(

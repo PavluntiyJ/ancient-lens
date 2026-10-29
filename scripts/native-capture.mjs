@@ -164,6 +164,12 @@ export async function nativeDriver(directory, extraEnv = {}) {
         call: (name, ...args) => page.evaluate(({ name, args }) => window.ancient[name](...args), { name, args }),
         windowCount: async () => appPages().length,
         resize: (width, height) => page.setViewportSize({ width, height }),
+        // `resize` emulates the page size; this hands the page back to the native window size.
+        async nativeSize() {
+          const cdp = await page.context().newCDPSession(page);
+          await cdp.send('Emulation.clearDeviceMetricsOverride');
+          await cdp.detach();
+        },
         screenshot: async (selector) => (selector ? page.locator(selector).first().screenshot() : page.screenshot()),
         // CDP input reaches the page whether or not the window has the desktop focus.
         realPointer: async () => true,
@@ -204,6 +210,7 @@ export async function nativeDriver(directory, extraEnv = {}) {
         },
         windowCount: async () => (await request(`/session/${session}/window/handles`)).length,
         resize: (width, height) => request(`/session/${session}/window/rect`, { width, height }),
+        nativeSize: async () => {},
         async screenshot(selector) {
           let route = `/session/${session}/screenshot`;
           if (selector) {
