@@ -623,10 +623,18 @@ try {
   await assert.rejects(() => call('windowAction', 'unsupported'));
   await assert.rejects(() => call('resizeWindow', 'unsupported'));
   assert.equal(await execute('return document.querySelectorAll(".window-resize-edge").length'), 8);
+  // The native window size: the page size may be fixed by the driver (Windows), and a
+  // maximized window can be smaller than the configured one on a small screen.
+  const outerSize = () => execute('return [outerWidth, outerHeight]');
+  const sameSize = (a, b) => a.every((value, i) => Math.abs(value - b[i]) <= 2);
+  const restoredSize = await outerSize();
   await execute('document.querySelector(`[aria-label="Maximize or restore window"]`).click();');
-  await waitFor(() => execute('return innerWidth > 1740'), 'Maximize button did not expand the native window');
+  await waitFor(
+    async () => !sameSize(await outerSize(), restoredSize),
+    'Maximize button did not change the native window',
+  );
   await call('windowAction', 'maximize');
-  await waitFor(() => execute('return innerWidth <= 1740'), 'Native window did not restore');
+  await waitFor(async () => sameSize(await outerSize(), restoredSize), 'Native window did not restore');
   assert.equal(await execute('return document.querySelectorAll(".hero-performance.positive").length'), 5);
   assert.equal(await execute('return document.querySelectorAll(".hero-performance.negative").length'), 5);
   assert.ok(
