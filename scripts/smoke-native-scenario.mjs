@@ -1271,16 +1271,17 @@ try {
   await clickButton('Match and draft');
   // Native window sizes need a desktop-sized screen; the Windows CI runner has 1024×768.
   const desktopScreen = await execute('return screen.availWidth >= 1740 && screen.availHeight >= 1100');
+  // The smallest window: the window manager stops a Linux window at its minimum. Windows applies
+  // a window's minimum only while the user resizes it, so there the window is set to the
+  // minimum the app computes for this screen.
+  const minimum = await call('setWindowMinSize', 100);
+  const smallest = platform === 'linux' ? [800, 600] : [minimum.width, minimum.height];
   if (desktopScreen) {
     const resizeFits = [];
-    for (const [width, height] of [
-      [800, 600],
-      [1280, 800],
-      [1740, 1100],
-    ]) {
+    for (const [width, height] of [smallest, [1280, 800], [1740, 1100]]) {
       await app.resize(width, height);
       await waitFor(matchFits, `Match does not fit ${width}×${height}`);
-      if (width === 800) {
+      if (width === smallest[0]) {
         // The window stops at the size that shows the whole match screen at 100%: no scrolling.
         await waitFor(
           () =>
@@ -1313,8 +1314,7 @@ try {
     await screenshot('fit-927');
   } else {
     // The window still cannot shrink below the minimum the app computes for this screen.
-    const minimum = await call('setWindowMinSize', 100);
-    await app.resize(800, 600);
+    await app.resize(...smallest);
     await waitFor(
       () =>
         execute('return innerWidth >= arguments[0] - 2 && innerHeight >= arguments[1] - 2', [
