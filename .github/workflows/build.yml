@@ -76,7 +76,7 @@ jobs:
           workspaces: src-tauri
       - name: Linux system dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libssl-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libssl-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev rpm
       - run: npm ci
       - name: Linux distribution
         if: runner.os == 'Linux'
@@ -99,6 +99,13 @@ jobs:
             # dpkg-deb prints `./usr/bin/...` or `usr/bin/...` depending on how the archive was built.
             if ! grep -qE ' (\./)?usr/bin/stats-service$' <<<"$listing"; then
               echo "::error::stats-service is missing from $deb"
+              echo "$listing"
+              exit 1
+            fi
+            rpm=$(ls src-tauri/target/release/bundle/rpm/*.rpm)
+            listing=$(rpm -qpl "$rpm")
+            if ! grep -qx '/usr/bin/stats-service' <<<"$listing"; then
+              echo "::error::stats-service is missing from $rpm"
               echo "$listing"
               exit 1
             fi
@@ -125,6 +132,7 @@ jobs:
             src-tauri/target/release/bundle/nsis/*-setup.exe
             src-tauri/target/release/bundle/appimage/*.AppImage
             src-tauri/target/release/bundle/deb/*.deb
+            src-tauri/target/release/bundle/rpm/*.rpm
           if-no-files-found: error
           retention-days: 7
 

@@ -42,7 +42,7 @@ MMR and confidence come from the optional memory reader; the manual journal rema
 available. Old entries without an account remain in
 exports and are not assigned to a guessed owner.
 
-`npm run dist:linux` builds AppImage and Debian packages. Use AppImage or the
+`npm run dist:linux` builds AppImage, Debian and Fedora packages. Use the `.rpm`, AppImage or the
 Fedora-built executable on Fedora. Temporary GitHub Actions artifacts require a
 GitHub login to download; they are not published release downloads.
 

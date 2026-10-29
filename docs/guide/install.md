@@ -10,13 +10,14 @@ Prereleases are on the [Releases page](https://github.com/PavluntiyJ/ancient-len
 If it lists no release yet, build from source as described below. Read the
 notes of the release first: they list what is not finished yet.
 
-| File                                    | For                                      |
-| --------------------------------------- | ---------------------------------------- |
-| `Ancient-Lens-<version>-x64-setup.exe`  | Windows installer                        |
-| `Ancient-Lens-<version>-Tauri-win.zip`  | Windows portable build, no installation  |
-| `Ancient-Lens-<version>-amd64.AppImage` | Linux, any distribution, Fedora included |
-| `Ancient-Lens-<version>-amd64.deb`      | Debian and Ubuntu                        |
-| `SHA256SUMS.txt`                        | SHA-256 checksums of the other files     |
+| File                                    | For                                     |
+| --------------------------------------- | --------------------------------------- |
+| `Ancient-Lens-<version>-x64-setup.exe`  | Windows installer                       |
+| `Ancient-Lens-<version>-Tauri-win.zip`  | Windows portable build, no installation |
+| `Ancient-Lens-<version>-amd64.AppImage` | Linux, any distribution                 |
+| `Ancient-Lens-<version>-amd64.deb`      | Debian and Ubuntu                       |
+| `Ancient-Lens-<version>-1.x86-64.rpm`   | Fedora                                  |
+| `SHA256SUMS.txt`                        | SHA-256 checksums of the other files    |
 
 **Windows.** Run the installer, or extract the complete ZIP and start
 `Ancient Lens.exe`. Both need the Microsoft Edge WebView2 Runtime: Windows 11
@@ -25,13 +26,14 @@ build, install it yourself if needed. The builds are not code-signed,
 so SmartScreen warns about an unknown publisher: check the checksum, then choose
 **More info → Run anyway**.
 
-**Linux.** Make the AppImage executable and start it, or install the Debian
-package:
+**Linux.** Make the AppImage executable and start it, or install the Debian or
+Fedora package:
 
 ```sh
 chmod +x Ancient-Lens-*-amd64.AppImage
 ./Ancient-Lens-*-amd64.AppImage
 sudo apt install ./Ancient-Lens-*-amd64.deb
+sudo dnf install ./Ancient-Lens-*.x86-64.rpm
 ```
 
 Run the app as your regular user, never as root. Then continue with
@@ -71,6 +73,7 @@ live outside the program folder (see [setup](setup.md)) and are kept.
   folder or over the old one.
 - AppImage: replace the old file with the new one and make it executable.
 - Debian package: `sudo apt install ./Ancient-Lens-<version>-amd64.deb`.
+- Fedora package: `sudo dnf install ./Ancient-Lens-<version>-1.x86-64.rpm`.
 
 There is no automatic update; watch the Releases page for new versions.
 
@@ -130,19 +133,19 @@ Build packages on the target platform:
 
 | Command                | Output                                                       |
 | ---------------------- | ------------------------------------------------------------ |
-| `npm run dist:linux`   | AppImage and `.deb` under `src-tauri/target/release/bundle/` |
+| `npm run dist:linux`   | AppImage, `.deb` and `.rpm` under `src-tauri/target/release/bundle/` |
 | `npm run dist:win`     | NSIS installer under `src-tauri/target/release/bundle/nsis/` |
 | `npm run dist:win:zip` | Portable ZIP under `release/`                                |
 
-On Fedora, use the native executable or AppImage, not the Debian package. Make
+On Fedora, use the `.rpm`, the native executable or AppImage, not the Debian package. Make
 an AppImage executable before launching it (`chmod +x <download>.AppImage`).
 If AppImage/FUSE is unavailable, use the native build. Windows portable builds
 require an installed WebView2 Runtime. Packages are currently unsigned.
 
 The optional STRATZ service is a second binary of the same crate (see the
 [statistics service guide](stats-service.md)). Tauri bundles every binary of the crate,
-so the NSIS installer puts `stats-service.exe` next to `Ancient Lens.exe`, and the `.deb`
-and AppImage put `stats-service` next to `ancient-lens` in `usr/bin`; the CI release build
+so the NSIS installer puts `stats-service.exe` next to `Ancient Lens.exe`, and the `.deb`,
+`.rpm` and AppImage put `stats-service` next to `ancient-lens` in `usr/bin`; the CI release build
 fails if a package lacks it. `npm run dist:win:zip` copies `stats-service.exe` into the
 portable ZIP when it exists in `src-tauri/target/release/`; `tauri build` builds it there
 together with the app. The app starts the service itself when the binary sits next to its

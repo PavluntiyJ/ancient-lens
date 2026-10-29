@@ -9,6 +9,7 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
   now**. Provider settings are clearly titled **Connect STRATZ**.
 - Website links use system libraries outside a Linux AppImage and check the
   browser launch result. STRATZ setup shows failures and an address to copy manually.
+- Releases include a Fedora package (`.rpm`), installed with `sudo dnf install`.
 
 ## 0.6.0 — October 29, 2026
 

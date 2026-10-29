@@ -18,7 +18,7 @@
     "build": "tauri build --no-bundle",
     "test": "vitest run",
     "pack": "tauri build --no-bundle",
-    "dist:linux": "tauri build --bundles appimage,deb",
+    "dist:linux": "tauri build --bundles appimage,deb,rpm",
     "dist:win": "tauri build --bundles nsis",
     "dist:win:zip": "tauri build --no-bundle && node scripts/package-native.mjs",
     "check": "tsc --noEmit && tsc --noEmit -p tests && vitest run",
