@@ -327,6 +327,21 @@ async fn desktop_call(
             }
             Ok(json!({"width": width, "height": height}))
         }
+        // Isolated tests set the native window size, as WebDriver does on Linux; the Windows
+        // driver (WebView2 debugging protocol) cannot.
+        "window:test-size" if std::env::var_os("ANCIENT_TEST_DATA").is_some() => {
+            let size = |key: &str| args[key].as_f64().filter(|v| (100.0..=10000.0).contains(v));
+            let (width, height) = size("width")
+                .zip(size("height"))
+                .ok_or("Invalid window size")?;
+            if window.is_maximized().map_err(|e| e.to_string())? {
+                window.unmaximize().map_err(|e| e.to_string())?;
+            }
+            window
+                .set_size(tauri::LogicalSize::new(width, height))
+                .map_err(|e| e.to_string())?;
+            Ok(Value::Null)
+        }
         "window:action" => {
             match args["action"].as_str().unwrap_or("") {
                 "drag" => window.start_dragging(),
