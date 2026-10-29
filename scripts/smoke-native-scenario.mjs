@@ -1097,6 +1097,7 @@ try {
       'Sound',
       'Window',
       'Your data',
+      'Updates',
     ],
   );
   await clickButton('Window');
@@ -2253,6 +2254,7 @@ try {
     'New-version notice did not appear',
   );
   assert.ok((await releaseNotice()).includes(`you have ${info.version}`));
+  await screenshot('release-notice');
   const releaseUrl = `https://github.com/PavluntiyJ/ancient-lens/releases/tag/v${nextVersion}`;
   assert.equal((await call('getRelease')).latest.url, releaseUrl);
   // Isolated runs return the release page instead of opening a browser.
