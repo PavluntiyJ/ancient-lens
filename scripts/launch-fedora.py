@@ -34,7 +34,9 @@ def install():
         'Restart=on-failure\nRestartSec=5\nUMask=0077\n')
     apps = data / 'applications'
     apps.mkdir(parents=True, exist_ok=True)
-    (apps / 'org.ancientlens.desktop').write_text(
+    # KDE and GNOME match a Wayland window to the entry named after its app id, `ancient-lens`.
+    (apps / 'org.ancientlens.desktop').unlink(missing_ok=True)
+    (apps / 'ancient-lens.desktop').write_text(
         '[Desktop Entry]\nType=Application\nName=Ancient Lens\nComment=Dota 2 companion\n'
         f'Exec=/usr/bin/python3 {quoted(ROOT / "scripts/launch-fedora.py")}\n'
         f'Icon={ROOT / "build/icon.png"}\nTerminal=false\nCategories=Game;\n'

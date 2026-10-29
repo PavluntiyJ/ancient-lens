@@ -1,0 +1,9 @@
+[Desktop Entry]
+Categories=Game;
+Comment={{comment}}
+Exec={{exec}}
+StartupWMClass={{exec}}
+Icon={{icon}}
+Name=Ancient Lens
+Terminal=false
+Type=Application

@@ -10,6 +10,9 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 - Website links use system libraries outside a Linux AppImage and check the
   browser launch result. STRATZ setup shows failures and an address to copy manually.
 - Releases include a Fedora package (`.rpm`), installed with `sudo dnf install`.
+- Linux windows show the Ancient Lens icon in the task switcher and taskbar instead of
+  a generic one: the desktop entry is now `ancient-lens.desktop`, matching the window.
+  Linux release files are named `ancient-lens-<version>-…` accordingly.
 
 ## 0.6.0 — October 29, 2026
 

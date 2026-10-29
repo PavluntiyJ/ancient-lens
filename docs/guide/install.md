@@ -14,9 +14,9 @@ notes of the release first: they list what is not finished yet.
 | --------------------------------------- | --------------------------------------- |
 | `Ancient-Lens-<version>-x64-setup.exe`  | Windows installer                       |
 | `Ancient-Lens-<version>-Tauri-win.zip`  | Windows portable build, no installation |
-| `Ancient-Lens-<version>-amd64.AppImage` | Linux, any distribution                 |
-| `Ancient-Lens-<version>-amd64.deb`      | Debian and Ubuntu                       |
-| `Ancient-Lens-<version>-1.x86-64.rpm`   | Fedora                                  |
+| `ancient-lens-<version>-amd64.AppImage` | Linux, any distribution                 |
+| `ancient-lens-<version>-amd64.deb`      | Debian and Ubuntu                       |
+| `ancient-lens-<version>-1.x86-64.rpm`   | Fedora                                  |
 | `SHA256SUMS.txt`                        | SHA-256 checksums of the other files    |
 
 **Windows.** Run the installer, or extract the complete ZIP and start
@@ -30,10 +30,10 @@ so SmartScreen warns about an unknown publisher: check the checksum, then choose
 Fedora package:
 
 ```sh
-chmod +x Ancient-Lens-*-amd64.AppImage
-./Ancient-Lens-*-amd64.AppImage
-sudo apt install ./Ancient-Lens-*-amd64.deb
-sudo dnf install ./Ancient-Lens-*.x86-64.rpm
+chmod +x ancient-lens-*-amd64.AppImage
+./ancient-lens-*-amd64.AppImage
+sudo apt install ./ancient-lens-*-amd64.deb
+sudo dnf install ./ancient-lens-*.x86-64.rpm
 ```
 
 Run the app as your regular user, never as root. Then continue with
@@ -72,8 +72,8 @@ live outside the program folder (see [setup](setup.md)) and are kept.
 - Windows portable: quit Ancient Lens, then extract the new ZIP into a fresh
   folder or over the old one.
 - AppImage: replace the old file with the new one and make it executable.
-- Debian package: `sudo apt install ./Ancient-Lens-<version>-amd64.deb`.
-- Fedora package: `sudo dnf install ./Ancient-Lens-<version>-1.x86-64.rpm`.
+- Debian package: `sudo apt install ./ancient-lens-<version>-amd64.deb`.
+- Fedora package: `sudo dnf install ./ancient-lens-<version>-1.x86-64.rpm`.
 
 There is no automatic update; watch the Releases page for new versions.
 

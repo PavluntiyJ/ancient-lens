@@ -20,9 +20,9 @@ This is an early prerelease. Read these points first:
 | --------------------------------------- | ---------------------------- |
 | `Ancient-Lens-<version>-x64-setup.exe`  | Windows installer            |
 | `Ancient-Lens-<version>-Tauri-win.zip`  | Windows portable build       |
-| `Ancient-Lens-<version>-amd64.AppImage` | Linux, any distribution      |
-| `Ancient-Lens-<version>-amd64.deb`      | Debian and Ubuntu            |
-| `Ancient-Lens-<version>-1.x86-64.rpm`   | Fedora                       |
+| `ancient-lens-<version>-amd64.AppImage` | Linux, any distribution      |
+| `ancient-lens-<version>-amd64.deb`      | Debian and Ubuntu            |
+| `ancient-lens-<version>-1.x86-64.rpm`   | Fedora                       |
 | `SHA256SUMS.txt`                        | Checksums of the files above |
 
 Installing, verifying and updating are described in the
