@@ -4,26 +4,31 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ## Unreleased
 
-- **Two windows over the game:** the match window (match table and draft panels) and the
-  profile window open at start. Each is shown or hidden on its own, with its own global key
-  (`Alt+Num 5` for the match, `Alt+Num 6` for the profile, both changeable in Settings →
-  Interface → Shortcuts) or its close button; the app keeps running in the tray. The header's
-  profile icon brings up the profile window.
+## 0.6.0 — October 29, 2026
+
+### Windows over the game
+
+- **Two windows:** the match window (match table and draft panels) and the profile window
+  open at start. Each is shown or hidden on its own, with its own global key (`Alt+Num 5` for
+  the match, `Alt+Num 6` for the profile, both changeable in Settings → Interface → Shortcuts)
+  or its close button; the app keeps running in the tray. The header's profile icon brings up
+  the profile window, which opens at 1600×1000 and uses its full width.
 - **The game keeps its sound:** both windows stay on top and, on Windows and on Linux with X11,
   appear without taking the keyboard from the game, so a game that mutes in the background
   keeps playing sound. Clicks work as usual; clicking a text field or the keyboard button in
   the title bar lets you type, and the game goes to the background until you click it again.
   Needs borderless or windowed mode. On Wayland the desktop decides, as before.
 - Each window remembers its size and position.
-- **Windows:** reading the draft of your own match (picks, hovers, bans, lanes) and the
-  ten-player roster after it are confirmed in a live ranked game on build 6969.
-- **Memory reading at first start:** the app asks once whether to enable the reader that fills
-  the roster, picks and bans of your own match, with its risk and the way back in Settings.
-  **Not now** keeps it off, as before.
+
+### STRATZ
+
 - **Connect STRATZ** in Settings and in the empty draft panels: open stratz.com/api, paste
   your token, and the app checks it, saves it in Windows Credential Manager or the Linux
   keyring and starts the statistics service that ships with the app. **Disconnect STRATZ**
   removes the token. On Linux the flow has not been tried on a desktop yet.
+
+### Settings and navigation
+
 - **Settings** opens with a Connections overview (Dota 2, STRATZ, memory reading: connected,
   needs setup or off, each with a button to its section) and groups the sections into
   Connections, Match & statistics, Interface and Data, with a side list on wide windows.
@@ -31,8 +36,19 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
   match screen while game data is missing or the roster is incomplete, **GSI diagnostics** from
   Settings → Connect Dota 2, and **Notes** has its own header icon. The interface scale is set
   in Settings → Appearance only.
-- **Profile:** removed the Bracket column from match history. A current MMR reading no longer
-  shows a leaderboard position from cached public profile data.
+
+### Memory readers
+
+- **First start:** the app asks once whether to enable the reader that fills the roster,
+  picks and bans of your own match, with its risk and the way back in Settings. **Not now**
+  keeps it off, as before.
+- **Windows:** reading the draft of your own match (picks, hovers, bans, lanes) and the
+  ten-player roster after it are confirmed in a live ranked game on build 6969.
+
+### Profile
+
+- Removed the Bracket column from match history. A current MMR reading no longer shows a
+  leaderboard position from cached public profile data.
 
 ## 0.5.0 — October 28, 2026
 

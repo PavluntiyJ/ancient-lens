@@ -19,8 +19,8 @@
   <a href="docs/README.md"><b>Documentation</b></a>
 </p>
 
-> **Early prototype, 0.5.0.** The first prerelease is still pending: if the
-> [releases page](https://github.com/PavluntiyJ/ancient-lens/releases) is empty,
+> **Early prototype, 0.6.0.** Unsigned prereleases for Windows and Linux are on the
+> [releases page](https://github.com/PavluntiyJ/ancient-lens/releases); you can also
 > [build from source](docs/guide/install.md). Not affiliated with Valve.
 
 ![Match screen with ten players, hero matchups, and suggested picks](docs/images/match-screen.png)

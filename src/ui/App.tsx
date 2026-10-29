@@ -183,7 +183,7 @@ export function App() {
         style={{ zoom: display.scale / 100, '--ui-scale': display.scale / 100 } as CSSProperties}
       >
         <TitleBar
-          title={`Ancient Lens · ${info?.version ?? '0.4.1'}`}
+          title={info?.version ? `Ancient Lens · ${info.version}` : 'Ancient Lens'}
           brand={
             <>
               <Crosshair size={17} />
