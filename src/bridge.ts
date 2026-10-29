@@ -9,6 +9,7 @@ import {
   type LiveState,
   type LocalState,
   type OwnUpdate,
+  type ReleaseInfo,
   type Hero,
   type MatchupRow,
 } from './shared/domain';
@@ -66,6 +67,20 @@ if (isTauri()) {
     },
     setNativeRosterReader: (value) => call('state:reader', { value }),
     setCloseToTray: (value) => call('state:tray', { value }),
+    setUpdateCheck: (value) => call('state:update-check', { value }),
+    skipVersion: (version) => call('state:skip-version', { version }),
+    getRelease: () => call('release:get'),
+    onRelease: (callback) => {
+      let disposed = false;
+      const pending = listen<ReleaseInfo>('release:update', (event) => {
+        if (!disposed) callback(event.payload);
+      });
+      return () => {
+        disposed = true;
+        void pending.then((unlisten) => unlisten()).catch(() => {});
+      };
+    },
+    openRelease: () => call('release:open'),
     setShortcuts: (shortcuts) => call('state:shortcuts', { shortcuts }),
     setAccount: (id) => call('state:account', { id }),
     getPlayer: (id) => call('player:get', { id }),

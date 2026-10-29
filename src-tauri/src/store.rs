@@ -279,7 +279,7 @@ impl Store {
         let snapshot = self.data["accountId"]
             .as_str()
             .map_or(Value::Null, |id| self.data["ratingSnapshots"][id].clone());
-        json!({"revision":self.revision,"accountId": self.data["accountId"], "notes":self.data["notes"], "mmr":entries,"unassignedMmrCount":unassigned,"ownAccount":self.own,"ratingSnapshot":snapshot,"nativeRosterReader":self.data["nativeRosterReader"],"closeToTray":self.close_to_tray(),"shortcuts":self.shortcuts(),"recordedMatches":self.recorded(self.data["accountId"].as_str().unwrap_or("")).len(),"journalRevision":self.journal_revision})
+        json!({"revision":self.revision,"accountId": self.data["accountId"], "notes":self.data["notes"], "mmr":entries,"unassignedMmrCount":unassigned,"ownAccount":self.own,"ratingSnapshot":snapshot,"nativeRosterReader":self.data["nativeRosterReader"],"closeToTray":self.close_to_tray(),"updateCheck":self.update_check(),"skippedVersion":self.data["skippedVersion"],"shortcuts":self.shortcuts(),"recordedMatches":self.recorded(self.data["accountId"].as_str().unwrap_or("")).len(),"journalRevision":self.journal_revision})
     }
     /// The stored bindings, with defaults for any key an older state file did not have.
     pub fn shortcuts(&self) -> Value {
@@ -296,6 +296,10 @@ impl Store {
     /// The window close button hides to the tray unless the user turned it off (absent = on).
     pub fn close_to_tray(&self) -> bool {
         self.data["closeToTray"].as_bool().unwrap_or(true)
+    }
+    /// Whether the app asks GitHub for new releases (absent = on).
+    pub fn update_check(&self) -> bool {
+        self.data["updateCheck"].as_bool().unwrap_or(true)
     }
     /// The single user consent for every Dota memory reader (Linux roster, Windows rating).
     pub fn memory_reader(&self) -> bool {
@@ -503,6 +507,19 @@ impl Store {
                     .as_bool()
                     .ok_or("Invalid close-to-tray setting")?);
             }
+            "state:update-check" => {
+                next["updateCheck"] = json!(args["value"]
+                    .as_bool()
+                    .ok_or("Invalid update check setting")?);
+            }
+            // The notice stays away for this version only; a newer one shows again.
+            "state:skip-version" => {
+                let version = args["version"]
+                    .as_str()
+                    .and_then(crate::releases::version)
+                    .ok_or("Invalid version")?;
+                next["skippedVersion"] = json!(crate::releases::format(version));
+            }
             "state:shortcuts" => {
                 next["shortcuts"] = validate_shortcuts(&args["shortcuts"])?;
             }
@@ -655,6 +672,10 @@ fn validate(v: &Value) -> Result<()> {
     }
     if v.get("closeToTray")
         .is_some_and(|value| !value.is_boolean())
+        || v.get("updateCheck")
+            .is_some_and(|value| !value.is_boolean())
+        || v.get("skippedVersion")
+            .is_some_and(|value| value.as_str().and_then(crate::releases::version).is_none())
     {
         return Err(invalid.into());
     }
@@ -848,6 +869,37 @@ mod tests {
             assert!(validate(&invalid).is_err());
         }
         assert!(!reopened.close_to_tray());
+    }
+    #[test]
+    fn release_check_defaults_on_and_a_skipped_version_persists() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut store = Store::open(dir.path().into()).unwrap();
+        assert_eq!(store.public()["updateCheck"], true);
+        assert_eq!(store.public()["skippedVersion"], Value::Null);
+        store
+            .change("state:update-check", &json!({"value":false}))
+            .unwrap();
+        let value = store
+            .change("state:skip-version", &json!({"version":"v0.7.0"}))
+            .unwrap();
+        assert_eq!(value["skippedVersion"], "0.7.0");
+        let mut reopened = Store::open(dir.path().into()).unwrap();
+        assert!(!reopened.update_check());
+        assert_eq!(reopened.public()["skippedVersion"], "0.7.0");
+        for version in [json!("latest"), json!(null), json!(7)] {
+            assert!(reopened
+                .change("state:skip-version", &json!({"version":version}))
+                .is_err());
+            let mut invalid = reopened.data.clone();
+            invalid["skippedVersion"] = version;
+            assert!(validate(&invalid).is_err());
+        }
+        assert!(reopened
+            .change("state:update-check", &json!({"value":"on"}))
+            .is_err());
+        let mut invalid = reopened.data.clone();
+        invalid["updateCheck"] = json!("on");
+        assert!(validate(&invalid).is_err());
     }
     #[test]
     fn ids() {

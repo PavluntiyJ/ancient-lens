@@ -4,6 +4,14 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ## Unreleased
 
+### New versions
+
+- A notice above the match screen says when a newer Ancient Lens release is out, with
+  **What's new** (the release page), **Later** (until the next start) and **Skip this
+  version**. The app asks GitHub for its release list shortly after start and every 12
+  hours; the request contains no account, settings or app version, and nothing is
+  downloaded. Turn it off in Settings → Data → Updates.
+
 ## 0.6.1 — October 29, 2026
 
 0.6.0 was not published as a release, so this is the first release after 0.5.0 and also

@@ -75,7 +75,9 @@ live outside the program folder (see [setup](setup.md)) and are kept.
 - Debian package: `sudo apt install ./ancient-lens-<version>-amd64.deb`.
 - Fedora package: `sudo dnf install ./ancient-lens-<version>-1.x86-64.rpm`.
 
-There is no automatic update; watch the Releases page for new versions.
+There is no automatic update. A notice above the match screen says when a newer release
+is out and links to its page; **Skip this version** hides it until the next one. Settings →
+Data → Updates turns the check off; then watch the Releases page instead.
 
 ## Build from source
 

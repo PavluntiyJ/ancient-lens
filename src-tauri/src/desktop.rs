@@ -41,8 +41,15 @@ struct Desktop {
     close_to_tray: AtomicBool,
     /// Held while Steam is being closed and its settings edited, so only one repair runs.
     steam_repair: Mutex<()>,
+    /// The newest release above this version from the last successful check, if any.
+    release: RwLock<Option<Value>>,
+    /// Wakes the release check when the setting is turned on.
+    release_wake: tokio::sync::Notify,
 }
 impl Desktop {
+    async fn release_info(&self) -> Value {
+        json!({"current": env!("CARGO_PKG_VERSION"), "latest": *self.release.read().await})
+    }
     fn api(&self) -> Arc<Api> {
         match self.api.read() {
             Ok(api) => api.clone(),
@@ -561,6 +568,29 @@ async fn desktop_call(
             overlay::keyboard(&window.as_ref().window(), args["on"] == true);
             Ok(Value::Null)
         }
+        "state:update-check" | "state:skip-version" => {
+            let value = state.store.lock().await.change(&command, &args)?;
+            if command == "state:update-check" && value["updateCheck"] == true {
+                state.release_wake.notify_one();
+            }
+            let _ = app.emit("state:update", &value);
+            Ok(value)
+        }
+        "release:get" => Ok(state.release_info().await),
+        // Only the link of the last check is opened, never an address from the page.
+        "release:open" => {
+            let url = state
+                .release
+                .read()
+                .await
+                .as_ref()
+                .and_then(|release| release["url"].as_str().map(String::from))
+                .ok_or("No newer version is known.")?;
+            if std::env::var_os("ANCIENT_TEST_DATA").is_none() {
+                crate::browser::open(&url).await?;
+            }
+            Ok(json!(url))
+        }
         "state:tray" => {
             let value = state.store.lock().await.change(&command, &args)?;
             state
@@ -872,6 +902,8 @@ pub fn run() {
                 tray: AtomicBool::new(has_tray),
                 close_to_tray: AtomicBool::new(close_to_tray),
                 steam_repair: Mutex::new(()),
+                release: RwLock::new(None),
+                release_wake: tokio::sync::Notify::new(),
             });
             #[cfg(target_os = "linux")]
             if !isolated {
@@ -933,6 +965,14 @@ pub fn run() {
             if !isolated {
                 tauri::async_runtime::spawn(match_details(app.handle().clone()));
             }
+            // Isolated tests never ask GitHub; they may read a fixture release list instead.
+            let releases = isolated
+                .then(|| std::env::var_os("ANCIENT_TEST_RELEASES"))
+                .flatten()
+                .map(std::path::PathBuf::from);
+            if !isolated || releases.is_some() {
+                tauri::async_runtime::spawn(release_check(app.handle().clone(), releases));
+            }
             // First start: the match window nearly fills the screen, the profile window is
             // a little smaller; later starts restore where the user left each one.
             for (label, most) in [(MATCH, (1740., 1280.)), (PROFILE, (1600., 1000.))] {
@@ -974,6 +1014,36 @@ pub fn run() {
     });
 }
 
+/// Asks for the release list shortly after start, then every few hours and whenever the
+/// setting is turned on. Without network the previous answer stays and the page shows nothing.
+async fn release_check(handle: tauri::AppHandle, fixture: Option<std::path::PathBuf>) {
+    let client = crate::releases::client();
+    if fixture.is_none() {
+        tokio::time::sleep(crate::releases::FIRST_CHECK).await;
+    }
+    let state = handle.state::<Desktop>();
+    loop {
+        if state.store.lock().await.update_check() {
+            let releases = match &fixture {
+                Some(path) => tokio::fs::read(path)
+                    .await
+                    .ok()
+                    .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+                    .ok_or_else(|| "No release fixture".to_string()),
+                None => crate::releases::fetch(&client).await,
+            };
+            if let Ok(releases) = releases {
+                *state.release.write().await =
+                    crate::releases::newest(&releases, env!("CARGO_PKG_VERSION"));
+                let _ = handle.emit("release:update", state.release_info().await);
+            }
+        }
+        tokio::select! {
+            _ = tokio::time::sleep(crate::releases::INTERVAL) => {}
+            _ = state.release_wake.notified() => {}
+        }
+    }
+}
 /// Completes recorded matches from their match data: STRATZ (with IMP and position) when a
 /// service is configured, otherwise or failing that OpenDota. A record is retried on the
 /// journal schedule until it is complete or out of attempts.

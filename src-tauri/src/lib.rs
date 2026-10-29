@@ -15,6 +15,7 @@ pub mod match_details;
 pub mod overlay;
 pub mod own_account;
 pub mod player_sites;
+pub mod releases;
 #[cfg(any(target_os = "linux", windows))]
 pub mod roster;
 #[cfg(all(feature = "desktop", target_os = "linux"))]

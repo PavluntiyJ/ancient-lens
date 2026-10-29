@@ -192,6 +192,7 @@ failure. Removing the app does not remove this data directory automatically.
 | `api.opendota.com` (`players/{id}`)    | With STRATZ, once a week per shown player whose STRATZ profile has no country      | IP and the player ID; only the country is used                        |
 | `cdn.cloudflare.steamstatic.com`       | Hero portraits                                                                     | Ordinary image requests                                               |
 | Steam avatar CDNs                      | Player avatars                                                                     | Ordinary image requests                                               |
+| `api.github.com`                       | Release list, 30 s after start and every 12 hours, unless turned off in Settings   | IP only; no account, settings or app version                          |
 
 No analytics, telemetry, or Ancient Lens cloud account is used.
 

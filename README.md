@@ -92,7 +92,8 @@ limits of what we can promise.
 ## Supported systems and limits
 
 - **Windows and Linux** desktops. macOS is not supported.
-- Packages are unsigned and there are no automatic updates.
+- Packages are unsigned and there are no automatic updates; the app tells you when a new
+  release is out.
 - There is no hosted STRATZ service; without your own, public OpenDota statistics are used,
   with a rate limit and no draft recommendations.
 - Exclusive fullscreen covers the windows: use borderless windowed mode or a second
@@ -101,7 +102,8 @@ limits of what we can promise.
   ([details](docs/guide/setup.md#windows-hotkeys-and-tray)).
 - **Privacy:** notes, settings and the MMR journal stay on your computer. No analytics,
   telemetry or cloud account. Statistics providers see your IP address and the player IDs
-  requested ([details](docs/guide/setup.md#storage-and-privacy)).
+  requested; GitHub sees it when the app checks for a new release
+  ([details](docs/guide/setup.md#storage-and-privacy)).
 
 Known limitations and plans: [status](docs/status.md). Changes: [changelog](CHANGELOG.md).
 

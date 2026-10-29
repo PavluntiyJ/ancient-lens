@@ -62,7 +62,7 @@ the game folder is changed. You can remove both at any time.
 
 There is no account, no telemetry and no analytics. Notes, ratings and settings stay on your
 computer ([storage and privacy](setup.md#storage-and-privacy)). Network requests go to the
-statistics providers and the Steam CDN for portraits; the optional STRATZ token stays in the
+statistics providers, the Steam CDN for portraits and GitHub for the release list; the optional STRATZ token stays in the
 local statistics service, never in the app window.
 
 ## Legal

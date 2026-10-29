@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Activity, Cpu, TrendingUp } from 'lucide-react';
-import type { AppInfo, LiveState, LocalState, ProviderInfo } from '../../shared/domain';
+import type { AppInfo, LiveState, LocalState, ProviderInfo, ReleaseInfo } from '../../shared/domain';
 import { gameConnection, readerConnection, stratzConnection } from '../../shared/connections';
 import type { SteamSetup } from '../../shared/steam-setup';
 import { api, PageHeading } from '../App';
@@ -14,6 +14,7 @@ import { ReaderSettings } from './ReaderSettings';
 import { settingsGroups, showSection, type SettingsSection } from './sections';
 import { ShortcutSettings } from './ShortcutSettings';
 import { SoundSettings } from './Sound';
+import { UpdateSettings } from './UpdateSettings';
 import { WindowSettings } from './WindowSettings';
 
 export function Settings({
@@ -28,6 +29,7 @@ export function Settings({
   providerChanged,
   section,
   openDiagnostics,
+  release,
 }: {
   info?: AppInfo;
   local: LocalState;
@@ -41,6 +43,8 @@ export function Settings({
   /** Section to show on opening; a new object scrolls to it again. */
   section?: { id: SettingsSection };
   openDiagnostics(): void;
+  /** This version and the newest release the background check found. */
+  release?: ReleaseInfo;
 }) {
   // Pick suggestions and the lane totals need the local STRATZ service (as on the match screen).
   const [provider, setProvider] = useState<ProviderInfo>();
@@ -159,6 +163,7 @@ export function Settings({
           </SettingsGroup>
           <SettingsGroup id="data" name="Data">
             <DataSettings info={info} />
+            <UpdateSettings local={local} update={update} release={release} />
           </SettingsGroup>
         </div>
       </div>

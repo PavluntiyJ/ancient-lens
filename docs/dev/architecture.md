@@ -49,6 +49,7 @@ a token from Windows Credential Manager on Windows), or uses `ANCIENT_STATS_URL`
 | `store.rs`                                                              | `state.json`: account, notes, rating journal, settings; atomic writes and migration                   |
 | `steam_setup.rs`, `steam_setup/`                                        | Finds Steam and Dota, installs the GSI file and the launch option                                     |
 | `local_service.rs`                                                      | Discovers or starts the statistics service                                                            |
+| `releases.rs`                                                           | New-version notice: reads the GitHub release list and finds a newer published version                 |
 | `broker.rs`, `bin/stats-service.rs`                                     | The statistics service: fixed routes, request budget, no client-supplied queries                      |
 | `shortcut_portal.rs`                                                    | The XDG GlobalShortcuts portal on Linux/Wayland                                                       |
 
@@ -68,9 +69,9 @@ a token from Windows Credential Manager on Windows), or uses `ANCIENT_STATS_URL`
 
 The page calls one Tauri command, `desktop_call(command, args)`. Commands are grouped by
 prefix: `state:*` (settings and notes), `live:get`, `player:*`, `summary:get`, `totals:get`,
-`history:get`, `averages:get`, `draft:data`, `heroes:get`, `steam:*`, `window:*`, `gsi:export`.
-The core pushes `live:update` (GSI plus reader results) and `state:update` (saved state) as
-events. The page never receives the GSI token, provider tokens or memory addresses.
+`history:get`, `averages:get`, `draft:data`, `heroes:get`, `steam:*`, `window:*`, `gsi:export`,
+`release:*`. The core pushes `live:update` (GSI plus reader results), `state:update` (saved
+state) and `release:update` (a newer release was found) as events. The page never receives the GSI token, provider tokens or memory addresses.
 
 ## Live state
 

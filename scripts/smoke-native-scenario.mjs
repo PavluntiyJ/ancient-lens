@@ -15,6 +15,8 @@ const directory = await mkdtemp(join(tmpdir(), 'ancient-native-'));
 const cache = join(directory, 'cache');
 await mkdir(cache);
 const token = 'a'.repeat(64);
+// The release list the isolated app reads instead of GitHub; missing at start, like no network.
+const releasesPath = join(directory, 'releases.json');
 await writeFile(
   join(directory, 'state.json'),
   JSON.stringify({
@@ -394,6 +396,7 @@ try {
   app = await nativeDriver(directory, {
     ANCIENT_GSI_DRAFT_DIAGNOSTICS: '1',
     ANCIENT_STATS_URL: `http://127.0.0.1:${service.address().port}`,
+    ANCIENT_TEST_RELEASES: releasesPath,
   });
   // The configured window size, also where the desktop is smaller (the Windows CI screen):
   // layout checks below assume the match screen fits without scrolling.
@@ -419,6 +422,9 @@ try {
   assert.equal(state.nativeRosterReader, 'off');
   assert.equal(state.notes[0].text, 'Keep this note');
   assert.ok(!JSON.stringify(state).includes(token));
+  assert.equal(state.updateCheck, true);
+  assert.equal(state.skippedVersion, null);
+  assert.deepEqual(await call('getRelease'), { current: info.version, latest: null });
   const matchFits = () =>
     execute(`
     const page = document.querySelector('.match-page');
@@ -1091,6 +1097,7 @@ try {
       'Sound',
       'Window',
       'Your data',
+      'Updates',
     ],
   );
   await clickButton('Window');
@@ -2213,6 +2220,60 @@ try {
     }, 'Shortcuts were not reset');
   }
   await clickButton('Match and draft');
+  // New-version notice from the fixture release list. The missing list at start stayed
+  // silent, as an offline check does.
+  const releaseNotice = () => execute('return document.querySelector(".release-notice")?.textContent ?? null');
+  assert.equal(await releaseNotice(), null);
+  const [major, minor, patch] = info.version.split('.').map(Number);
+  const nextVersion = `${major}.${minor}.${patch + 1}`;
+  const laterVersion = `${major}.${minor + 1}.0`;
+  const publish = (version) =>
+    writeFile(
+      releasesPath,
+      JSON.stringify([
+        { tag_name: 'v99.0.0', draft: true, prerelease: false },
+        { tag_name: `v${version}`, draft: false, prerelease: true, published_at: new Date().toISOString() },
+        { tag_name: `v${info.version}`, draft: false, prerelease: true },
+        { tag_name: 'nightly', draft: false, prerelease: true },
+      ]),
+    );
+  // Turning the check off and on again in Settings runs it at once.
+  const checkReleases = async () => {
+    await clickButton('Settings');
+    await clickButton('Updates');
+    for (const on of [false, true]) {
+      await execute('document.querySelector("#settings-updates input[type=checkbox]").click()');
+      await waitFor(async () => (await call('getState')).updateCheck === on, `Update check did not turn ${on}`);
+    }
+    await clickButton('Match and draft');
+  };
+  await publish(nextVersion);
+  await checkReleases();
+  await waitFor(
+    async () => (await releaseNotice())?.includes(`Ancient Lens ${nextVersion} (prerelease) is out`),
+    'New-version notice did not appear',
+  );
+  assert.ok((await releaseNotice()).includes(`you have ${info.version}`));
+  await screenshot('release-notice');
+  const releaseUrl = `https://github.com/PavluntiyJ/ancient-lens/releases/tag/v${nextVersion}`;
+  assert.equal((await call('getRelease')).latest.url, releaseUrl);
+  // Isolated runs return the release page instead of opening a browser.
+  assert.equal(await call('openRelease'), releaseUrl);
+  await clickButton("What's new", '.release-notice button');
+  await clickButton('Skip this version', '.release-notice button');
+  await waitFor(async () => (await releaseNotice()) === null, 'Skip this version did not hide the notice');
+  assert.equal(JSON.parse(await readFile(join(directory, 'state.json'), 'utf8')).skippedVersion, nextVersion);
+  // A newer release is announced again; Later hides it for this session only.
+  await publish(laterVersion);
+  await checkReleases();
+  await waitFor(
+    async () => (await releaseNotice())?.includes(`Ancient Lens ${laterVersion}`),
+    'Notice for a newer release did not appear',
+  );
+  await clickButton('Later', '.release-notice button');
+  await waitFor(async () => (await releaseNotice()) === null, 'Later did not hide the notice');
+  assert.equal((await call('getState')).skippedVersion, nextVersion);
+  assert.equal((await call('getRelease')).latest.version, laterVersion);
   await call('addMmr', 5000);
   await call('saveNote', { accountId: '2', name: 'Second', text: 'Native IPC persistence', tag: 'neutral' });
   const saved = JSON.parse(await readFile(join(directory, 'state.json'), 'utf8'));
@@ -2252,7 +2313,7 @@ try {
   assert.equal((await call('getInfo')).gsiPort, info.gsiPort);
   assert.deepEqual(await execute('return window.smokeErrors'), []);
   console.log(
-    `Native smoke passed on ${platform}: ${platform === 'windows' ? 'WebView2' : 'WebKitGTK'} rendering, Rust IPC, authenticated HTTP GSI, 10 profiles in 2 batches, reordered identity mapping, migration, MMR/notes, settings, match and profile windows. Wayland: ${info.wayland}.`,
+    `Native smoke passed on ${platform}: ${platform === 'windows' ? 'WebView2' : 'WebKitGTK'} rendering, Rust IPC, authenticated HTTP GSI, 10 profiles in 2 batches, reordered identity mapping, migration, MMR/notes, settings, new-version notice, match and profile windows. Wayland: ${info.wayland}.`,
   );
 } finally {
   pendingDrafts.splice(0).forEach((resolve) => resolve());
