@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { cardStats, MatchTeams } from '../src/ui/PlayerCard';
@@ -54,4 +55,20 @@ it('lists both teams of a match with the player first and others as links', () =
   );
   expect(lost).toContain('Own team · lost');
   expect(lost).toContain('No other public players');
+});
+
+// The card sits inside the zoomed match view (--zoom = interface scale × fit); viewport units
+// there are multiplied by the zoom, so the limits divide it back out.
+it('keeps the card inside the window at any zoom', () => {
+  const css = readFileSync(new URL('../src/ui/styles.css', import.meta.url), 'utf8');
+  const rule = (selector: string) =>
+    css.match(new RegExp(`\\n${selector.replace('.', '\\.')} \\{([^}]*)\\}`))?.[1] ?? '';
+  expect(rule('.quick-dialog')).toContain('max-height: calc(90vh / var(--zoom, 1))');
+  expect(rule('.player-card')).toContain('max-height: calc(90vh / var(--zoom, 1))');
+});
+
+// The generic empty state (.empty, 28px padding) must not turn "Add note" into a tall block.
+it('keeps an empty note one line high', () => {
+  const css = readFileSync(new URL('../src/ui/styles.css', import.meta.url), 'utf8');
+  expect(css).toMatch(/\n\.player-card \.card-note-view\.empty \{[^}]*padding: 8px 12px;/);
 });

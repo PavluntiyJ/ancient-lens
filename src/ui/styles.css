@@ -1962,16 +1962,17 @@ td small {
   border-radius: 8px;
   background: var(--surface);
   color: var(--text);
-  max-width: 95vw;
-  max-height: 90vh;
+  /* Inside the zoomed match view viewport units grow with the zoom; divide it back out. */
+  max-width: calc(95vw / var(--zoom, 1));
+  max-height: calc(90vh / var(--zoom, 1));
   box-shadow: 0 24px 80px #000c;
 }
 .quick-dialog::backdrop {
   background: #08090bb3;
 }
 .player-card {
-  width: min(760px, 95vw);
-  max-height: 90vh;
+  width: min(760px, calc(95vw / var(--zoom, 1)));
+  max-height: calc(90vh / var(--zoom, 1));
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -2034,6 +2035,10 @@ td small {
 .player-card > .card-note,
 .player-card > .error-text {
   margin: 10px 16px 0;
+}
+/* Overrides the generic empty state (.empty), which would make "Add note" a tall block. */
+.player-card .card-note-view.empty {
+  padding: 8px 12px;
 }
 .card-list-head {
   display: flex;
@@ -3946,7 +3951,7 @@ kbd {
 .team-label.dire {
   color: var(--dire);
 }
-.player-card {
+article.player-card {
   padding: 10px 12px;
   margin-bottom: 8px;
   background: var(--surface);
