@@ -139,16 +139,18 @@ mod platform {
         show(window);
     }
     /// tao reports a Linux window's position as its size until the window manager has
-    /// configured it, so the centre is taken from the size the window was just given.
+    /// configured it, so the centre is taken from the size the window was just given. It is
+    /// the monitor's centre: X11 has one work area for the whole desktop, so a panel on another
+    /// monitor would shorten this one's.
     pub fn center<R: Runtime>(window: &Window<R>, size: tauri::LogicalSize<f64>) {
         let Ok(Some(monitor)) = window.current_monitor() else {
             return;
         };
-        let area = monitor.work_area();
+        let (origin, area) = (monitor.position(), monitor.size());
         let size = size.to_physical::<i32>(monitor.scale_factor());
         let _ = window.set_position(tauri::PhysicalPosition::new(
-            area.position.x + (area.size.width as i32 - size.width) / 2,
-            area.position.y + (area.size.height as i32 - size.height) / 2,
+            origin.x + (area.width as i32 - size.width) / 2,
+            origin.y + (area.height as i32 - size.height) / 2,
         ));
     }
     pub fn hide<R: Runtime>(window: &Window<R>) {
