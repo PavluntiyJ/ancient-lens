@@ -4,6 +4,12 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ## Unreleased
 
+### Added
+
+- The match table marks players who queued together with a bracket beside their rows, from
+  their recent public STRATZ match history (needs the statistics service). Likely parties
+  without STRATZ party data are dashed.
+
 ### Changed
 
 - Hover cards of match players list all loaded matches of the period, scrolling, instead of

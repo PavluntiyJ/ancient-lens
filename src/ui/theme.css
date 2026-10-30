@@ -90,6 +90,11 @@
   --radiant-rgb: 74, 222, 128;
   --dire: #f87171;
   --dire-rgb: 248, 113, 113;
+  /* Party brackets in the match table, one colour per party; none near the team colours. */
+  --party-0: #38bdf8;
+  --party-1: #c084fc;
+  --party-2: #f472b6;
+  --party-3: #e5e7eb;
   --neutral-rgb: 250, 204, 21;
   --win: #4ade80;
   --loss: #f87171;

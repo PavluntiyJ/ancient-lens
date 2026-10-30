@@ -129,6 +129,37 @@ impl Broker {
         cache.insert(key, (Instant::now(), value.clone()));
         Ok(value)
     }
+    /// Recent teammates and STRATZ parties of a roster, one upstream request per roster.
+    pub async fn parties(&self, mut request: crate::parties::Request) -> Result<Value> {
+        request.validate()?;
+        let mut sorted = request.ids.clone();
+        sorted.sort();
+        let key = format!("parties-{}", sorted.join(","));
+        if let Some((at, value)) = self.cache.lock().await.get(&key) {
+            if at.elapsed() < Duration::from_secs(600) {
+                return Ok(value.clone());
+            }
+        }
+        let _permit = self.upstream.acquire().await.map_err(|_| "busy")?;
+        let payload = self
+            .graphql_partial(crate::parties::query(&request.ids), true)
+            .await?;
+        if !payload["data"].is_object() {
+            return Err("upstream parties unavailable".into());
+        }
+        let value = crate::parties::reduce(
+            &payload["data"],
+            &request.ids,
+            chrono::Utc::now().timestamp(),
+        );
+        let mut cache = self.cache.lock().await;
+        cache.retain(|_, (at, _)| at.elapsed() < Duration::from_secs(600));
+        if cache.len() > 5000 {
+            cache.clear();
+        }
+        cache.insert(key, (Instant::now(), value.clone()));
+        Ok(value)
+    }
     pub fn new(token: String, hourly_budget: u32) -> Result<Arc<Self>> {
         if token.trim().is_empty() || token.contains(['\r', '\n']) || token.len() > 4096 {
             return Err("Set a valid server STRATZ_API_TOKEN".into());
@@ -521,6 +552,7 @@ pub fn router(broker: Arc<Broker>) -> Router {
         .route("/v1/averages", post(averages))
         .route("/v1/history", post(history))
         .route("/v1/match", post(match_details))
+        .route("/v1/parties", post(parties))
         .layer(DefaultBodyLimit::max(4096))
         .layer(tower_http::timeout::TimeoutLayer::with_status_code(
             StatusCode::REQUEST_TIMEOUT,
@@ -585,6 +617,20 @@ async fn match_details(
     }
     broker
         .match_details(request)
+        .await
+        .map(Json)
+        .map_err(service_error)
+}
+async fn parties(
+    State(broker): State<Arc<Broker>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    Json(request): Json<crate::parties::Request>,
+) -> std::result::Result<Json<Value>, (StatusCode, Json<Value>)> {
+    if !broker.permit(addr.ip()).await {
+        return Err(service_error("quota".into()));
+    }
+    broker
+        .parties(request)
         .await
         .map(Json)
         .map_err(service_error)
@@ -962,6 +1008,45 @@ mod tests {
         // A match the upstream does not return is unavailable, not a client error.
         let error = broker.match_details(request("43")).await.unwrap_err();
         assert!(error.starts_with("upstream"), "{error}");
+        task.abort();
+    }
+    #[tokio::test]
+    async fn parties_are_cached_per_id_set() {
+        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let seen = calls.clone();
+        let upstream = Router::new().route("/", post(move |Json(body): Json<Value>| {
+            seen.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            async move {
+                assert!(body["query"].as_str().unwrap().contains("p1001: player(steamAccountId:1001)"));
+                let now = chrono::Utc::now().timestamp();
+                let players = json!([
+                    {"steamAccountId":1001,"isRadiant":true,"partyId":4},
+                    {"steamAccountId":1002,"isRadiant":true,"partyId":4},
+                    {"steamAccountId":3003,"isRadiant":true,"partyId":4},
+                ]);
+                Json(json!({"data":{"p1001":{"matches":[{"id":9,"startDateTime":now - 60,"players":players}]},"p1002":null}}))
+            }
+        }));
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let task = tokio::spawn(async move {
+            axum::serve(listener, upstream).await.unwrap();
+        });
+        let mut broker = Broker::new("test-secret".into(), 10).unwrap();
+        Arc::get_mut(&mut broker).unwrap().endpoint = format!("http://{addr}/");
+        let request = |ids: &[&str]| crate::parties::Request {
+            ids: ids.iter().map(|id| id.to_string()).collect(),
+        };
+        let value = broker.parties(request(&["1001", "1002"])).await.unwrap();
+        assert_eq!(
+            value["players"][0]["matches"][0]["mates"],
+            json!([{"id":"1002","party":true}])
+        );
+        assert!(!value.to_string().contains("3003"));
+        broker.parties(request(&["1002", "1001"])).await.unwrap();
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+        assert!(broker.parties(request(&["1001"])).await.is_err());
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 1);
         task.abort();
     }
     #[tokio::test]

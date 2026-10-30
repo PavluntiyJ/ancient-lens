@@ -112,6 +112,7 @@ if (isTauri()) {
     },
     getMatchups: (ids) => call('matchups:get', { ids }),
     getPeriodStats: (id, days = 30) => call('period:get', { id, days }),
+    getParties: (ids) => call('parties:get', { ids }),
     getSummary: (id, days, filter) => call('summary:get', { id, days, ...(filter ? { filter } : {}) }),
     getProvider: () => call('provider:get'),
     setProviderToken: (token) => call('provider:token', { token }),

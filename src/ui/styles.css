@@ -1134,6 +1134,47 @@ td small {
   width: 24px;
   height: 24px;
 }
+/* Party bracket in the gutter of the player cell (PartyBracket.tsx): a bar on members,
+   a thin connector between them, dashed for a likely party; lane 1 for an interleaved one. */
+.match-table td.player-cell {
+  position: relative;
+  padding-left: 16px;
+}
+.party-bracket {
+  position: absolute;
+  left: 8px;
+  top: 0;
+  bottom: -1px;
+  width: 4px;
+  background: var(--party);
+}
+.party-bracket.lane-1 {
+  left: 3px;
+}
+.party-bracket.top {
+  top: 6px;
+  border-top-left-radius: 2px;
+  border-top-right-radius: 2px;
+}
+.party-bracket.bottom {
+  bottom: 6px;
+  border-bottom-left-radius: 2px;
+  border-bottom-right-radius: 2px;
+}
+.party-bracket.through {
+  width: 2px;
+  margin-left: 1px;
+  opacity: 0.6;
+}
+.party-bracket.likely {
+  background: repeating-linear-gradient(180deg, var(--party) 0 4px, transparent 4px 7px);
+}
+/* A wider hover zone than the bar, for the evidence tooltip. */
+.party-bracket.member::after {
+  content: '';
+  position: absolute;
+  inset: 0 -4px;
+}
 .player-slot {
   width: 16px;
   color: var(--faint);

@@ -31,7 +31,9 @@ anti-cheat treats any tool.
 | The running game (optional)    | The roster and draft of your own match; your exact MMR and confidence        | Read-only access to the game process, off by default                    |
 
 Everything shown about other players comes from their public profiles or from what the match
-shows you. A player with a private profile appears as private.
+shows you. A player with a private profile appears as private. Party brackets are inferred
+from players' public match history after hero selection, like their other statistics; nothing
+about parties is read from the game.
 
 ## The optional memory reader
 

@@ -51,6 +51,13 @@ K/D/A and the result from your point of view; click a match to open it on Dotabu
 match is excluded. An empty cell means no meeting was found in the loaded history, not proof
 you have never met: older or OpenDota history may have no participant lists.
 
+**Parties.** A coloured bracket left of the slot numbers joins players who queued together:
+STRATZ recorded them in one party in their recent matches (solid), or they shared a team
+in at least two recent matches without party data (dashed, likely). Hover the bracket for the
+count. It appears after hero selection, with the profiles, and needs the
+[statistics service](stats-service.md); a player with a private profile can still be found
+through a public teammate. No bracket means no evidence, not a solo player.
+
 Missing IDs, private profiles, loading and stale data are shown separately. The match screen
 fits the window down to 90% scale, then scrolls. On taller windows the analysis panels grow
 more slowly, leaving more room for the ten player rows.
