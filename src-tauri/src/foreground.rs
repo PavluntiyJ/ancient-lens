@@ -14,15 +14,13 @@
 /// The app's own windows and the game keep them; any other program, or one that cannot be
 /// named, hides them.
 pub fn hide_for(foreground_pid: u32, own_pid: u32, exe: Option<&str>) -> bool {
-    if foreground_pid == own_pid {
-        return false;
-    }
-    let Some(exe) = exe else {
-        return true;
-    };
+    foreground_pid != own_pid && !exe.is_some_and(is_game)
+}
+/// Whether `exe`, a path or file name, is the game's program on either system.
+pub fn is_game(exe: &str) -> bool {
     // Split by hand: a Windows path must name the same file when tests run on Linux.
     let name = exe.rsplit(['/', '\\']).next().unwrap_or(exe);
-    !["dota2.exe", "dota2"]
+    ["dota2.exe", "dota2"]
         .iter()
         .any(|game| name.eq_ignore_ascii_case(game))
 }
