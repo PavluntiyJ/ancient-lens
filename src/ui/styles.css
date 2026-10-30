@@ -949,6 +949,11 @@ td small {
 .match-roster > .table-scroll {
   flex: 1;
   display: flex;
+  /* The canvas is never narrower than the table, so the roster does not scroll sideways.
+     WebView2 showed a horizontal scroll bar here for a sub-pixel overflow at some zooms:
+     the roster grew by its height at those zooms only, and the match fit then alternated
+     between two zooms without end. */
+  overflow-x: clip;
 }
 .match-table {
   align-self: stretch;
