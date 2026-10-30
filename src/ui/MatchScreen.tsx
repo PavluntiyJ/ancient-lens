@@ -1120,6 +1120,7 @@ export function MatchScreen({
                                       note={note}
                                       role={roles[index]}
                                       smurf={smurfs.has(player.accountId)}
+                                      self={isSelf}
                                       error={entry?.error}
                                       met={met}
                                       heroes={heroes}
@@ -1385,6 +1386,7 @@ Note of ${noteDate(note.updatedAt)}`}
           heroes={heroes}
           totals={(id) => entries[id]?.result?.total}
           noteOf={(id) => notes.find((note) => note.accountId === id)}
+          ownId={ownAccountId}
           close={() => setSelected(undefined)}
         />
       )}

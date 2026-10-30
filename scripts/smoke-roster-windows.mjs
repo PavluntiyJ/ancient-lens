@@ -54,19 +54,15 @@ try {
   browser = await chromium.connectOverCDP(endpoint);
   const context = browser.contexts()[0];
   await context.route('https://**/*', (route) => route.abort());
+  // The profile window loads the same page, so the match window is found by its label; which
+  // of the two the debugging protocol lists first changes from run to run.
+  const label = (p) => p.evaluate(() => window.ancient?.windowName).catch(() => undefined);
   for (let i = 0; i < 100 && !page; i++) {
-    for (const candidate of context.pages()) {
-      if (
-        candidate.url().includes('tauri.localhost') &&
-        (await candidate.evaluate(() => window.ancient?.windowName === 'main').catch(() => false))
-      ) {
-        page = candidate;
-        break;
-      }
-    }
+    for (const candidate of context.pages().filter((p) => p.url().includes('tauri.localhost')))
+      if ((await label(candidate)) === 'main') page = candidate;
     if (!page) await new Promise((resolve) => setTimeout(resolve, 100));
   }
-  if (!page) throw new Error('Tauri page unavailable');
+  if (!page) throw new Error('Match window unavailable');
   page.on('pageerror', (error) => failures.push(error.message));
   await expect(page.getByRole('heading', { name: 'Match players', exact: true })).toBeVisible();
   const info = await page.evaluate(() => window.ancient.getInfo());

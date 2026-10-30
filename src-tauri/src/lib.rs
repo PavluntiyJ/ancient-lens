@@ -6,6 +6,8 @@ mod browser;
 #[cfg(feature = "desktop")]
 pub mod desktop;
 pub mod draft;
+#[cfg(feature = "desktop")]
+pub mod foreground;
 pub mod gsi;
 pub mod history;
 pub mod journal;

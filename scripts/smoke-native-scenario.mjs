@@ -437,6 +437,11 @@ try {
   assert.equal(state.notes[0].text, 'Keep this note');
   assert.ok(!JSON.stringify(state).includes(token));
   assert.equal(state.updateCheck, true);
+  assert.equal(state.autoHide, true);
+  assert.equal(state.keysOverGame, true);
+  assert.equal(info.keysOverGame, platform === 'windows');
+  assert.equal(info.keysListening, true);
+  assert.equal(info.autoHide, !info.wayland);
   assert.equal(state.skippedVersion, null);
   assert.deepEqual(await call('getRelease'), { current: info.version, latest: null });
   const matchFits = () =>
@@ -1145,10 +1150,25 @@ try {
       await execute('return document.querySelectorAll("#settings-window kbd").length >= 2'),
       'Shortcut keycaps',
     );
+  const windowOption = (label) =>
+    execute(
+      'const box = [...document.querySelectorAll("#settings-window label")].find(l => l.textContent.includes(arguments[0]))?.querySelector("input[type=checkbox]"); return box ? {disabled: box.disabled, checked: box.checked} : null',
+      [label],
+    );
   assert.equal(
-    await execute('return document.querySelector("#settings-window input[type=checkbox]")?.disabled ?? null'),
+    (await windowOption('keeps Ancient Lens in the tray'))?.disabled,
     appInfo.tray ? false : true,
     'Tray option must be disabled exactly when no tray host exists',
+  );
+  assert.deepEqual(
+    await windowOption('Hide when you switch to another app'),
+    { disabled: !appInfo.autoHide, checked: !!appInfo.autoHide },
+    'Hiding for another app must be on, and disabled exactly where the desktop cannot report the active window',
+  );
+  assert.deepEqual(
+    await windowOption('Window keys only while Dota is in front'),
+    { disabled: !appInfo.keysOverGame, checked: !!appInfo.keysOverGame },
+    'Keys over the game must be on, and disabled exactly where the keys cannot be released',
   );
   assert.deepEqual(
     await execute(
@@ -2338,6 +2358,64 @@ try {
   // On Wayland a press may raise instead of hide, depending on focus, so only the end
   // state above is checked there.
   if (!info.wayland) {
+    // Activating another program hides both windows; the game and the app's own windows keep
+    // them up. Isolated runs do not watch the active window, so the activation is reported
+    // here, through the same code as the system's notification.
+    // `running` stands in for the process list, so a game on this computer changes nothing.
+    const report = (args) =>
+      execute(
+        'return window.__TAURI_INTERNALS__.invoke("desktop_call", {command: "window:test-foreground", args: arguments[0]})',
+        [{ running: false, ...args }],
+      );
+    const activate = async (args) => (await report(args)).hidden;
+    const game =
+      platform === 'windows'
+        ? 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\dota 2 beta\\game\\bin\\win64\\dota2.exe'
+        : '/home/user/.steam/steam/steamapps/common/dota 2 beta/game/bin/linuxsteamrt64/dota2';
+    assert.equal(await activate({ exe: game }), false, 'Clicking the game hid the windows');
+    assert.equal(await activate({ own: true }), false, 'Clicking an Ancient Lens window hid the windows');
+    const browser = platform === 'windows' ? 'C:\\Program Files\\Mozilla Firefox\\firefox.exe' : '/usr/bin/firefox';
+    assert.equal(await activate({ exe: browser }), true, 'Another program did not hide the windows');
+    // Both are hidden: each key brings its own window back.
+    assert.equal(await call('toggleWindow', 'main'), true, 'Match window stayed up for another program');
+    assert.equal(await call('toggleWindow', 'profile'), true, 'Profile window stayed up for another program');
+    // A program whose name cannot be read hides them too; the tray's Show brings one back.
+    assert.equal(await activate({}), true, 'An unnamed program did not hide the windows');
+    assert.equal(await call('showWindow', 'profile'), true);
+    assert.equal(await call('toggleWindow', 'main'), true, 'Match window stayed up for an unnamed program');
+    // Turned off, nothing hides them.
+    assert.equal((await call('setAutoHide', false)).autoHide, false);
+    assert.equal(await activate({ exe: browser }), false, 'The windows hid with the setting off');
+    assert.equal(JSON.parse(await readFile(join(directory, 'state.json'), 'utf8')).autoHide, false);
+    assert.equal((await call('setAutoHide', true)).autoHide, true);
+    // While the game runs, the window keys are released over other programs, so the key
+    // reaches them, and come back over the game and over these windows. A released key is
+    // still bound for Settings. Without the game they listen everywhere.
+    if (info.keysOverGame) {
+      await call('setAutoHide', false);
+      const keys = async (args) => (await report(args)).keys;
+      assert.equal(await keys({ exe: browser, running: true }), false, 'Keys kept listening over a browser');
+      const released = await call('getInfo');
+      assert.deepEqual(
+        [released.keysListening, released.shortcut, released.profileShortcut],
+        [false, true, true],
+        'A released key must not look taken by another application',
+      );
+      assert.equal(await keys({ own: true, running: true }), true, 'Keys stayed released over Ancient Lens');
+      assert.equal(await keys({ exe: browser, running: true }), false);
+      assert.equal(await keys({ exe: game, running: true }), true, 'Keys stayed released over the game');
+      assert.equal(await keys({ exe: browser, running: false }), true, 'Keys were released without the game');
+      // Turning the setting off brings released keys back at once.
+      assert.equal(await keys({ exe: browser, running: true }), false);
+      assert.equal((await call('setKeysOverGame', false)).keysOverGame, false);
+      await waitFor(async () => (await call('getInfo')).keysListening === true, 'Keys stayed released');
+      assert.equal(await keys({ exe: browser, running: true }), true, 'Keys were released with the setting off');
+      assert.equal(JSON.parse(await readFile(join(directory, 'state.json'), 'utf8')).keysOverGame, false);
+      assert.equal((await call('setKeysOverGame', true)).keysOverGame, true);
+      const back = await call('getInfo');
+      assert.deepEqual([back.keysListening, back.shortcut, back.profileShortcut], [true, true, true]);
+      await call('setAutoHide', true);
+    }
     assert.equal(await call('toggleWindow', 'profile'), false, 'Profile key did not hide the profile window');
     assert.equal(await call('toggleWindow', 'main'), false, 'Match key did not hide the match window');
     assert.equal(await call('toggleWindow', 'main'), true, 'Match key did not show the match window');
@@ -2356,7 +2434,7 @@ try {
   assert.equal((await call('getInfo')).gsiPort, info.gsiPort);
   assert.deepEqual(await execute('return window.smokeErrors'), []);
   console.log(
-    `Native smoke passed on ${platform}: ${platform === 'windows' ? 'WebView2' : 'WebKitGTK'} rendering, Rust IPC, authenticated HTTP GSI, 10 profiles in 2 batches, reordered identity mapping, migration, MMR/notes, settings, new-version notice, match and profile windows. Wayland: ${info.wayland}.`,
+    `Native smoke passed on ${platform}: ${platform === 'windows' ? 'WebView2' : 'WebKitGTK'} rendering, Rust IPC, authenticated HTTP GSI, 10 profiles in 2 batches, reordered identity mapping, migration, MMR/notes, settings, new-version notice, match and profile windows, hiding for other programs, window keys over the game. Wayland: ${info.wayland}.`,
   );
 } catch (error) {
   await app?.captureFailure(error);

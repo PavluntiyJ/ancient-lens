@@ -4,10 +4,39 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ## Unreleased
 
+### Added
+
+- The match and profile windows hide when you switch to another application (a browser, a
+  folder, the desktop, the taskbar); clicking the game or the windows themselves keeps them
+  up. Bring them back with their keys or the tray. Turn it off with **Hide when you switch to
+  another app** in **Settings → Interface → Window**. Not available on Wayland.
+- While Dota is running, the match and profile keys work only over Dota and the Ancient Lens
+  windows; over a browser or any other app the key reaches that app. Without Dota they work
+  everywhere. Turn it off with **Window keys only while Dota is in front** in **Settings →
+  Interface → Window**. On Linux this applies only without the desktop portal.
+
 ### Changed
 
 - Windows native UI checks run before packaging and on pull requests, with
   downloadable failure diagnostics and retries that reuse the built application.
+
+## 0.7.2 — October 30, 2026
+
+A patch release: the match screen no longer jumps at some Windows window sizes, and the two
+windows open in a steadier order. Existing settings, notes and rating history are kept.
+
+### Changed
+
+- At start the match window opens in front and the profile window behind it, both already in
+  place instead of appearing one after the other and then moving.
+- The profile window opens in the middle of the screen at every start; it keeps its size.
+- No more notes about yourself: your own row's note block has something else to say when you
+  point at it.
+
+### Fixed
+
+- At some window sizes on Windows the match screen no longer jumps between two sizes without
+  end: the match table showed a horizontal scroll bar at one of them.
 
 ## 0.7.1 — October 30, 2026
 

@@ -128,6 +128,16 @@ desktop asks to confirm them once and lets you change them (on KDE: **System Set
 Shortcuts → Ancient Lens**). Without the portal, an X11 key grab is used, which on Wayland
 only sees the keys while an X11 window such as the game is focused.
 
+**Keys only over the game.** While Dota is running, the two window keys work only when Dota or
+an Ancient Lens window is in front (after clicking a note field, the key still hides that
+window). Over a browser or any other application the keys are let go, so that application
+receives them as usual; the tray still shows the windows there. While Dota is not running,
+the keys work everywhere, to prepare a draft or look at a profile before the game. Turn this
+off with **Window keys only while Dota is in front** in **Settings → Interface → Window**.
+Whether Dota runs is read from the names in the process list only. On Linux the desktop
+portal binds its shortcuts for every application, so this applies only to the X11 key-grab
+fallback; on Wayland the active window is unknown and the keys work everywhere.
+
 **Over the game, without muting it.** Both windows stay on top of other windows. On Windows,
 and on Linux with X11 when the window manager honours the hint, a window shown by its key or
 clicked does not take the keyboard from the game, so the game stays in front and keeps its
@@ -149,14 +159,27 @@ controls stacking, focus and position: showing a window activates it, so the gam
 background, and keeping a window above the game is set in its window menu (on KDE: **Keep
 Above Others**, or a window rule).
 
+**Out of the way of other applications.** When you switch to another application, both
+windows hide: activating a browser, a folder, the desktop, the taskbar or Alt+Tab to another
+program hides them. Clicking inside Dota, or in the Ancient Lens
+windows themselves (a text field included), leaves them up. Bring them back as usual: with
+their keys, the tray, or by starting Ancient Lens again. Turn this off with **Hide when you
+switch to another app** in **Settings → Interface → Window**. Only which window is active and
+the name of its program are read; the game's process is not opened beyond its name, and
+nothing is sent to it. On Wayland applications cannot see which other window is active, so
+the windows stay up there and the option is disabled. On Linux with X11 the game is recognized
+by the program behind the active window's process id (`dota2`).
+
 Closing a window keeps the app in the system tray, so GSI and the rating reader keep running;
 the tray menu shows either window, a left click toggles the match window, and **Quit** ends
 the app. Turn this off in **Settings → Interface → Window**, which also shows the keys as the
 desktop bound them; closing the last visible window then quits. On Linux the tray needs a
 StatusNotifier host (KDE Plasma, or GNOME with the AppIndicator extension); without one the
-option is disabled. Starting Ancient Lens again while it runs brings both windows back. Each
-window remembers its size and position (`.window-state.json` in the system's application
-configuration folder, beside but not inside the data directory below).
+option is disabled. Starting Ancient Lens again while it runs brings both windows back. Both
+windows open with the match window in front and the profile window behind it. Each window
+remembers its size, and the match window also its position (`.window-state.json` in the
+system's application configuration folder, beside but not inside the data directory below);
+the profile window opens in the middle of the screen.
 
 These are ordinary desktop windows that the system draws on top: nothing is drawn by or
 inside the game, and no input is sent to it. Shortcuts for the analysis panels are listed in

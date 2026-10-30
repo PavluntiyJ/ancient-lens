@@ -1,6 +1,6 @@
 [package]
 name = "ancient-lens"
-version = "0.7.1"
+version = "0.7.2"
 edition = "2021"
 description = "Open-source Dota 2 companion for Windows and Linux, without ads or telemetry"
 license = "MIT"
@@ -12,7 +12,7 @@ name = "ancient_lens"
 
 [features]
 default = ["desktop"]
-desktop = ["dep:tauri", "dep:tauri-build", "dep:tauri-plugin-single-instance", "dep:tauri-plugin-global-shortcut", "dep:tauri-plugin-window-state", "dep:rfd", "dep:open", "dep:zbus"]
+desktop = ["dep:tauri", "dep:tauri-build", "dep:tauri-plugin-single-instance", "dep:tauri-plugin-global-shortcut", "dep:tauri-plugin-window-state", "dep:rfd", "dep:open", "dep:zbus", "dep:x11rb"]
 
 [[bin]]
 name = "ancient-lens"
@@ -54,10 +54,12 @@ memchr = "2"
 libc = "0.2"
 # Already in the tree via single-instance/rfd; used to detect a tray host before hiding to it.
 zbus = { version = "5.9", optional = true }
+# Already in the tree via global-shortcut; reads which window is active for hiding the overlay.
+x11rb = { version = "0.13", optional = true }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 winreg = "0.55"
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Diagnostics_ToolHelp", "Win32_System_Diagnostics_Debug", "Win32_System_Threading", "Win32_Security_Credentials", "Win32_UI_WindowsAndMessaging"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Diagnostics_ToolHelp", "Win32_System_Diagnostics_Debug", "Win32_System_Threading", "Win32_Security_Credentials", "Win32_UI_Accessibility", "Win32_UI_WindowsAndMessaging"] }
 
 [profile.release]
 strip = true
