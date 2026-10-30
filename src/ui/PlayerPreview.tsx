@@ -8,8 +8,6 @@ import { RoleIcon } from './Roles';
 import { NoteEditor } from './NoteEditor';
 import { PlayerLinks } from './PlayerLinks';
 
-/** Newest matches listed; enough to see a trend, few enough to read over the game. */
-const RECENT = 8;
 /** Earlier matches together listed, newest first. */
 const MET = 10;
 
@@ -42,11 +40,12 @@ function streak(matches: Match[]) {
 /**
  * Hover card of a match player, opened from the whole player cell. Blocks, as in the
  * other Dota companions: who (avatar, name, all-time matches, rank, this match's role),
- * facts, the note and site links, the newest matches of the period already loaded for
- * the table, and the earlier matches together from the own history (shown for private
- * profiles too, since they come from the own matches), so hovering never sends a request. The pointer can move onto the
- * card: the note can be written there, a click on a match opens it on STRATZ, anywhere
- * else the full card. Values the providers did not give stay a dash.
+ * facts, the note and site links, the period's matches already loaded for the table
+ * (newest first, scrolling inside the card's height), and the earlier matches together
+ * from the own history (shown for private profiles too, since they come from the own
+ * matches), so hovering never sends a request. The pointer can move onto the card: the
+ * note can be written there, a click on a match opens it on STRATZ, anywhere else the
+ * full card. Values the providers did not give stay a dash.
  */
 export function PlayerPreview({
   accountId,
@@ -219,7 +218,7 @@ export function PlayerPreview({
         <section className="preview-block preview-recent" aria-label="Recent matches">
           <h4>Recent matches</h4>
           <ul className="preview-matches">
-            {matches.slice(0, RECENT).map((match) => {
+            {matches.map((match) => {
               const won = matchWon(match);
               const hero = heroes.find((item) => item.id === match.hero_id);
               const known = [match.kills, match.deaths, match.assists].every((value) => typeof value === 'number');

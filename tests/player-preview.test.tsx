@@ -45,7 +45,7 @@ const summary = (matches: Match[], extra: Partial<PlayerSummary> = {}): PlayerSu
   ...extra,
 });
 
-it('shows the eight newest matches with result, K/D/A and how long ago, beside the facts', () => {
+it('lists every period match newest first with result, K/D/A and how long ago, beside the facts', () => {
   const matches = Array.from({ length: 12 }, (_, i) => game(i + 1, i % 3 !== 0));
   const now = (1_700_000_000 + 13 * 3600) * 1000;
   const html = renderToStaticMarkup(
@@ -59,11 +59,11 @@ it('shows the eight newest matches with result, K/D/A and how long ago, beside t
     />,
   );
   const rows = html.split('<li class=').slice(1);
-  expect(rows).toHaveLength(8);
+  expect(rows).toHaveLength(12);
   expect(rows[0]).toContain('12/2/6');
   expect(rows[0]).toContain('Won');
   expect(rows[0]).toContain('30 min ago');
-  expect(rows[7]).toContain('5/2/6');
+  expect(rows[11]).toContain('1/2/6');
   expect(html).toContain('4,512 matches');
   expect(html).toContain('52%');
   expect(html).toContain('data-tier="54"');
