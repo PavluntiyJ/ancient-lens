@@ -222,6 +222,15 @@ export type PlayerHistory = {
   recordedCount?: number;
 };
 export type Match = z.infer<typeof matchSchema>;
+/** Another roster account on the same team in a past match; `party` is STRATZ's verdict, null when unrecorded. */
+export type PartyMate = { id: string; party: boolean | null };
+export type PartyMatch = { match_id: number; start_time: number; mates: PartyMate[] };
+/** Recent matches of each roster account, reduced by the statistics service to the other roster accounts. */
+export type PartyHistory = {
+  source: 'STRATZ';
+  fetchedAt: string;
+  players: { accountId: string; matches: PartyMatch[] }[];
+};
 export function matchWon(match: Pick<Match, 'radiant_win' | 'player_slot'>): boolean | null {
   return typeof match.radiant_win === 'boolean' ? match.player_slot < 128 === match.radiant_win : null;
 }
@@ -524,6 +533,8 @@ export type DesktopApi = {
   getMatchups(ids: number[]): Promise<MatchupRow[]>;
   getPeriodStats(id: string, days?: StatsDays): Promise<PeriodStats>;
   getSummary(id: string, days: StatsDays, filter?: StatsFilter): Promise<PlayerSummary>;
+  /** Recent teammates of the roster accounts; null without a STRATZ service that knows parties. */
+  getParties(ids: string[]): Promise<PartyHistory | null>;
   getTotals?(id: string): Promise<{ total?: { games: number; wins: number }; fetchedAt: string }>;
   getDraftData?(ids: number[], bracket?: RankBracket): Promise<DraftData>;
   /** Average statistics of heroes by position and match duration in one rank bracket (STRATZ). */

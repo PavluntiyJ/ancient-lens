@@ -667,6 +667,35 @@ impl Api {
         net_log("match via STRATZ", started, &result);
         result
     }
+    /// Recent teammates and parties of a roster from the STRATZ service. Null without a
+    /// service or with an older one that lacks the route: parties are then unknown.
+    pub async fn parties(&self, ids: &[String]) -> Result<Value> {
+        let Some(url) = self.broker_url.as_ref() else {
+            return Ok(Value::Null);
+        };
+        let started = Instant::now();
+        let result: Result<Value> = async {
+            let response = self
+                .client
+                .post(format!("{}/v1/parties", url.trim_end_matches('/')))
+                .timeout(Duration::from_secs(55))
+                .json(&json!({"ids":ids}))
+                .send()
+                .await
+                .map_err(|_| "STRATZ: could not load parties")?;
+            if response.status() == reqwest::StatusCode::NOT_FOUND {
+                return Ok(Value::Null);
+            }
+            let value = read_response(response).await?;
+            if value["source"] != "STRATZ" || !value["players"].is_array() {
+                return Err("STRATZ: invalid parties response".into());
+            }
+            Ok(value)
+        }
+        .await;
+        net_log("parties via STRATZ", started, &result);
+        result
+    }
     /// Game patches and their release dates (OpenDota constants), for the profile's patch
     /// filter: `[{name, date}]`, oldest first as published.
     pub async fn patches(&self) -> Result<Value> {
@@ -1059,6 +1088,56 @@ mod partial_tests {
         assert_eq!(api.country("5").await.unwrap(), "FI");
         assert!(api.country("6").await.unwrap().is_null());
         assert!(api.country("x").await.is_err());
+    }
+    /// A fake statistics service answering `/v1/parties` with `body`, or 404 without it.
+    async fn parties_service(body: Option<Value>) -> (String, tokio::task::JoinHandle<()>) {
+        use axum::{http::StatusCode, routing::post, Json, Router};
+        let router = Router::new().route(
+            "/v1/parties",
+            post(move || {
+                let body = body.clone();
+                async move { body.map(Json).ok_or(StatusCode::NOT_FOUND) }
+            }),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let task = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+        (format!("http://{addr}"), task)
+    }
+    #[tokio::test]
+    async fn parties_without_service_is_null() {
+        let dir = tempfile::tempdir().unwrap();
+        let api = Api::new(dir.path().into(), None).unwrap();
+        assert!(api
+            .parties(&["1".into(), "2".into()])
+            .await
+            .unwrap()
+            .is_null());
+    }
+    #[tokio::test]
+    async fn parties_without_route_is_null() {
+        let (url, task) = parties_service(None).await;
+        let dir = tempfile::tempdir().unwrap();
+        let api = Api::new(dir.path().into(), Some(url)).unwrap();
+        assert!(api
+            .parties(&["1".into(), "2".into()])
+            .await
+            .unwrap()
+            .is_null());
+        task.abort();
+    }
+    #[tokio::test]
+    async fn parties_rejects_foreign_shape() {
+        let good = json!({"source":"STRATZ","fetchedAt":"2026-10-30T12:00:00Z","players":[{"accountId":"1","matches":[]}]});
+        let (url, task) = parties_service(Some(good.clone())).await;
+        let dir = tempfile::tempdir().unwrap();
+        let api = Api::new(dir.path().into(), Some(url)).unwrap();
+        assert_eq!(api.parties(&["1".into(), "2".into()]).await.unwrap(), good);
+        task.abort();
+        let (url, task) = parties_service(Some(json!({"source":"OpenDota","players":[]}))).await;
+        let api = Api::new(dir.path().into(), Some(url)).unwrap();
+        assert!(api.parties(&["1".into(), "2".into()]).await.is_err());
+        task.abort();
     }
     /// A history page with ten named players, as the STRATZ service returns it.
     fn history_page() -> Value {

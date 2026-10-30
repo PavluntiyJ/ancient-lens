@@ -515,6 +515,14 @@ async fn desktop_call(
                 other => other,
             }
         }
+        "parties:get" => {
+            let ids: Vec<String> = args["ids"]
+                .as_array()
+                .filter(|ids| ids.len() <= 10)
+                .and_then(|ids| ids.iter().map(|id| id.as_str().map(String::from)).collect())
+                .ok_or("Invalid accounts")?;
+            state.api().parties(&ids).await
+        }
         "summary:get" => {
             state
                 .api()
