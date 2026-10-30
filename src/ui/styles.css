@@ -1211,6 +1211,13 @@ td small {
 .frequent-heroes {
   display: flex;
   gap: 5px;
+  overflow: hidden;
+}
+/* In a narrow window the portraits shrink to the column instead of running into the next one. */
+.frequent-heroes .hero-performance,
+.frequent-heroes .portrait {
+  flex-shrink: 1;
+  min-width: 0;
 }
 .hero-performance {
   position: relative;
