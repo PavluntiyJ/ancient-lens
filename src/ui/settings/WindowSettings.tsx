@@ -90,11 +90,11 @@ function AutoHideSetting({
             api.setAutoHide!(event.target.checked).then(update, (e) => setError(errorMessage(e)));
           }}
         />
-        Hide when you switch to another app
+        Minimize when you switch to another app
       </label>
       <p className="fine-print">
         {available
-          ? 'Activating a browser, a folder, the desktop or the taskbar hides both windows; clicking the game or these windows keeps them up. Bring them back with their keys or the tray.'
+          ? 'Activating a browser, a folder, the desktop or the taskbar minimizes both windows to the taskbar; clicking the game or these windows keeps them up. Bring one back from the taskbar or with its key. A window brought up by its key over another app takes the keyboard, so a click back into that app minimizes it.'
           : 'Unavailable: Wayland does not tell applications which window is active, so the windows stay up.'}
       </p>
       {error && <Notice error>{error}</Notice>}
@@ -121,7 +121,7 @@ function KeysSetting({ local, update, info }: { local: LocalState; update(value:
       </label>
       <p className="fine-print">
         {available
-          ? 'While Dota is running, the two window keys work over Dota and these windows; over other apps they reach that app. Without Dota they work everywhere.'
+          ? 'The two window keys work over Dota and these windows only; over any other app they reach that app, whether or not Dota is running. The taskbar and the tray still bring the windows up.'
           : info?.wayland
             ? 'Unavailable: Wayland does not tell applications which window is active, so the keys work everywhere.'
             : 'Unavailable: your desktop binds these keys for every application.'}

@@ -69,8 +69,8 @@ Details and troubleshooting: [setup and data](docs/guide/setup.md), and the
 | Matchups, position recommendations, meta and counter picks                        | Your STRATZ token and the local service | Yes                             | Yes                                      |
 | Ten-player roster, picks and bans in **your own** match; exact MMR and confidence | Optional memory reader, off by default  | Yes                             | Yes                                      |
 | Match and profile windows above the game that leave it the keyboard (and sound)   | Borderless or windowed game             | Yes, sound not yet checked live | X11 only; on Wayland the desktop decides |
-| Windows hide when you switch to another app, stay up when you click the game      | Nothing; can be turned off              | Yes                             | X11, not yet run on a desktop; not on Wayland |
-| While Dota runs, the window keys work only over it and Ancient Lens               | Nothing; can be turned off              | Yes                             | X11 key-grab fallback only, not yet run on a desktop; not with the desktop portal or on Wayland |
+| Windows minimize when you switch to another app, stay up when you click the game  | Nothing; can be turned off              | Yes                             | X11, not yet run on a desktop; not on Wayland |
+| The window keys work only over Dota and Ancient Lens                              | Nothing; can be turned off              | Yes                             | X11 key-grab fallback only, not yet run on a desktop; not with the desktop portal or on Wayland |
 | Native UI verification and failure diagnostics                                  | Isolated synthetic fixtures             | CI before packaging             | Local desktop check; no native CI job    |
 
 In your own match Dota's GSI sends only your own player, on both systems. With the reader

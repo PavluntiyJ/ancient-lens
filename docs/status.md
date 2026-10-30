@@ -38,15 +38,15 @@ or unverified, and what is planned.
   run on a desktop yet); on **Wayland** the compositor decides stacking and focus, so the
   windows cannot be kept above the game or shown without activation by the app (KDE: **Keep
   Above Others** or a window rule) and showing one puts the game in the background.
-- **Hiding for other applications:** both windows hide when another program is activated.
+- **Minimizing for other applications:** both windows minimize when another program is activated.
   Checked on Windows with isolated data; that clicking the game keeps them up is covered by
   unit tests only, never with the game running. On Linux X11 the active window's
   `_NET_WM_PID` names the program; this path builds and its decision is tested, but it has not
   been run on a desktop, and a game in a separate process namespace would not be recognized.
   **Wayland** does not tell applications which window is active, so there the windows stay up
   and the setting is disabled.
-- **Window keys only over the game:** while Dota runs, the two window keys are released over
-  other programs. Checked on Windows with isolated data. On Linux the desktop portal's
+- **Window keys only over the game:** the two window keys are released over other programs,
+  whether or not Dota runs. Checked on Windows with isolated data. On Linux the desktop portal's
   shortcuts are global by design, so only the X11 key-grab fallback follows the rule, and that
   path has not been run on a desktop; on **Wayland** the active window is unknown, so the keys
   work everywhere and the setting is disabled.

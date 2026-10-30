@@ -128,13 +128,12 @@ desktop asks to confirm them once and lets you change them (on KDE: **System Set
 Shortcuts → Ancient Lens**). Without the portal, an X11 key grab is used, which on Wayland
 only sees the keys while an X11 window such as the game is focused.
 
-**Keys only over the game.** While Dota is running, the two window keys work only when Dota or
-an Ancient Lens window is in front (after clicking a note field, the key still hides that
-window). Over a browser or any other application the keys are let go, so that application
-receives them as usual; the tray still shows the windows there. While Dota is not running,
-the keys work everywhere, to prepare a draft or look at a profile before the game. Turn this
-off with **Window keys only while Dota is in front** in **Settings → Interface → Window**.
-Whether Dota runs is read from the names in the process list only. On Linux the desktop
+**Keys only over the game.** The two window keys work only when Dota or an Ancient Lens window
+is in front (after clicking a note field, the key still hides that window). Over a browser, a
+chat, the desktop or any other application the keys are let go, so that application receives
+them as usual, whether or not Dota is running; the taskbar and the tray still bring the
+windows up there. Turn this off with **Window keys only while Dota is in front** in
+**Settings → Interface → Window** to use the keys everywhere. On Linux the desktop
 portal binds its shortcuts for every application, so this applies only to the X11 key-grab
 fallback; on Wayland the active window is unknown and the keys work everywhere.
 
@@ -160,10 +159,12 @@ background, and keeping a window above the game is set in its window menu (on KD
 Above Others**, or a window rule).
 
 **Out of the way of other applications.** When you switch to another application, both
-windows hide: activating a browser, a folder, the desktop, the taskbar or Alt+Tab to another
-program hides them. Clicking inside Dota, or in the Ancient Lens
-windows themselves (a text field included), leaves them up. Bring them back as usual: with
-their keys, the tray, or by starting Ancient Lens again. Turn this off with **Hide when you
+windows minimize to the taskbar: activating a browser, a folder, the desktop, the taskbar or
+Alt+Tab to another program minimizes them. Clicking inside Dota, or in the Ancient Lens
+windows themselves (a text field included), leaves them up. Bring one back from the taskbar,
+with its key, the tray, or by starting Ancient Lens again. A window brought up by its key over
+another application takes the keyboard, so clicking back into that application minimizes it;
+over the game it stays without the keyboard, as before. Turn this off with **Minimize when you
 switch to another app** in **Settings → Interface → Window**. Only which window is active and
 the name of its program are read; the game's process is not opened beyond its name, and
 nothing is sent to it. On Wayland applications cannot see which other window is active, so

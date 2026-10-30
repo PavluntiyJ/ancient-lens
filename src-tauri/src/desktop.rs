@@ -43,6 +43,10 @@ struct Desktop {
     auto_hide: AtomicBool,
     /// When activating another application last hid a visible window.
     auto_hidden: std::sync::Mutex<Option<std::time::Instant>>,
+    /// Set once the active window is watched (normal sessions, see `foreground::watch`).
+    watching: AtomicBool,
+    /// The game was the last program other than this app in front.
+    over_game: AtomicBool,
     /// Copy of the stored setting: while the game runs, the keys listen only over it.
     keys_over_game: AtomicBool,
     /// The keys are bound through the global-shortcut plugin (Windows, or the X11 fallback on
@@ -178,7 +182,23 @@ fn toggle(app: &tauri::AppHandle, label: &str) -> Result<bool> {
         Ok(false)
     } else {
         overlay::show(&w);
+        activate_off_game(app, &w);
         Ok(true)
+    }
+}
+/// A window brought up by its key over any program but the game takes the keyboard, like a
+/// click into a text field: clicking back into that program then makes it active again, which
+/// is what minimizes the windows. Shown without the focus, the window would leave that program
+/// active, and a click into it would change nothing. Over the game it stays passive.
+fn activate_off_game(app: &tauri::AppHandle, w: &tauri::Window) {
+    let Some(desktop) = app.try_state::<Desktop>() else {
+        return;
+    };
+    if desktop.watching.load(Ordering::Relaxed)
+        && desktop.auto_hide.load(Ordering::Relaxed)
+        && !desktop.over_game.load(Ordering::Relaxed)
+    {
+        overlay::keyboard(w, true);
     }
 }
 fn show(app: &tauri::AppHandle, label: &str) {
@@ -194,41 +214,47 @@ fn show_both(app: &tauri::AppHandle) {
     }
 }
 /// A window of process `pid` running `exe` became active. Any program but this app and the
-/// game hides both windows, unless the user turned that off. While the game runs, the window
-/// keys listen only over the game and this app, unless the user turned that off. `running`
-/// replaces the process list in tests. Returns whether a window was visible and hid.
-fn foreground(app: &tauri::AppHandle, pid: u32, exe: Option<&str>, running: Option<bool>) -> bool {
+/// game minimizes both windows to the taskbar, unless the user turned that off. The window keys
+/// listen only over the game and this app, unless the user turned that off. `initial` is the
+/// window already active when watching starts: it only sets the keys, since the windows have
+/// just been shown. Returns whether a window was up and was minimized.
+fn foreground(app: &tauri::AppHandle, pid: u32, exe: Option<&str>, initial: bool) -> bool {
     let Some(desktop) = app.try_state::<Desktop>() else {
         return false;
     };
+    if pid != std::process::id() {
+        desktop.over_game.store(
+            exe.is_some_and(crate::foreground::is_game),
+            Ordering::Relaxed,
+        );
+    }
     if desktop.keys_releasable.load(Ordering::Relaxed) {
         let own = pid == std::process::id();
         let game = exe.is_some_and(crate::foreground::is_game);
-        // The names in the process list are read only while another app is in front; over
-        // the game or this app the keys listen either way.
-        let running = game
-            || !own && {
-                use steam_setup::Host;
-                running.unwrap_or_else(|| steam_setup::host().game_running())
-            };
         listen(
             app,
             &desktop,
             !desktop.keys_over_game.load(Ordering::Relaxed)
-                || crate::foreground::keys_active(running, game, own),
+                || crate::foreground::keys_active(game, own),
         );
     }
-    if !desktop.auto_hide.load(Ordering::Relaxed)
+    if initial
+        || !desktop.auto_hide.load(Ordering::Relaxed)
         || !crate::foreground::hide_for(pid, std::process::id(), exe)
     {
         return false;
     }
+    // Minimized, not hidden: the windows stay in the taskbar, where a click brings one back.
+    // A window already hidden (closed to the tray) stays hidden.
     let mut hidden = false;
     for label in WINDOWS {
         if let Some(w) = app.get_webview_window(label) {
             let w = w.as_ref().window();
-            hidden |= w.is_visible().unwrap_or(false);
-            overlay::hide(&w);
+            if overlay::in_front(&w) {
+                overlay::keyboard(&w, false);
+                overlay::minimize(&w);
+                hidden = true;
+            }
         }
     }
     if hidden {
@@ -721,8 +747,14 @@ async fn desktop_call(
             } else {
                 0
             };
-            let hidden = foreground(&app, pid, args["exe"].as_str(), args["running"].as_bool());
-            Ok(json!({"hidden": hidden, "keys": !state.keys_released.load(Ordering::Relaxed)}))
+            let hidden = foreground(&app, pid, args["exe"].as_str(), args["initial"] == true);
+            let minimized = WINDOWS.map(|label| {
+                app.get_webview_window(label)
+                    .is_some_and(|w| w.is_minimized().unwrap_or(false))
+            });
+            Ok(
+                json!({"hidden": hidden, "minimized": minimized, "keys": !state.keys_released.load(Ordering::Relaxed)}),
+            )
         }
         "state:keys-over-game" => {
             let value = state.store.lock().await.change(&command, &args)?;
@@ -1050,6 +1082,8 @@ pub fn run() {
                 close_to_tray: AtomicBool::new(close_to_tray),
                 auto_hide: AtomicBool::new(auto_hide),
                 auto_hidden: std::sync::Mutex::new(None),
+                watching: AtomicBool::new(false),
+                over_game: AtomicBool::new(false),
                 keys_over_game: AtomicBool::new(keys_over_game),
                 // Linux binds through the portal unless it falls back to a grab.
                 keys_releasable: AtomicBool::new(!cfg!(target_os = "linux")),
@@ -1067,14 +1101,20 @@ pub fn run() {
             if !isolated || std::env::var_os("ANCIENT_TEST_AUTO_HIDE").is_some_and(|v| v == "1") {
                 let handle = app.handle().clone();
                 // Setup runs on the main thread, whose message loop delivers the Windows hook.
-                let watched = crate::foreground::watch(move |pid, exe| {
+                let watched = crate::foreground::watch(move |pid, exe, initial| {
                     let app = handle.clone();
                     let _ = handle.run_on_main_thread(move || {
-                        foreground(&app, pid, exe.as_deref(), None);
+                        foreground(&app, pid, exe.as_deref(), initial);
                     });
                 });
-                if let Err(error) = watched {
-                    eprintln!("Active window: {error}; the windows stay up for other apps");
+                match watched {
+                    Ok(()) => app
+                        .state::<Desktop>()
+                        .watching
+                        .store(true, Ordering::Relaxed),
+                    Err(error) => {
+                        eprintln!("Active window: {error}; the windows stay up for other apps")
+                    }
                 }
             }
             // Optional fixture feed only in isolated tests; never read it in a normal session.

@@ -59,9 +59,9 @@ export type LocalState = {
   unassignedMmrCount?: number;
   nativeRosterReader?: 'off' | 'on';
   closeToTray?: boolean;
-  /** Both windows hide when another application is activated; absent = on. */
+  /** Both windows minimize when another application is activated; absent = on. */
   autoHide?: boolean;
-  /** While Dota runs, the window keys work only over it and Ancient Lens; absent = on. */
+  /** The window keys work only over Dota and Ancient Lens; absent = on. */
   keysOverGame?: boolean;
   /** Whether the app asks GitHub for new releases; absent = on. */
   updateCheck?: boolean;
