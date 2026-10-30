@@ -149,6 +149,17 @@ controls stacking, focus and position: showing a window activates it, so the gam
 background, and keeping a window above the game is set in its window menu (on KDE: **Keep
 Above Others**, or a window rule).
 
+**Out of the way of other applications.** When you switch to another application, both
+windows hide: activating a browser, a folder, the desktop, the taskbar or Alt+Tab to another
+program hides them. Clicking inside Dota, or in the Ancient Lens
+windows themselves (a text field included), leaves them up. Bring them back as usual: with
+their keys, the tray, or by starting Ancient Lens again. Turn this off with **Hide when you
+switch to another app** in **Settings → Interface → Window**. Only which window is active and
+the name of its program are read; the game's process is not opened beyond its name, and
+nothing is sent to it. On Wayland applications cannot see which other window is active, so
+the windows stay up there and the option is disabled. On Linux with X11 the game is recognized
+by the program behind the active window's process id (`dota2`).
+
 Closing a window keeps the app in the system tray, so GSI and the rating reader keep running;
 the tray menu shows either window, a left click toggles the match window, and **Quit** ends
 the app. Turn this off in **Settings → Interface → Window**, which also shows the keys as the

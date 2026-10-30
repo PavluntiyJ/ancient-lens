@@ -67,6 +67,7 @@ if (isTauri()) {
     },
     setNativeRosterReader: (value) => call('state:reader', { value }),
     setCloseToTray: (value) => call('state:tray', { value }),
+    setAutoHide: (value) => call('state:auto-hide', { value }),
     setUpdateCheck: (value) => call('state:update-check', { value }),
     skipVersion: (version) => call('state:skip-version', { version }),
     getRelease: () => call('release:get'),

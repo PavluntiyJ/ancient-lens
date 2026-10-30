@@ -5,7 +5,10 @@ import { WindowSettings } from '../src/ui/settings/WindowSettings';
 import { typingTarget } from '../src/ui/WindowFrame';
 import type { AppInfo, LocalState } from '../src/shared/domain';
 
-vi.mock('../src/ui/App', () => ({ api: { setCloseToTray: () => Promise.resolve() }, errorMessage: String }));
+vi.mock('../src/ui/App', () => ({
+  api: { setCloseToTray: () => Promise.resolve(), setAutoHide: () => Promise.resolve() },
+  errorMessage: String,
+}));
 
 const local: LocalState = {
   accountId: '',
@@ -76,6 +79,30 @@ describe('window settings', () => {
     expect(html).toContain('aria-label="Ctrl + Alt + P"');
     expect(html).toContain('shows or hides the profile window');
     expect(html).toContain('leaves the keyboard with the game');
+  });
+
+  it('hides for another app by default, where the desktop reports the active window', () => {
+    const checkbox = (html: string) =>
+      /<input type="checkbox"([^>]*)\/>Hide when you switch to another app/.exec(html)?.[1];
+    const on = renderToStaticMarkup(
+      <WindowSettings local={local} update={() => {}} info={info({ overlay: true, autoHide: true })} />,
+    );
+    expect(checkbox(on)).toContain('checked=""');
+    expect(checkbox(on)).not.toContain('disabled');
+    expect(on).toContain('clicking the game or these windows keeps them up');
+    const off = renderToStaticMarkup(
+      <WindowSettings local={{ ...local, autoHide: false }} update={() => {}} info={info({ autoHide: true })} />,
+    );
+    expect(checkbox(off)).not.toContain('checked');
+    const wayland = renderToStaticMarkup(
+      <WindowSettings
+        local={local}
+        update={() => {}}
+        info={info({ platform: 'linux', wayland: true, autoHide: false })}
+      />,
+    );
+    expect(checkbox(wayland)).toContain('disabled');
+    expect(wayland).toContain('Wayland does not tell applications which window is active');
   });
 
   it('reports a key another application owns, and the Wayland limits', () => {
