@@ -73,6 +73,9 @@ mod platform {
     pub fn raise<R: Runtime>(window: &Window<R>) {
         show(window);
     }
+    pub fn center<R: Runtime>(window: &Window<R>, _size: tauri::LogicalSize<f64>) {
+        let _ = window.center();
+    }
     pub fn hide<R: Runtime>(window: &Window<R>) {
         keyboard(window, false);
         with_hwnd(window, |hwnd| unsafe {
@@ -121,15 +124,32 @@ mod platform {
         } else {
             let _ = window.unminimize();
             let _ = window.show();
+            // The window manager drops "keep above" from a hidden window, and GTK does not
+            // ask for it again when the window is shown.
+            let _ = window.set_always_on_top(true);
         }
     }
-    /// Showing a mapped X11 window does not restack it, and raising it through the focus
-    /// could take the keyboard; the window manager puts a window mapped again on top.
+    /// Showing a mapped window does not restack it, and raising it through the focus could
+    /// take the keyboard (X11) or is refused by the compositor (Wayland); the window manager
+    /// puts a window mapped again on top.
     pub fn raise<R: Runtime>(window: &Window<R>) {
-        if !wayland() && window.is_visible().unwrap_or(false) {
+        if window.is_visible().unwrap_or(false) {
             let _ = window.hide();
         }
         show(window);
+    }
+    /// tao reports a Linux window's position as its size until the window manager has
+    /// configured it, so the centre is taken from the size the window was just given.
+    pub fn center<R: Runtime>(window: &Window<R>, size: tauri::LogicalSize<f64>) {
+        let Ok(Some(monitor)) = window.current_monitor() else {
+            return;
+        };
+        let area = monitor.work_area();
+        let size = size.to_physical::<i32>(monitor.scale_factor());
+        let _ = window.set_position(tauri::PhysicalPosition::new(
+            area.position.x + (area.size.width as i32 - size.width) / 2,
+            area.position.y + (area.size.height as i32 - size.height) / 2,
+        ));
     }
     pub fn hide<R: Runtime>(window: &Window<R>) {
         keyboard(window, false);
@@ -149,4 +169,4 @@ mod platform {
     }
 }
 
-pub use platform::{hide, keyboard, minimize, raise, show};
+pub use platform::{center, hide, keyboard, minimize, raise, show};
