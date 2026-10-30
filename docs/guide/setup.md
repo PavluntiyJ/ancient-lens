@@ -154,9 +154,11 @@ the tray menu shows either window, a left click toggles the match window, and **
 the app. Turn this off in **Settings → Interface → Window**, which also shows the keys as the
 desktop bound them; closing the last visible window then quits. On Linux the tray needs a
 StatusNotifier host (KDE Plasma, or GNOME with the AppIndicator extension); without one the
-option is disabled. Starting Ancient Lens again while it runs brings both windows back. Each
-window remembers its size and position (`.window-state.json` in the system's application
-configuration folder, beside but not inside the data directory below).
+option is disabled. Starting Ancient Lens again while it runs brings both windows back. Both
+windows open with the match window in front and the profile window behind it. Each window
+remembers its size, and the match window also its position (`.window-state.json` in the
+system's application configuration folder, beside but not inside the data directory below);
+the profile window opens in the middle of the screen.
 
 These are ordinary desktop windows that the system draws on top: nothing is drawn by or
 inside the game, and no input is sent to it. Shortcuts for the analysis panels are listed in

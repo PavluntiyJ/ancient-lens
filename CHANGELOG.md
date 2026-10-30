@@ -4,6 +4,12 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ## Unreleased
 
+### Changed
+
+- At start the match window opens in front and the profile window behind it, both already in
+  place instead of appearing one after the other and then moving.
+- The profile window opens in the middle of the screen at every start; it keeps its size.
+
 ## 0.7.1 — October 30, 2026
 
 A small release: the match table marks parties, and player cards and the table fit better.
