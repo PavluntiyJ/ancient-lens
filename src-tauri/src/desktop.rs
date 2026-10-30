@@ -43,6 +43,11 @@ struct Desktop {
     auto_hide: AtomicBool,
     /// When activating another application last hid a visible window.
     auto_hidden: std::sync::Mutex<Option<std::time::Instant>>,
+    /// The match window goes on top once the profile window is up (Wayland, `show_both`).
+    raise_match: AtomicBool,
+    /// Until when the profile window is centred again at each new size, and the last size
+    /// (Linux): its restored size arrives after setup, and tao knows no size before it.
+    profile_centring: std::sync::Mutex<Option<(std::time::Instant, tauri::PhysicalSize<u32>)>>,
     /// Set once the active window is watched (normal sessions, see `foreground::watch`).
     watching: AtomicBool,
     /// The game was the last program other than this app in front.
@@ -209,8 +214,52 @@ fn show(app: &tauri::AppHandle, label: &str) {
 /// Shows both windows with the match window in front and the profile window behind it.
 fn show_both(app: &tauri::AppHandle) {
     show(app, PROFILE);
+    let desktop = app.try_state::<Desktop>();
+    if !overlay::wayland() || desktop.is_none() {
+        raise_match(app);
+        return;
+    }
+    // A Wayland window lands on top when its first frame does, which a busy profile window
+    // can draw after the match window; the compositor also refuses to focus the match window.
+    // So it is shown again once the profile window takes the focus, or after a second.
+    if let Some(desktop) = desktop {
+        desktop.raise_match.store(true, Ordering::Relaxed);
+    }
+    let handle = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(1));
+        let app = handle.clone();
+        let _ = handle.run_on_main_thread(move || raise_pending(&app));
+    });
+}
+/// Raises the match window if `show_both` still waits for the profile window.
+fn raise_pending(app: &tauri::AppHandle) {
+    if app
+        .try_state::<Desktop>()
+        .is_some_and(|desktop| desktop.raise_match.swap(false, Ordering::Relaxed))
+    {
+        raise_match(app);
+    }
+}
+fn raise_match(app: &tauri::AppHandle) {
     if let Some(w) = app.get_webview_window(MATCH) {
         overlay::raise(&w.as_ref().window());
+    }
+}
+/// Centres the profile window at a size it reports shortly after start (see `Desktop`).
+fn centre_profile(window: &tauri::Window, size: tauri::PhysicalSize<u32>) {
+    let desktop = window.state::<Desktop>();
+    let Ok(mut centring) = desktop.profile_centring.lock() else {
+        return;
+    };
+    match *centring {
+        Some((until, _)) if std::time::Instant::now() > until => *centring = None,
+        // A move is reported as a resize too; centre only at a new size.
+        Some((until, last)) if last != size => {
+            *centring = Some((until, size));
+            overlay::center(window, size.to_logical(window.scale_factor().unwrap_or(1.)));
+        }
+        _ => {}
     }
 }
 /// A window of process `pid` running `exe` became active. Any program but this app and the
@@ -970,6 +1019,12 @@ pub fn run() {
                 // A window that had the keyboard gives it back with the focus, so the next
                 // click on it leaves the game in front again.
                 tauri::WindowEvent::Focused(false) => overlay::keyboard(window, false),
+                tauri::WindowEvent::Focused(true) if window.label() == PROFILE => {
+                    raise_pending(window.app_handle())
+                }
+                tauri::WindowEvent::Resized(size) if window.label() == PROFILE => {
+                    centre_profile(window, *size)
+                }
                 // Closing hides the window. The app keeps running in the tray, so GSI and the
                 // rating reader go on; Quit is in its menu. Without a tray, closing the last
                 // visible window quits.
@@ -1082,6 +1137,8 @@ pub fn run() {
                 close_to_tray: AtomicBool::new(close_to_tray),
                 auto_hide: AtomicBool::new(auto_hide),
                 auto_hidden: std::sync::Mutex::new(None),
+                raise_match: AtomicBool::new(false),
+                profile_centring: std::sync::Mutex::new(None),
                 watching: AtomicBool::new(false),
                 over_game: AtomicBool::new(false),
                 keys_over_game: AtomicBool::new(keys_over_game),
@@ -1192,15 +1249,26 @@ pub fn run() {
                     let scale = m.scale_factor();
                     let width = (m.size().width as f64 / scale - 40.).min(most.0);
                     let height = (m.size().height as f64 / scale - 90.).min(most.1);
-                    let _ = w.set_size(tauri::LogicalSize::new(width, height));
-                    let _ = w.center();
+                    let size = tauri::LogicalSize::new(width, height);
+                    let _ = w.set_size(size);
+                    overlay::center(&w.as_ref().window(), size);
                 }
                 if !isolated {
                     use tauri_plugin_window_state::{StateFlags, WindowExt};
                     if label == PROFILE {
                         let _ = w.restore_state(WINDOW_STATE.difference(StateFlags::POSITION));
                         if !w.is_maximized().unwrap_or(false) {
-                            let _ = w.center();
+                            if cfg!(windows) {
+                                let _ = w.center();
+                            } else if let Ok(mut centring) =
+                                app.state::<Desktop>().profile_centring.lock()
+                            {
+                                // Centred when the window reports the restored size.
+                                *centring = Some((
+                                    std::time::Instant::now() + std::time::Duration::from_secs(3),
+                                    tauri::PhysicalSize::default(),
+                                ));
+                            }
                         }
                     } else {
                         let _ = w.restore_state(WINDOW_STATE);

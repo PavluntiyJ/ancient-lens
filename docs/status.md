@@ -34,15 +34,17 @@ or unverified, and what is planned.
 - **Windows over the game:** on Windows the match and profile windows are shown and clicked
   without taking the keyboard from the game; that Dota keeps its sound with a window shown has
   not yet been checked in a live match. Exclusive fullscreen covers the windows. On Linux the
-  same works on X11 when the window manager honours the focus hint (the X11 path has not been
-  run on a desktop yet); on **Wayland** the compositor decides stacking and focus, so the
-  windows cannot be kept above the game or shown without activation by the app (KDE: **Keep
-  Above Others** or a window rule) and showing one puts the game in the background.
+  same works on X11 when the window manager honours the focus hint (checked with KWin through
+  XWayland, `GDK_BACKEND=x11`, not in a full X11 session); on **Wayland** the compositor
+  decides stacking, focus and placement, so the windows cannot be kept above the game or shown
+  without activation by the app (KDE: **Keep Above Others** or a window rule), showing one puts
+  the game in the background, and KWin moves a window off the centre when it would cover a
+  smaller one completely, such as the profile window over a terminal.
 - **Minimizing for other applications:** both windows minimize when another program is activated.
   Checked on Windows with isolated data; that clicking the game keeps them up is covered by
   unit tests only, never with the game running. On Linux X11 the active window's
-  `_NET_WM_PID` names the program; this path builds and its decision is tested, but it has not
-  been run on a desktop, and a game in a separate process namespace would not be recognized.
+  `_NET_WM_PID` names the program; this path was run with KWin through XWayland, not in a full
+  X11 session, and a game in a separate process namespace would not be recognized.
   **Wayland** does not tell applications which window is active, so there the windows stay up
   and the setting is disabled.
 - **Window keys only over the game:** the two window keys are released over other programs,

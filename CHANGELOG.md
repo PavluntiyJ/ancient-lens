@@ -23,6 +23,13 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 - Windows native UI checks run before packaging and on pull requests, with
   downloadable failure diagnostics and retries that reuse the built application.
 
+### Fixed
+
+- On Linux the match window opens in front of the profile window again. On Wayland a busy
+  profile window could end up on top; on X11 the match window lost its place above other
+  windows each time it was shown again. On X11 both windows now open in the middle of the
+  screen instead of below and to the right of it.
+
 ## 0.7.2 — October 30, 2026
 
 A patch release: the match screen no longer jumps at some Windows window sizes, and the two
