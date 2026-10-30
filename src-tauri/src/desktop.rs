@@ -173,6 +173,13 @@ fn show(app: &tauri::AppHandle, label: &str) {
         overlay::show(&w.as_ref().window());
     }
 }
+/// Shows both windows with the match window in front and the profile window behind it.
+fn show_both(app: &tauri::AppHandle) {
+    show(app, PROFILE);
+    if let Some(w) = app.get_webview_window(MATCH) {
+        overlay::raise(&w.as_ref().window());
+    }
+}
 /// Moves the two global keys from `previous` to `next`. Another application may own a
 /// requested combination; then every binding is put back and the conflict is reported.
 #[cfg(not(target_os = "linux"))]
@@ -765,11 +772,9 @@ const WINDOW_STATE: tauri_plugin_window_state::StateFlags =
 pub fn run() {
     let isolated = std::env::var_os("ANCIENT_TEST_DATA").is_some();
     let mut builder = tauri::Builder::default()
-        // Starting the app again brings both windows back.
+        // Starting the app again brings both windows back, the match window in front.
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
-            for label in WINDOWS {
-                show(app, label);
-            }
+            show_both(app)
         }))
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
@@ -982,7 +987,8 @@ pub fn run() {
                 tauri::async_runtime::spawn(release_check(app.handle().clone(), releases));
             }
             // First start: the match window nearly fills the screen, the profile window is
-            // a little smaller; later starts restore where the user left each one.
+            // a little smaller; later starts restore the size of each and where the user left
+            // the match window. The profile window always opens in the middle of the screen.
             for (label, most) in [(MATCH, (1740., 1280.)), (PROFILE, (1600., 1000.))] {
                 let Some(w) = app.get_webview_window(label) else {
                     continue;
@@ -995,10 +1001,19 @@ pub fn run() {
                     let _ = w.center();
                 }
                 if !isolated {
-                    use tauri_plugin_window_state::WindowExt;
-                    let _ = w.restore_state(WINDOW_STATE);
+                    use tauri_plugin_window_state::{StateFlags, WindowExt};
+                    if label == PROFILE {
+                        let _ = w.restore_state(WINDOW_STATE.difference(StateFlags::POSITION));
+                        if !w.is_maximized().unwrap_or(false) {
+                            let _ = w.center();
+                        }
+                    } else {
+                        let _ = w.restore_state(WINDOW_STATE);
+                    }
                 }
             }
+            // The profile window, built second, starts in front; the match window goes on top.
+            show_both(app.handle());
             Ok(())
         })
         .build(tauri::generate_context!());
