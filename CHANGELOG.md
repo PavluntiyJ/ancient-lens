@@ -4,6 +4,11 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ## Unreleased
 
+### Changed
+
+- No more notes about yourself: your own row's note block has something else to say when you
+  point at it.
+
 ## 0.7.1 — October 30, 2026
 
 A small release: the match table marks parties, and player cards and the table fit better.

@@ -530,6 +530,10 @@ impl Store {
                 let mut note = args["note"].clone();
                 validate_note(&note)?;
                 note["accountId"] = json!(account_id(note["accountId"].as_str().unwrap_or(""))?);
+                // The same words as SELF_NOTE in NoteEditor.tsx.
+                if note["accountId"] == next["accountId"] {
+                    return Err("Why would you need a note about yourself? Everybody knows you are the best.".into());
+                }
                 note["name"] = json!(note["name"].as_str().unwrap().trim());
                 note["text"] = json!(note["text"].as_str().unwrap().trim());
                 note["updatedAt"] = json!(now());
@@ -927,6 +931,20 @@ mod tests {
         assert_eq!(s.token(), token);
         assert!(dir.path().join("state.pre-tauri.json").exists());
         assert!(s.public().get("token").is_none());
+    }
+    #[test]
+    fn no_note_about_oneself() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut s = Store::open(dir.path().into()).unwrap();
+        s.change("state:account", &json!({"id":"123"})).unwrap();
+        let note =
+            |id: &str| json!({"note":{"accountId":id,"name":"Me","text":"best","tag":"neutral"}});
+        assert!(s
+            .change("note:save", &note("123"))
+            .unwrap_err()
+            .contains("note about yourself"));
+        s.change("note:save", &note("456")).unwrap();
+        assert_eq!(s.public()["notes"].as_array().unwrap().len(), 1);
     }
     #[test]
     fn corrupt_state_is_not_overwritten() {

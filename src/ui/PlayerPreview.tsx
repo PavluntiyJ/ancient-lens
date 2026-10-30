@@ -56,6 +56,7 @@ export function PlayerPreview({
   note,
   role,
   smurf = false,
+  self = false,
   error,
   met,
   heroes,
@@ -75,6 +76,8 @@ export function PlayerPreview({
   /** This match's role, as the icon in the row shows it. */
   role?: RoleGuess;
   smurf?: boolean;
+  /** The player's own account, which gets no note. */
+  self?: boolean;
   /** Why the profile did not load. */
   error?: string;
   met: Meetings | null;
@@ -204,7 +207,7 @@ export function PlayerPreview({
         {accountId ? (
           <>
             <div className="preview-block preview-note" onClick={keep}>
-              <NoteEditor accountId={accountId} name={noteName} note={note} />
+              <NoteEditor accountId={accountId} name={noteName} note={note} self={self} />
             </div>
             <div className="preview-block preview-actions" onClick={keep}>
               <PlayerLinks id={accountId} labelled />
