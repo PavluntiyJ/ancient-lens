@@ -55,7 +55,15 @@ try {
   const context = browser.contexts()[0];
   await context.route('https://**/*', (route) => route.abort());
   for (let i = 0; i < 100 && !page; i++) {
-    page = context.pages().find((p) => p.url().includes('tauri.localhost'));
+    for (const candidate of context.pages()) {
+      if (
+        candidate.url().includes('tauri.localhost') &&
+        (await candidate.evaluate(() => window.ancient?.windowName === 'main').catch(() => false))
+      ) {
+        page = candidate;
+        break;
+      }
+    }
     if (!page) await new Promise((resolve) => setTimeout(resolve, 100));
   }
   if (!page) throw new Error('Tauri page unavailable');

@@ -129,10 +129,24 @@ artifact. Diagnostics upload even after test failure. Linux uses the same
 diagnostic capture and runner locally, but Linux native smoke remains a desktop
 check rather than a CI job; ordinary Linux checks and distributions still run.
 
-For a native failure, open the `native-smoke` job and choose **Re-run jobs →
-Re-run failed jobs**, or rerun that job alone. Its successful build dependency is
-not rebuilt. The artifact is selected by ID, so retrying the test uses the same
-executables and checksums. Each attempt gets a separate diagnostic artifact.
+For an investigation without compilation or packaging, choose **Run workflow**
+and fill all three native recheck fields with the source run ID, build artifact
+ID and full source SHA printed in the original native summary. The native-only
+mode skips ordinary checks, compilation, packaging and release creation. It
+downloads that artifact from the specified run and verifies its source revision
+and executable checksums before running the scenarios. Test scripts come from
+the workflow revision selected in **Run workflow**, so diagnostic or harness
+fixes can be tested against an unchanged application. Results record application
+and test-script revisions separately; choose the original workflow revision
+when the scripts must also stay unchanged.
+Leave all three fields empty for the ordinary full workflow; partial or invalid
+recheck identities fail explicitly. The build must contain the artifact manifest
+produced by this workflow.
+
+On a pull request or main push, rerunning only `native-smoke` also reuses the
+successful build dependency. On a tag or full manual run, GitHub additionally
+reruns dependent packaging jobs: use the native-only mode to avoid those.
+Each attempt gets a separate diagnostic artifact.
 Build and diagnostic artifacts expire after seven days; missing/expired builds
 fail explicitly and require a new build, never a silent fallback to a different
 executable. Rerunning all jobs rebuilds the application and does not provide the

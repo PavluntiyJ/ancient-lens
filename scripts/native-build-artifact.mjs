@@ -42,7 +42,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       JSON.stringify(await buildManifest(directory, process.env.GITHUB_SHA), null, 2),
     );
   } else if (command === 'verify') {
-    await verifyManifest(directory, process.env.GITHUB_SHA);
+    await verifyManifest(directory, process.env.NATIVE_SOURCE_SHA || process.env.GITHUB_SHA);
     console.log('Native artifact revision and both executable checksums verified.');
   } else throw new Error('Expected create or verify');
 }

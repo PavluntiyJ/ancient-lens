@@ -15,7 +15,8 @@ const binary = resolve(
 );
 const report = {
   platform: process.platform,
-  commit: process.env.GITHUB_SHA || 'local',
+  commit: process.env.NATIVE_SOURCE_SHA || process.env.GITHUB_SHA || 'local',
+  testCommit: process.env.GITHUB_SHA || 'local',
   runAttempt: process.env.GITHUB_RUN_ATTEMPT || 'local',
   binarySha256: null,
   scenarios: [],
@@ -60,11 +61,26 @@ try {
       child.on('close', (status) => done(status ?? 1));
     });
     await writeFile(join(output, 'scenario.log'), redactNativeLog(log.join('')));
+    const error =
+      code === 0
+        ? null
+        : redactNativeLog(
+            await readFile(join(output, 'error.txt'), 'utf8').catch(
+              () =>
+                log
+                  .join('')
+                  .split('\n')
+                  .find((line) => /Error[: \[]/.test(line)) || 'See scenario.log for the failure',
+            ),
+          )
+            .split('\n')[0]
+            .slice(0, 500);
     report.scenarios.push({
       name,
       status: code === 0 ? 'passed' : 'failed',
       exitCode: code,
       seconds: (Date.now() - started) / 1000,
+      error,
     });
     if (code !== 0) {
       process.exitCode = 1;
@@ -80,6 +96,7 @@ try {
     `## Native smoke: ${process.exitCode ? 'failed' : 'passed'} (${report.platform})`,
     '',
     `Commit: \`${report.commit}\` · attempt: ${report.runAttempt}`,
+    `Test scripts: \`${report.testCommit}\``,
     `Executable SHA-256: \`${report.binarySha256 || 'unavailable'}\``,
     '',
     '| Scenario | Result | Seconds |',
@@ -89,8 +106,12 @@ try {
       return `| ${name} | ${result?.status || 'not run'} | ${result?.seconds.toFixed(1) || '—'} |`;
     }),
     '',
+    ...report.scenarios
+      .filter((result) => result.error)
+      .map((result) => `Failure: \`${result.error.replaceAll('`', "'")}\``),
+    '',
     'Failure diagnostics include isolated window screenshots, geometry and logs when the renderer responds.',
-    'Rerun only the **native-smoke** job to reuse this run’s Windows build; do not rerun the whole workflow.',
+    'Use the workflow’s three native source fields to recheck this build without compilation or packaging.',
     '',
   ].join('\n');
   await writeFile(join(directory, 'summary.md'), summary);
