@@ -1661,8 +1661,17 @@ try {
   // while the whole screen may zoom when a status line above the roster comes and goes.
   const matrixShape = () =>
     execute(
-      'const m=document.querySelector(".advantage-matrix"); const w=m.closest(".analysis-content").getBoundingClientRect().width; const matrix=m.getBoundingClientRect(); const cell=document.querySelector(".matchup-cell").getBoundingClientRect(); return [matrix.width,matrix.height,cell.width,cell.height].map(v=>Math.round(v/w*100)/100)',
+      'const m=document.querySelector(".advantage-matrix"); const w=m.closest(".analysis-content").getBoundingClientRect().width; const matrix=m.getBoundingClientRect(); const cell=document.querySelector(".matchup-cell").getBoundingClientRect(); return [matrix.width,matrix.height,cell.width,cell.height].map(v=>v/w)',
     );
+  // A new zoom lets the panels take spare height, and the content widens with them while the
+  // matrix headers keep their pixel size, so the ratios drift by a little under 0.01.
+  const sameShape = async (expected, message) => {
+    const actual = await matrixShape();
+    assert.ok(
+      actual.every((value, i) => Math.abs(value - expected[i]) <= 0.02),
+      `${message}: ${actual} vs ${expected}`,
+    );
+  };
   const twoHeroShape = await matrixShape();
   assert.equal(draftRequests, beforeDraft + 1);
   assert.equal(refusedDrafts.length, 1, 'The warm-up of the first draft match was not attempted');
@@ -1751,7 +1760,7 @@ try {
       ),
     'Removed picks remained in UI',
   );
-  assert.deepEqual(await matrixShape(), twoHeroShape, 'Empty matrix changed size');
+  await sameShape(twoHeroShape, 'Empty matrix changed size');
   await clickButton('Right panel: Meta');
   await waitFor(
     () => execute('return document.querySelectorAll(".meta-tile").length > 0'),
@@ -2072,7 +2081,7 @@ try {
   await new Promise((resolve) => setTimeout(resolve, 500));
   assert.equal(draftRequests, beforeWarmUp + warmBatches.length, 'A warmed pick or hover requested draft data');
   assert.equal(await execute('return document.querySelectorAll(".matchup-cell").length'), 25);
-  assert.deepEqual(await matrixShape(), twoHeroShape, 'Full matrix changed size');
+  await sameShape(twoHeroShape, 'Full matrix changed size');
   const identity = fullPicks.map((pick) => ({
     key: pick.slot === 6 ? 'self' : `native.${pick.slot}`,
     team: pick.team,
