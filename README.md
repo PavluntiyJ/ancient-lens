@@ -19,7 +19,7 @@
   <a href="docs/README.md"><b>Documentation</b></a>
 </p>
 
-> **Early prototype, 0.7.1.** Unsigned prereleases for Windows and Linux are on the
+> **Early prototype, 0.7.2.** Unsigned prereleases for Windows and Linux are on the
 > [releases page](https://github.com/PavluntiyJ/ancient-lens/releases); you can also
 > [build from source](docs/guide/install.md). Not affiliated with Valve.
 
@@ -34,9 +34,9 @@
 - **Player cards and notes:** hover a player for recent matches, earlier games with or
   against you, an editable note, and links to Dotabuff, OpenDota, STRATZ and Steam.
 
-In 0.7.1, the match table marks players who queued together, from their public match history,
-and hover cards list every match of the period. See the
-[changelog](CHANGELOG.md#071--october-30-2026).
+In 0.7.2, the match screen holds still at window sizes where it used to jump on Windows, the
+match window opens in front of the profile window, and the profile window opens centred. See
+the [changelog](CHANGELOG.md#072--october-30-2026).
 
 Screenshots use invented players. A tour of every panel and shortcut:
 [the match screen and profile](docs/guide/match-and-profile.md).
