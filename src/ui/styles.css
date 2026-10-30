@@ -5041,6 +5041,30 @@ article.player-card {
 .card-note-view.empty {
   justify-items: center;
 }
+/* No note about oneself: the hint gives way to a compliment under the pointer. Both share
+   one cell, so the block keeps its height when they swap. */
+.card-note-view.self-note {
+  cursor: default;
+}
+.self-note-say {
+  display: grid;
+  place-items: center;
+}
+.self-note-say > * {
+  grid-area: 1 / 1;
+}
+.self-note-joke,
+.self-note:is(:hover, :focus-visible) .card-note-hint {
+  visibility: hidden;
+}
+.self-note-joke {
+  color: var(--gold);
+  font-size: 14px;
+  text-align: center;
+}
+.self-note:is(:hover, :focus-visible) .self-note-joke {
+  visibility: visible;
+}
 .card-note-hint {
   display: inline-flex;
   align-items: center;

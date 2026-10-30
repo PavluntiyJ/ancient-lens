@@ -99,6 +99,7 @@ export function PlayerCard({
   heroes,
   totals,
   noteOf,
+  ownId,
   close,
 }: {
   start: Person;
@@ -106,6 +107,8 @@ export function PlayerCard({
   /** All-time totals of the players already loaded for the match table. */
   totals(id: string): Totals | undefined;
   noteOf(id: string): Note | undefined;
+  /** The player's own account, which gets no note. */
+  ownId?: string;
   close(): void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -219,6 +222,7 @@ export function PlayerCard({
           accountId={person.id}
           name={person.name || history?.profile.profile?.personaname || ''}
           note={note}
+          self={!!ownId && person.id === ownId}
         />
         {error && history !== undefined && (
           <p className="error-text" role="alert">

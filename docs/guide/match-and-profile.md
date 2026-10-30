@@ -111,7 +111,8 @@ opponents. The SMURF label is a public-statistics heuristic, not proof.
 Searchable notes are saved locally by Dota ID; **Notes** in the header lists and edits them.
 Click anywhere in the note block to add, edit or delete a note. The marker and card show its
 date. Notes now have one kind: older Observation, Good teammate and Watch out notes keep
-their text and display the same way. The optional chime and its volume are in
+their text and display the same way. Your own account takes no note; an older one about
+yourself still shows and can be deleted under **Notes**. The optional chime and its volume are in
 [Settings → Interface → Sound](setup.md#note-sound).
 
 ## Personal profile
