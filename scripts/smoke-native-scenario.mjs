@@ -130,11 +130,25 @@ let failHistory = false;
 let privateHistory = false;
 let delaySummaries = false;
 const pendingSummaries = [];
+const partyRequests = [];
 const service = createServer(async (req, res) => {
   try {
     let body = '';
     for await (const chunk of req) body += chunk;
     const { ids, days, filter, id, offset, bracket = 'ALL' } = JSON.parse(body);
+    // Parties of the roster: none recorded. Without this route the request fell through to
+    // the summaries handler and counted as a profile batch once the roster settled.
+    if (req.url === '/v1/parties') {
+      partyRequests.push(ids);
+      res.writeHead(200, { 'content-type': 'application/json' }).end(
+        JSON.stringify({
+          source: 'STRATZ',
+          fetchedAt: new Date().toISOString(),
+          players: ids.map((accountId) => ({ accountId, matches: [] })),
+        }),
+      );
+      return;
+    }
     if (req.url === '/v1/history') {
       historyRequests++;
       historyById.set(String(id), (historyById.get(String(id)) ?? 0) + 1);
@@ -480,6 +494,9 @@ try {
   );
   assert.equal(batches.length, 2);
   assert.ok(batches.every((ids) => ids.length === 5));
+  // Parties: one request for the settled roster of ten.
+  await waitFor(() => partyRequests.length === 1, 'Parties were not requested');
+  assert.equal(partyRequests[0].length, 10);
   // Player and hero position columns: 3 of 4 known matches on the main position.
   await waitFor(
     () => execute('return document.querySelectorAll(".position-share").length === 20'),
