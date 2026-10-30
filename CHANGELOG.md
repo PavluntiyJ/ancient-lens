@@ -4,6 +4,11 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ## Unreleased
 
+### Fixed
+
+- At some window sizes on Windows the match screen no longer jumps between two sizes without
+  end: the match table showed a horizontal scroll bar at one of them.
+
 ## 0.7.1 — October 30, 2026
 
 A small release: the match table marks parties, and player cards and the table fit better.
