@@ -101,6 +101,9 @@ try {
   console.log(
     'Native onboarding passed: both reader choices, STRATZ URL/error, isolated token rejection, busy/success UI, dismissal/restart.',
   );
+} catch (error) {
+  await app?.captureFailure(error);
+  throw error;
 } finally {
   await app?.close();
 }

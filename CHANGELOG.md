@@ -15,6 +15,11 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
   everywhere. Turn it off with **Window keys only while Dota is in front** in **Settings →
   Interface → Window**. On Linux this applies only without the desktop portal.
 
+### Changed
+
+- Windows native UI checks run before packaging and on pull requests, with
+  downloadable failure diagnostics and retries that reuse the built application.
+
 ## 0.7.2 — October 30, 2026
 
 A patch release: the match screen no longer jumps at some Windows window sizes, and the two

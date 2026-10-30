@@ -8,6 +8,19 @@ on:
       - 'docs/**'
   pull_request:
   workflow_dispatch:
+    inputs:
+      native-source-run:
+        description: 'Native-only recheck: source run ID (leave all three empty for a full run)'
+        type: string
+        default: ''
+      native-artifact-id:
+        description: 'Native-only recheck: Windows build artifact ID from the summary'
+        type: string
+        default: ''
+      native-source-sha:
+        description: 'Native-only recheck: full source SHA from the summary'
+        type: string
+        default: ''
 permissions:
   contents: read
 concurrency:
@@ -17,6 +30,7 @@ jobs:
   # Public contributions always run on disposable GitHub-hosted machines. Both platforms run
   # every check, so neither falls behind the other.
   check:
+    if: inputs.native-source-run == '' && inputs.native-artifact-id == '' && inputs.native-source-sha == ''
     timeout-minutes: 40
     strategy:
       fail-fast: false
@@ -52,10 +66,117 @@ jobs:
       - run: npm run test:rust
       - run: cargo check --manifest-path src-tauri/Cargo.toml --no-default-features --bin stats-service
 
-  # Distributables only on tags or a manual run, and only after `check` passed on both platforms.
-  dist:
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+  # Build once before packaging. A failed smoke job can reuse this exact artifact on rerun.
+  native-build:
     needs: check
+    timeout-minutes: 40
+    runs-on: windows-latest
+    outputs:
+      artifact-id: ${{ steps.app.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: npm ci
+      - name: Build Windows application without installers
+        run: npm run build
+      - name: Record source revision and executable checksums
+        run: node scripts/native-build-artifact.mjs create
+      - uses: actions/upload-artifact@v4
+        id: app
+        with:
+          name: native-app-Windows-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            src-tauri/target/release/ancient-lens.exe
+            src-tauri/target/release/stats-service.exe
+            src-tauri/target/release/native-build.json
+          if-no-files-found: error
+          retention-days: 7
+
+  # Runs on PRs too. Rerun this job, not native-build, to investigate the same executable.
+  native-smoke:
+    needs: native-build
+    if: ${{ !cancelled() && (needs.native-build.result == 'success' || inputs.native-source-run != '' || inputs.native-artifact-id != '' || inputs.native-source-sha != '') }}
+    timeout-minutes: 15
+    runs-on: windows-latest
+    permissions:
+      contents: read
+      actions: read
+    env:
+      NATIVE_SOURCE_SHA: ${{ inputs.native-source-sha || github.sha }}
+      NATIVE_SOURCE_RUN: ${{ inputs.native-source-run || github.run_id }}
+      NATIVE_ARTIFACT_ID: ${{ inputs.native-artifact-id || needs.native-build.outputs.artifact-id }}
+      NATIVE_RECHECK_COMPLETE: ${{ (inputs.native-source-run == '' && inputs.native-artifact-id == '' && inputs.native-source-sha == '') || (inputs.native-source-run != '' && inputs.native-artifact-id != '' && inputs.native-source-sha != '') }}
+    steps:
+      - name: Validate source identity
+        shell: pwsh
+        run: |
+          if ($env:NATIVE_RECHECK_COMPLETE -ne 'true' -or
+              $env:NATIVE_SOURCE_SHA -notmatch '^[a-f0-9]{40}$' -or
+              $env:NATIVE_SOURCE_RUN -notmatch '^[1-9][0-9]*$' -or
+              $env:NATIVE_ARTIFACT_ID -notmatch '^[1-9][0-9]*$') {
+            throw 'Provide a complete source run ID, artifact ID and full commit SHA.'
+          }
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          artifact-ids: ${{ env.NATIVE_ARTIFACT_ID }}
+          run-id: ${{ env.NATIVE_SOURCE_RUN }}
+          github-token: ${{ github.token }}
+          path: src-tauri/target/release
+          merge-multiple: true
+      - name: Verify reusable application
+        run: node scripts/native-build-artifact.mjs verify
+      - name: Native UI scenarios
+        run: npm run test:native
+      - name: Save native diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        id: diagnostics
+        with:
+          name: native-diagnostics-Windows-${{ github.run_attempt }}
+          path: test-results/native/
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Link diagnostics and rerun instructions
+        if: always()
+        shell: bash
+        env:
+          DIAGNOSTICS_URL: ${{ steps.diagnostics.outputs.artifact-url }}
+          SOURCE_SHA: ${{ env.NATIVE_SOURCE_SHA }}
+          SOURCE_RUN: ${{ env.NATIVE_SOURCE_RUN }}
+          BUILD_ARTIFACT_ID: ${{ env.NATIVE_ARTIFACT_ID }}
+        run: |
+          {
+            printf '\nWindows native check · commit `%s` · source run `%s` · build artifact `%s`\n\n' "$SOURCE_SHA" "$SOURCE_RUN" "$BUILD_ARTIFACT_ID"
+            if [ -n "$DIAGNOSTICS_URL" ]; then
+              printf '[Download native diagnostics](%s)\n\n' "$DIAGNOSTICS_URL"
+            else
+              echo 'No diagnostics were produced; check the failed setup or artifact verification step.'
+            fi
+            echo 'For a native-only investigation, choose **Run workflow** and fill the three native source fields above. This skips compilation and packaging. Ordinary job reruns reuse the build too, but GitHub also reruns dependent packaging jobs on tag/full manual runs. Artifacts expire after seven days; after expiry a new build is required.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # Distributables only on tags/manual runs, after checks and the independent native gate.
+  dist:
+    if: inputs.native-source-run == '' && inputs.native-artifact-id == '' && inputs.native-source-sha == '' && (github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/'))
+    needs: [check, native-build, native-smoke]
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -81,9 +202,19 @@ jobs:
       - name: Linux distribution
         if: runner.os == 'Linux'
         run: npm run dist:linux
+      - name: Download tested Windows application
+        if: runner.os == 'Windows'
+        uses: actions/download-artifact@v4
+        with:
+          artifact-ids: ${{ needs.native-build.outputs.artifact-id }}
+          path: src-tauri/target/release
+          merge-multiple: true
+      - name: Verify tested Windows application
+        if: runner.os == 'Windows'
+        run: node scripts/native-build-artifact.mjs verify
       - name: Windows installer
         if: runner.os == 'Windows'
-        run: npm run dist:win
+        run: npx tauri bundle --bundles nsis
       # Tauri bundles every binary of the crate; Connect STRATZ relies on stats-service sitting
       # beside the app, so a bundler change must not drop it silently.
       - name: Statistics service in the packages
@@ -121,9 +252,6 @@ jobs:
       - name: Windows portable ZIP
         if: runner.os == 'Windows'
         run: node scripts/package-native.mjs
-      - name: Windows native smoke
-        if: runner.os == 'Windows'
-        run: npm run test:native
       - uses: actions/upload-artifact@v4
         with:
           name: ancient-lens-${{ runner.os }}
@@ -139,7 +267,7 @@ jobs:
   # A `v*` tag turns the distributables into a draft prerelease. Nothing is public until a
   # maintainer reviews the draft and publishes it by hand.
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: inputs.native-source-run == '' && inputs.native-artifact-id == '' && inputs.native-source-sha == '' && startsWith(github.ref, 'refs/tags/v')
     needs: dist
     timeout-minutes: 10
     runs-on: ubuntu-latest

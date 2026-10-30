@@ -4,6 +4,7 @@ import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
 import { spawn } from 'node:child_process';
+import { captureNativeFailure } from './native-diagnostics.mjs';
 
 // Memory reader consent on Windows: the toggle persists, the isolated worker starts in test
 // mode (it never opens the game process) and stops again. Mirrors the Linux smoke's block.
@@ -23,7 +24,7 @@ const probe = createServer();
 await new Promise((resolve) => probe.listen(0, '127.0.0.1', resolve));
 const debugPort = probe.address().port;
 await new Promise((resolve) => probe.close(resolve));
-const child = spawn(resolve('src-tauri/target/release/ancient-lens.exe'), [], {
+const child = spawn(resolve(process.env.ANCIENT_NATIVE_BINARY || 'src-tauri/target/release/ancient-lens.exe'), [], {
   windowsHide: true,
   env: {
     ...process.env,
@@ -33,8 +34,11 @@ const child = spawn(resolve('src-tauri/target/release/ancient-lens.exe'), [], {
   },
   stdio: 'pipe',
 });
-child.stderr.on('data', (data) => process.stderr.write(data));
+let diagnostic = '';
+child.stdout.on('data', (data) => (diagnostic = (diagnostic + data).slice(-16000)));
+child.stderr.on('data', (data) => (diagnostic = (diagnostic + data).slice(-16000)));
 let browser;
+let page;
 const failures = [];
 try {
   let endpoint;
@@ -53,7 +57,6 @@ try {
   // The profile window loads the same page, so the match window is found by its label; which
   // of the two the debugging protocol lists first changes from run to run.
   const label = (p) => p.evaluate(() => window.ancient?.windowName).catch(() => undefined);
-  let page;
   for (let i = 0; i < 100 && !page; i++) {
     for (const candidate of context.pages().filter((p) => p.url().includes('tauri.localhost')))
       if ((await label(candidate)) === 'main') page = candidate;
@@ -116,6 +119,26 @@ try {
   await page.screenshot({ path: 'test-results/native-windows-reader.png', fullPage: true });
   if (failures.length) throw new Error(failures.join('\n'));
   console.log('Windows reader smoke passed: notice, opt-in persistence, isolated worker start/stop, opt-out.');
+} catch (error) {
+  await captureNativeFailure({
+    error,
+    log: diagnostic,
+    driver: page && {
+      useWindow: async (name) => {
+        const found = [];
+        for (const candidate of browser.contexts()[0].pages()) {
+          if (await candidate.evaluate((label) => window.ancient?.windowName === label, name).catch(() => false)) {
+            found.push(candidate);
+          }
+        }
+        if (!found.length) throw new Error(`No ${name} window`);
+        page = found[0];
+      },
+      execute: (script) => page.evaluate((source) => new Function(source)(), script),
+      screenshot: () => page.screenshot(),
+    },
+  });
+  throw error;
 } finally {
   await browser?.close();
   child.kill();

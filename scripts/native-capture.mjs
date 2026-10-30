@@ -5,6 +5,7 @@ import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import { access, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
+import { captureNativeFailure } from './native-diagnostics.mjs';
 
 /** W3C WebDriver element reference key; Windows emulates it so scripts can pass elements around. */
 export const ELEMENT = 'element-6066-11e4-a52e-4f735466cecf';
@@ -71,12 +72,16 @@ export async function nativeDriver(directory, extraEnv = {}) {
   let browser;
   let session;
   let diagnostic = '';
+  let driver;
+  let operation = null;
   child.on('error', (error) => {
     failure = error;
   });
-  child.stdout.resume();
+  child.stdout.on('data', (data) => {
+    diagnostic = (diagnostic + data).slice(-16000);
+  });
   child.stderr.on('data', (data) => {
-    diagnostic = (diagnostic + data).slice(-4000);
+    diagnostic = (diagnostic + data).slice(-16000);
     if (process.env.ANCIENT_NATIVE_LOG) process.stderr.write(data);
   });
   const request = async (path, data, method = data ? 'POST' : 'GET') => {
@@ -114,7 +119,6 @@ export async function nativeDriver(directory, extraEnv = {}) {
     }, 'Native app did not start; close other Ancient Lens windows and retry.');
     // The app has a match window (label `main`) and a profile window; `useWindow` switches
     // every following call to one of them.
-    let driver;
     if (windows) {
       const endpoint = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json();
       browser = await chromium.connectOverCDP(endpoint.webSocketDebuggerUrl);
@@ -236,8 +240,23 @@ export async function nativeDriver(directory, extraEnv = {}) {
       };
     }
     await driver.useWindow('main');
-    return { ...driver, close };
+    const wrapped = Object.fromEntries(
+      Object.entries(driver).map(([name, action]) => [
+        name,
+        (...args) => {
+          // Record the operation kind only: scripts and arguments can contain fixture tokens.
+          operation = name;
+          return action(...args);
+        },
+      ]),
+    );
+    return {
+      ...wrapped,
+      captureFailure: (error) => captureNativeFailure({ driver, error, log: diagnostic, operation }),
+      close,
+    };
   } catch (error) {
+    await captureNativeFailure({ driver, error, log: diagnostic, operation: 'startup' });
     await close();
     throw error;
   }
@@ -254,6 +273,7 @@ export async function nativeCapture(directory, extraEnv) {
       'Native UI did not load',
     );
   } catch (error) {
+    await driver.captureFailure(error);
     await driver.close();
     throw error;
   }
@@ -276,6 +296,6 @@ export async function nativeCapture(directory, extraEnv) {
     if (/[\u0400-\u04ff]/u.test(text)) throw new Error('Non-English UI text found in documentation screenshot');
     await writeFile(path, await driver.screenshot(selector));
   };
-  const { call, close, resize, useWindow } = driver;
-  return { execute, call, click, capture, close, resize, useWindow };
+  const { call, close, resize, useWindow, captureFailure } = driver;
+  return { execute, call, click, capture, close, resize, useWindow, captureFailure };
 }

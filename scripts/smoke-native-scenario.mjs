@@ -551,6 +551,10 @@ try {
   assert.equal(await execute('return document.querySelectorAll("[role=alert]").length'), 0);
   assert.equal(await execute('return document.querySelectorAll(".suggestion-category").length'), 2);
   await waitFor(matchFits, 'Populated match does not fit');
+  // Explicit opt-in exercises failure diagnostics in a real isolated native session.
+  if (process.env.ANCIENT_NATIVE_DIAGNOSTIC_FAILURE === '1') {
+    throw new Error('Controlled native failure for diagnostic verification');
+  }
   const assertPanelContentsFit = async () => {
     const overflow = await execute(`
       return [...document.querySelectorAll('.analysis-content')].flatMap(content => {
@@ -2432,6 +2436,9 @@ try {
   console.log(
     `Native smoke passed on ${platform}: ${platform === 'windows' ? 'WebView2' : 'WebKitGTK'} rendering, Rust IPC, authenticated HTTP GSI, 10 profiles in 2 batches, reordered identity mapping, migration, MMR/notes, settings, new-version notice, match and profile windows, hiding for other programs, window keys over the game. Wayland: ${info.wayland}.`,
   );
+} catch (error) {
+  await app?.captureFailure(error);
+  throw error;
 } finally {
   pendingDrafts.splice(0).forEach((resolve) => resolve());
   await app?.close();
