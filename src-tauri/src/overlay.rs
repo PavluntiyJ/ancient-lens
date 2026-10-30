@@ -69,6 +69,10 @@ mod platform {
             );
         });
     }
+    /// Showing already puts the window on top of the other topmost windows.
+    pub fn raise<R: Runtime>(window: &Window<R>) {
+        show(window);
+    }
     pub fn hide<R: Runtime>(window: &Window<R>) {
         keyboard(window, false);
         with_hwnd(window, |hwnd| unsafe {
@@ -119,6 +123,14 @@ mod platform {
             let _ = window.show();
         }
     }
+    /// Showing a mapped X11 window does not restack it, and raising it through the focus
+    /// could take the keyboard; the window manager puts a window mapped again on top.
+    pub fn raise<R: Runtime>(window: &Window<R>) {
+        if !wayland() && window.is_visible().unwrap_or(false) {
+            let _ = window.hide();
+        }
+        show(window);
+    }
     pub fn hide<R: Runtime>(window: &Window<R>) {
         keyboard(window, false);
         let _ = window.hide();
@@ -137,4 +149,4 @@ mod platform {
     }
 }
 
-pub use platform::{hide, keyboard, minimize, show};
+pub use platform::{hide, keyboard, minimize, raise, show};
