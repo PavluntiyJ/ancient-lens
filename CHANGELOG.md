@@ -4,6 +4,12 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ## Unreleased
 
+### Added
+
+- The match table marks players who queued together with a bracket beside their rows, from
+  their recent public STRATZ match history (needs the statistics service). Likely parties
+  without STRATZ party data are dashed.
+
 ## 0.7.0 — October 30, 2026
 
 This release refreshes the match table and player hover cards, simplifies notes, and adds

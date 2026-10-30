@@ -36,6 +36,10 @@ or unverified, and what is planned.
   Above Others** or a window rule) and showing one puts the game in the background.
 - **Recorded matches** have no damage, net worth or game mode until a provider has the
   match; participant GSI does not send them.
+- **Parties** are inferred from the 20 latest public matches of each player (STRATZ through the
+  statistics service): STRATZ has no party data for a match in progress, and records it for
+  only part of past matches. Friends who queue together rarely, or players with private
+  profiles and no public teammate, are not marked; an older statistics service shows none.
 - **Profile filters:** party size and season need data the app does not load. History is
   paged by scrolling, not by numbered pages.
 - **Performance points:** the profile shows STRATZ IMP per match; there is no own

@@ -7,6 +7,7 @@ import {
   type Hero,
   type LivePlayer,
   type LiveState,
+  type PartyHistory,
   type Match,
   type ReaderStatus,
   type Note,
@@ -61,6 +62,9 @@ import { MatchRole, RoleIcon } from './Roles';
 import { mainPosition, rankedRoles } from '../shared/roles';
 import { PlayerCard } from './PlayerCard';
 import { PlayerPreview } from './PlayerPreview';
+import { PartyBracket } from './PartyBracket';
+import { bracketPieces, findParties, partyTip } from '../shared/parties';
+import { PartyLoader } from '../shared/party-loader';
 import { FrequentHeroTip } from './Tips';
 import { StratzPrompt } from './StratzPrompt';
 import { InfoHeader, rosterColumns } from './ColumnInfo';
@@ -377,6 +381,28 @@ export function MatchScreen({
   // The match status shares the window's title bar, so the table starts one row higher.
   const [titleBar, setTitleBar] = useState<HTMLElement | null>(null);
   useEffect(() => setTitleBar(document.getElementById('titlebar-match')), []);
+  // Parties, once identities are shown: from the roster's recent public history (STRATZ service).
+  const [partyHistory, setPartyHistory] = useState<{ match: string; history: PartyHistory | null }>();
+  const partyLoader = useRef<PartyLoader>(undefined);
+  useEffect(() => {
+    const loader = new PartyLoader(
+      (list) => api.getParties(list),
+      (matchId, history) => setPartyHistory({ match: matchId, history }),
+    );
+    partyLoader.current = loader;
+    return () => loader.stop();
+  }, []);
+  useEffect(() => {
+    partyLoader.current?.request(match, connected ? ids.split(',').filter(Boolean) : []);
+  }, [match, ids, connected]);
+  const parties =
+    partyHistory?.match === match
+      ? findParties(
+          players.flatMap((player) => (player.accountId ? [{ accountId: player.accountId, team: player.team }] : [])),
+          partyHistory.history,
+          match,
+        )
+      : [];
   const inTitleBar = (toolbar: ReactNode) => (titleBar ? active && createPortal(toolbar, titleBar) : toolbar);
   const encounterSound = useEncounterSound();
   const shortcuts = useShortcuts();
@@ -980,6 +1006,17 @@ export function MatchScreen({
               {(['radiant', 'dire'] as const).map((team) => {
                 const teamPlayers = players.filter((player) => player.team === team).slice(0, 5);
                 const roles = teamRoles[team];
+                const teamParties = parties.filter((party) => party.team === team);
+                const pieces = bracketPieces(
+                  draftSlots[team].map((row) =>
+                    anonymousDraft ? undefined : draftSlotPlayer(live, team, row, draftSlots)?.accountId,
+                  ),
+                  teamParties,
+                );
+                const playerName = (id: string) =>
+                  players.find((player) => player.accountId === id)?.name ||
+                  entries[id]?.result?.profile.profile?.personaname ||
+                  `ID ${id}`;
                 return (
                   <tbody key={team} className={`team-${team}`}>
                     <tr className="team-divider">
@@ -1061,7 +1098,15 @@ export function MatchScreen({
                           data-slot={draftRow.slot}
                           className={`${!player ? 'unavailable' : ''}${isSelf ? ' self-row' : ''}`.trim()}
                         >
-                          <td>
+                          <td className="player-cell">
+                            <PartyBracket
+                              pieces={pieces[index] ?? []}
+                              tip={(() => {
+                                const id = player?.accountId;
+                                const party = id && teamParties.find((item) => item.members.includes(id));
+                                return party ? partyTip(party, id, playerName) : undefined;
+                              })()}
+                            />
                             <div
                               className="match-player"
                               {...(player?.accountId
