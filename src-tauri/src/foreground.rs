@@ -54,7 +54,10 @@ type Changed = Box<dyn Fn(u32, Option<String>, bool) + Send + Sync>;
 #[cfg(windows)]
 mod platform {
     use super::Changed;
-    use std::sync::OnceLock;
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        OnceLock,
+    };
     use windows_sys::Win32::{
         Foundation::{CloseHandle, HWND},
         System::Threading::{
@@ -71,6 +74,8 @@ mod platform {
     };
 
     static CHANGED: OnceLock<Changed> = OnceLock::new();
+    /// The last window reported, by its root owner, so that each switch is reported once.
+    static LAST: AtomicUsize = AtomicUsize::new(0);
 
     pub fn watch(changed: Changed) -> Result<(), String> {
         CHANGED
@@ -91,28 +96,40 @@ mod platform {
         if hook.is_null() {
             return Err("SetWinEventHook failed".into());
         }
-        unsafe { report(GetForegroundWindow(), true) };
+        unsafe { report(true) };
         Ok(())
     }
+    /// Out-of-context events arrive late and out of order: after Alt+Tab into a window, the
+    /// task switcher's own activation can be reported after the window it activated. So an
+    /// event only says that something changed; the window reported is the one active now.
     unsafe extern "system" fn foreground(
         _: HWINEVENTHOOK,
         _: u32,
-        hwnd: HWND,
+        _: HWND,
         _: i32,
         _: i32,
         _: u32,
         _: u32,
     ) {
-        report(hwnd, false);
+        report(false);
     }
-    unsafe fn report(hwnd: HWND, initial: bool) {
+    unsafe fn report(initial: bool) {
         let Some(changed) = CHANGED.get() else {
             return;
         };
+        // Between two windows none may be active; the next event reports the new one.
+        let hwnd = GetForegroundWindow();
+        if hwnd.is_null() {
+            return;
+        }
         // A dialog or popup belongs to the program of the window that owns it.
         let owner = GetAncestor(hwnd, GA_ROOTOWNER);
+        let root = if owner.is_null() { hwnd } else { owner };
+        if LAST.swap(root as usize, Ordering::Relaxed) == root as usize && !initial {
+            return;
+        }
         let mut pid = 0;
-        GetWindowThreadProcessId(if owner.is_null() { hwnd } else { owner }, &mut pid);
+        GetWindowThreadProcessId(root, &mut pid);
         let exe = (pid != std::process::id()).then(|| program(pid)).flatten();
         changed(pid, exe, initial);
     }
