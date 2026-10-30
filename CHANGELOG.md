@@ -10,6 +10,18 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
   their recent public STRATZ match history (needs the statistics service). Likely parties
   without STRATZ party data are dashed.
 
+### Changed
+
+- Hover cards of match players list all loaded matches of the period, scrolling, instead of
+  the newest eight.
+- Player names in the match table are smaller and lighter, so longer names fit.
+
+### Fixed
+
+- The player card no longer extends past the top of the window when the match view is
+  zoomed, and an empty note takes one line.
+- Frequent heroes stay inside their column in narrow windows.
+
 ## 0.7.0 — October 30, 2026
 
 This release refreshes the match table and player hover cards, simplifies notes, and adds

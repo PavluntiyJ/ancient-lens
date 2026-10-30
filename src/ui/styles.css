@@ -1189,8 +1189,8 @@ td small {
   text-overflow: ellipsis;
   white-space: nowrap;
   text-align: left;
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 500;
   color: var(--text);
 }
 .player-link:disabled {
@@ -1252,6 +1252,13 @@ td small {
 .frequent-heroes {
   display: flex;
   gap: 5px;
+  overflow: hidden;
+}
+/* In a narrow window the portraits shrink to the column instead of running into the next one. */
+.frequent-heroes .hero-performance,
+.frequent-heroes .portrait {
+  flex-shrink: 1;
+  min-width: 0;
 }
 .hero-performance {
   position: relative;
@@ -2003,16 +2010,17 @@ td small {
   border-radius: 8px;
   background: var(--surface);
   color: var(--text);
-  max-width: 95vw;
-  max-height: 90vh;
+  /* Inside the zoomed match view viewport units grow with the zoom; divide it back out. */
+  max-width: calc(95vw / var(--zoom, 1));
+  max-height: calc(90vh / var(--zoom, 1));
   box-shadow: 0 24px 80px #000c;
 }
 .quick-dialog::backdrop {
   background: #08090bb3;
 }
 .player-card {
-  width: min(760px, 95vw);
-  max-height: 90vh;
+  width: min(760px, calc(95vw / var(--zoom, 1)));
+  max-height: calc(90vh / var(--zoom, 1));
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -2075,6 +2083,10 @@ td small {
 .player-card > .card-note,
 .player-card > .error-text {
   margin: 10px 16px 0;
+}
+/* Overrides the generic empty state (.empty), which would make "Add note" a tall block. */
+.player-card .card-note-view.empty {
+  padding: 8px 12px;
 }
 .card-list-head {
   display: flex;
@@ -3987,7 +3999,7 @@ kbd {
 .team-label.dire {
   color: var(--dire);
 }
-.player-card {
+article.player-card {
   padding: 10px 12px;
   margin-bottom: 8px;
   background: var(--surface);
@@ -4805,6 +4817,22 @@ kbd {
   grid-column: 1 / -1;
   margin: 0;
   padding: 0 2px;
+}
+/* Match lists take the height of the main column and scroll; they never make the card taller. */
+.preview-recent {
+  display: flex;
+  flex-direction: column;
+  height: 0;
+  min-height: 100%;
+}
+.preview-recent .preview-matches {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  align-content: start;
+  /* Room for the scroll bar, so it never covers the result. */
+  padding-right: 8px;
+  scrollbar-width: thin;
 }
 .preview-recent h4 {
   margin: 0 0 6px;
