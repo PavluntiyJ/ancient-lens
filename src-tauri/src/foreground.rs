@@ -16,12 +16,12 @@
 pub fn hide_for(foreground_pid: u32, own_pid: u32, exe: Option<&str>) -> bool {
     foreground_pid != own_pid && !exe.is_some_and(is_game)
 }
-/// Whether the global keys listen, when the user wants them only over the game: always while
-/// the game is not running (a draft or a profile is prepared anywhere), otherwise only while
-/// the game or one of this app's windows is in front. Over anything else they are released,
-/// so the key reaches that application.
-pub fn keys_active(game_running: bool, foreground_is_game: bool, foreground_is_ours: bool) -> bool {
-    !game_running || foreground_is_game || foreground_is_ours
+/// Whether the global keys listen, when the user wants them only over the game: while the game
+/// or one of this app's windows is in front, whether or not the game runs. Over anything else
+/// they are released, so the key reaches that application; the windows still come back from
+/// the taskbar or the tray.
+pub fn keys_active(foreground_is_game: bool, foreground_is_ours: bool) -> bool {
+    foreground_is_game || foreground_is_ours
 }
 /// Whether `exe`, a path or file name, is the game's program on either system.
 pub fn is_game(exe: &str) -> bool {
@@ -38,15 +38,18 @@ pub fn available() -> bool {
 }
 
 /// Calls `changed` with the process id and program of each newly active window; the program is
-/// only looked up for other processes. Windows: call it on a thread with a message loop.
-pub fn watch(changed: impl Fn(u32, Option<String>) + Send + Sync + 'static) -> Result<(), String> {
+/// only looked up for other processes. The last argument is `true` once, at once, for the
+/// window that is already active. Windows: call it on a thread with a message loop.
+pub fn watch(
+    changed: impl Fn(u32, Option<String>, bool) + Send + Sync + 'static,
+) -> Result<(), String> {
     if !available() {
         return Err("This desktop does not report the active window".into());
     }
     platform::watch(Box::new(changed))
 }
 
-type Changed = Box<dyn Fn(u32, Option<String>) + Send + Sync>;
+type Changed = Box<dyn Fn(u32, Option<String>, bool) + Send + Sync>;
 
 #[cfg(windows)]
 mod platform {
@@ -61,8 +64,8 @@ mod platform {
         UI::{
             Accessibility::{SetWinEventHook, HWINEVENTHOOK},
             WindowsAndMessaging::{
-                GetAncestor, GetWindowThreadProcessId, EVENT_SYSTEM_FOREGROUND, GA_ROOTOWNER,
-                WINEVENT_OUTOFCONTEXT,
+                GetAncestor, GetForegroundWindow, GetWindowThreadProcessId,
+                EVENT_SYSTEM_FOREGROUND, GA_ROOTOWNER, WINEVENT_OUTOFCONTEXT,
             },
         },
     };
@@ -86,10 +89,10 @@ mod platform {
         };
         // The hook lives as long as the app, so it is never removed.
         if hook.is_null() {
-            Err("SetWinEventHook failed".into())
-        } else {
-            Ok(())
+            return Err("SetWinEventHook failed".into());
         }
+        unsafe { report(GetForegroundWindow(), true) };
+        Ok(())
     }
     unsafe extern "system" fn foreground(
         _: HWINEVENTHOOK,
@@ -100,6 +103,9 @@ mod platform {
         _: u32,
         _: u32,
     ) {
+        report(hwnd, false);
+    }
+    unsafe fn report(hwnd: HWND, initial: bool) {
         let Some(changed) = CHANGED.get() else {
             return;
         };
@@ -108,7 +114,7 @@ mod platform {
         let mut pid = 0;
         GetWindowThreadProcessId(if owner.is_null() { hwnd } else { owner }, &mut pid);
         let exe = (pid != std::process::id()).then(|| program(pid)).flatten();
-        changed(pid, exe);
+        changed(pid, exe, initial);
     }
     /// The full path of the process's program; nothing else of the process is opened.
     fn program(pid: u32) -> Option<String> {
@@ -163,8 +169,20 @@ mod platform {
         .map_err(|e| e.to_string())?
         .check()
         .map_err(|e| e.to_string())?;
+        let report = move |conn: &RustConnection, window: Option<u32>, initial: bool| {
+            let pid = window
+                .filter(|&window| window != 0)
+                .and_then(|window| cardinal(conn, window, wm_pid, AtomEnum::CARDINAL.into()))
+                .unwrap_or(0);
+            let exe = (pid != 0 && pid != std::process::id())
+                .then(|| std::fs::read_link(format!("/proc/{pid}/exe")).ok())
+                .flatten()
+                .map(|path| path.to_string_lossy().into_owned());
+            changed(pid, exe, initial);
+        };
         std::thread::spawn(move || {
-            let mut last = None;
+            let mut last = cardinal(&conn, root, active, AtomEnum::WINDOW.into());
+            report(&conn, last, true);
             loop {
                 let event = match conn.wait_for_event() {
                     Ok(event) => event,
@@ -185,15 +203,7 @@ mod platform {
                     continue;
                 }
                 last = window;
-                let pid = window
-                    .filter(|&window| window != 0)
-                    .and_then(|window| cardinal(&conn, window, wm_pid, AtomEnum::CARDINAL.into()))
-                    .unwrap_or(0);
-                let exe = (pid != 0 && pid != std::process::id())
-                    .then(|| std::fs::read_link(format!("/proc/{pid}/exe")).ok())
-                    .flatten()
-                    .map(|path| path.to_string_lossy().into_owned());
-                changed(pid, exe);
+                report(&conn, window, false);
             }
         });
         Ok(())
@@ -223,14 +233,12 @@ mod tests {
     use super::{hide_for, is_game, keys_active};
 
     #[test]
-    fn keys_listen_over_the_game_and_the_app_while_the_game_runs() {
-        // No game: everywhere, whatever is in front.
-        assert!(keys_active(false, false, false));
-        assert!(keys_active(false, false, true));
-        // The game runs: over the game or an Ancient Lens window, not over a browser.
-        assert!(keys_active(true, true, false));
-        assert!(keys_active(true, false, true));
-        assert!(!keys_active(true, false, false));
+    fn keys_listen_only_over_the_game_and_the_app() {
+        // Over the game or an Ancient Lens window; over a browser, a chat or the desktop not,
+        // whether or not the game runs.
+        assert!(keys_active(true, false));
+        assert!(keys_active(false, true));
+        assert!(!keys_active(false, false));
         assert!(is_game(
             "D:\\SteamLibrary\\steamapps\\common\\dota 2 beta\\game\\bin\\win64\\dota2.exe"
         ));

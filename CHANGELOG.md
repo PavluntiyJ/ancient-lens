@@ -6,14 +6,17 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ### Added
 
-- The match and profile windows hide when you switch to another application (a browser, a
-  folder, the desktop, the taskbar); clicking the game or the windows themselves keeps them
-  up. Bring them back with their keys or the tray. Turn it off with **Hide when you switch to
-  another app** in **Settings → Interface → Window**. Not available on Wayland.
-- While Dota is running, the match and profile keys work only over Dota and the Ancient Lens
-  windows; over a browser or any other app the key reaches that app. Without Dota they work
-  everywhere. Turn it off with **Window keys only while Dota is in front** in **Settings →
-  Interface → Window**. On Linux this applies only without the desktop portal.
+- The match and profile windows minimize to the taskbar when you switch to another
+  application (a browser, a folder, the desktop, the taskbar); clicking the game or the windows
+  themselves keeps them up. A window brought up by its key over another application takes the
+  keyboard, so clicking back into that application minimizes it too. Bring them back from the
+  taskbar, with their keys or the tray. Turn it off with **Minimize when you switch to another
+  app** in **Settings → Interface → Window**. Not available on Wayland.
+- The match and profile keys work only over Dota and the Ancient Lens windows; over a browser,
+  a chat, the desktop or any other app the key reaches that app, whether or not Dota is
+  running. The taskbar and the tray still bring the windows up. Turn it off with **Window keys
+  only while Dota is in front** in **Settings → Interface → Window**. On Linux this applies
+  only without the desktop portal.
 
 ### Changed
 

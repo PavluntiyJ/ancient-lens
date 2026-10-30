@@ -87,7 +87,7 @@ describe('window settings', () => {
 
   it('hides for another app by default, where the desktop reports the active window', () => {
     const checkbox = (html: string) =>
-      /<input type="checkbox"([^>]*)\/>Hide when you switch to another app/.exec(html)?.[1];
+      /<input type="checkbox"([^>]*)\/>Minimize when you switch to another app/.exec(html)?.[1];
     const on = renderToStaticMarkup(
       <WindowSettings local={local} update={() => {}} info={info({ overlay: true, autoHide: true })} />,
     );
@@ -117,7 +117,7 @@ describe('window settings', () => {
     );
     expect(checkbox(on)).toContain('checked=""');
     expect(checkbox(on)).not.toContain('disabled');
-    expect(on).toContain('over other apps they reach that app');
+    expect(on).toContain('over any other app they reach that app, whether or not Dota is running');
     const off = renderToStaticMarkup(
       <WindowSettings
         local={{ ...local, keysOverGame: false }}

@@ -1161,7 +1161,7 @@ try {
     'Tray option must be disabled exactly when no tray host exists',
   );
   assert.deepEqual(
-    await windowOption('Hide when you switch to another app'),
+    await windowOption('Minimize when you switch to another app'),
     { disabled: !appInfo.autoHide, checked: !!appInfo.autoHide },
     'Hiding for another app must be on, and disabled exactly where the desktop cannot report the active window',
   );
@@ -2361,11 +2361,10 @@ try {
     // Activating another program hides both windows; the game and the app's own windows keep
     // them up. Isolated runs do not watch the active window, so the activation is reported
     // here, through the same code as the system's notification.
-    // `running` stands in for the process list, so a game on this computer changes nothing.
     const report = (args) =>
       execute(
         'return window.__TAURI_INTERNALS__.invoke("desktop_call", {command: "window:test-foreground", args: arguments[0]})',
-        [{ running: false, ...args }],
+        [args],
       );
     const activate = async (args) => (await report(args)).hidden;
     const game =
@@ -2376,6 +2375,14 @@ try {
     assert.equal(await activate({ own: true }), false, 'Clicking an Ancient Lens window hid the windows');
     const browser = platform === 'windows' ? 'C:\\Program Files\\Mozilla Firefox\\firefox.exe' : '/usr/bin/firefox';
     assert.equal(await activate({ exe: browser }), true, 'Another program did not hide the windows');
+    // Minimized to the taskbar, not hidden, so a click on its button brings a window back.
+    // Only Windows is asked: a Linux window manager need not report an iconified window.
+    if (platform === 'windows')
+      assert.deepEqual(
+        (await report({ exe: browser })).minimized,
+        [true, true],
+        'The windows hid instead of minimizing',
+      );
     // Both are hidden: each key brings its own window back.
     assert.equal(await call('toggleWindow', 'main'), true, 'Match window stayed up for another program');
     assert.equal(await call('toggleWindow', 'profile'), true, 'Profile window stayed up for another program');
@@ -2388,33 +2395,37 @@ try {
     assert.equal(await activate({ exe: browser }), false, 'The windows hid with the setting off');
     assert.equal(JSON.parse(await readFile(join(directory, 'state.json'), 'utf8')).autoHide, false);
     assert.equal((await call('setAutoHide', true)).autoHide, true);
-    // While the game runs, the window keys are released over other programs, so the key
-    // reaches them, and come back over the game and over these windows. A released key is
-    // still bound for Settings. Without the game they listen everywhere.
+    // The window keys are released over other programs, so the key reaches them, and come back
+    // over the game and over these windows, whether or not the game runs. A released key is
+    // still bound for Settings.
     if (info.keysOverGame) {
       await call('setAutoHide', false);
       const keys = async (args) => (await report(args)).keys;
-      assert.equal(await keys({ exe: browser, running: true }), false, 'Keys kept listening over a browser');
+      assert.equal(await keys({ exe: browser }), false, 'Keys kept listening over a browser');
       const released = await call('getInfo');
       assert.deepEqual(
         [released.keysListening, released.shortcut, released.profileShortcut],
         [false, true, true],
         'A released key must not look taken by another application',
       );
-      assert.equal(await keys({ own: true, running: true }), true, 'Keys stayed released over Ancient Lens');
-      assert.equal(await keys({ exe: browser, running: true }), false);
-      assert.equal(await keys({ exe: game, running: true }), true, 'Keys stayed released over the game');
-      assert.equal(await keys({ exe: browser, running: false }), true, 'Keys were released without the game');
+      assert.equal(await keys({ own: true }), true, 'Keys stayed released over Ancient Lens');
+      assert.equal(await keys({ exe: browser }), false);
+      assert.equal(await keys({ exe: game }), true, 'Keys stayed released over the game');
       // Turning the setting off brings released keys back at once.
-      assert.equal(await keys({ exe: browser, running: true }), false);
+      assert.equal(await keys({ exe: browser }), false);
       assert.equal((await call('setKeysOverGame', false)).keysOverGame, false);
       await waitFor(async () => (await call('getInfo')).keysListening === true, 'Keys stayed released');
-      assert.equal(await keys({ exe: browser, running: true }), true, 'Keys were released with the setting off');
+      assert.equal(await keys({ exe: browser }), true, 'Keys were released with the setting off');
       assert.equal(JSON.parse(await readFile(join(directory, 'state.json'), 'utf8')).keysOverGame, false);
       assert.equal((await call('setKeysOverGame', true)).keysOverGame, true);
       const back = await call('getInfo');
       assert.deepEqual([back.keysListening, back.shortcut, back.profileShortcut], [true, true, true]);
       await call('setAutoHide', true);
+      // The window already active when watching starts sets the keys but minimizes nothing:
+      // the windows have just been shown.
+      const start = await report({ exe: browser, initial: true });
+      assert.deepEqual([start.keys, start.hidden], [false, false], 'The first active window was handled as a switch');
+      assert.equal(await keys({ own: true }), true);
     }
     assert.equal(await call('toggleWindow', 'profile'), false, 'Profile key did not hide the profile window');
     assert.equal(await call('toggleWindow', 'main'), false, 'Match key did not hide the match window');
