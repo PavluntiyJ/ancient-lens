@@ -55,5 +55,10 @@
   },
   "engines": {
     "node": ">=22.12.0"
+  },
+  "overrides": {
+    "@upstash/context7-mcp": {
+      "@modelcontextprotocol/node": "2.1.2"
+    }
   }
 }
