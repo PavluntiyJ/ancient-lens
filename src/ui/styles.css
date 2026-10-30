@@ -1148,8 +1148,8 @@ td small {
   text-overflow: ellipsis;
   white-space: nowrap;
   text-align: left;
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 500;
   color: var(--text);
 }
 .player-link:disabled {
