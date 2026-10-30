@@ -19,14 +19,14 @@
   <a href="docs/README.md"><b>Documentation</b></a>
 </p>
 
-> **Early prototype, 0.7.0.** Unsigned prereleases for Windows and Linux are on the
+> **Early prototype, 0.7.1.** Unsigned prereleases for Windows and Linux are on the
 > [releases page](https://github.com/PavluntiyJ/ancient-lens/releases); you can also
 > [build from source](docs/guide/install.md). Not affiliated with Valve.
 
 ![Match screen with ten players, hero matchups, and suggested picks](docs/images/match-screen.png)
 
 - **Match analysis:** all ten players with rank, win rate, recent games, main positions and
-  their most played heroes, side by side.
+  their most played heroes, side by side, with parties marked.
 - **Draft recommendations:** hero matchups, lane summary, picks for either side, counter and
   meta picks, updated as heroes are picked and banned (needs your STRATZ token).
 - **Profile and MMR:** your rank with confidence, an MMR chart, position breakdown and a
@@ -34,9 +34,9 @@
 - **Player cards and notes:** hover a player for recent matches, earlier games with or
   against you, an editable note, and links to Dotabuff, OpenDota, STRATZ and Steam.
 
-In 0.7.0, match status moves into the title bar, **With me** shows earlier meetings and your
-win rate, and note chimes have a volume control. The app also links to new releases when
-available. See the [changelog](CHANGELOG.md#070--october-30-2026).
+In 0.7.1, the match table marks players who queued together, from their public match history,
+and hover cards list every match of the period. See the
+[changelog](CHANGELOG.md#071--october-30-2026).
 
 Screenshots use invented players. A tour of every panel and shortcut:
 [the match screen and profile](docs/guide/match-and-profile.md).

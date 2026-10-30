@@ -362,6 +362,24 @@ const service = createServer(async (req, res) => {
   if (req.url === '/v1/averages') return send(averages(input.ids, input.bracket));
   if (req.url === '/v1/summaries')
     return send({ summaries: input.ids.map((id) => summary(id, input.days, input.filter)) });
+  // Invented parties: Kestrel and nightjar recorded as one party (solid bracket); orbit and
+  // Bramble twice on one team without party data (dashed, across a row).
+  if (req.url === '/v1/parties') {
+    const played = (id, mates) => ({
+      match_id: 8100000000 + id,
+      start_time: now - id * 7200,
+      mates: Object.entries(mates).map(([mate, party]) => ({ id: mate, party })),
+    });
+    const matches = {
+      1: [played(1, { 2: true }), played(2, { 2: true }), played(3, { 2: null })],
+      6: [played(4, { 8: null }), played(5, { 8: null })],
+    };
+    return send({
+      source: 'STRATZ',
+      fetchedAt: new Date().toISOString(),
+      players: input.ids.map((id) => ({ accountId: id, matches: matches[id] ?? [] })),
+    });
+  }
   if (req.url === '/v1/history')
     return send({
       accountId: own,
@@ -418,6 +436,11 @@ try {
         'return document.body.innerText.includes("Profiles · 10/10 loaded") && !!document.querySelector(".suggestion-tile")',
       ),
     'Demo match did not load',
+  );
+  // Parties are asked for once the roster has settled, a moment after the profiles.
+  await waitFor(
+    () => app.execute('return document.querySelectorAll(".party-bracket.member").length === 4'),
+    'Party brackets did not appear',
   );
   await app.capture(join(out, 'match-screen.png'));
   await app.execute(

@@ -4,6 +4,12 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ## Unreleased
 
+## 0.7.1 — October 30, 2026
+
+A small release: the match table marks parties, and player cards and the table fit better.
+Existing settings, notes and rating history are kept. Party marks need the statistics service
+from this release; an older service shows none.
+
 ### Added
 
 - The match table marks players who queued together with a bracket beside their rows, from
