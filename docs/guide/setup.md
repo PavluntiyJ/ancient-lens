@@ -128,6 +128,16 @@ desktop asks to confirm them once and lets you change them (on KDE: **System Set
 Shortcuts → Ancient Lens**). Without the portal, an X11 key grab is used, which on Wayland
 only sees the keys while an X11 window such as the game is focused.
 
+**Keys only over the game.** While Dota is running, the two window keys work only when Dota or
+an Ancient Lens window is in front (after clicking a note field, the key still hides that
+window). Over a browser or any other application the keys are let go, so that application
+receives them as usual; the tray still shows the windows there. While Dota is not running,
+the keys work everywhere, to prepare a draft or look at a profile before the game. Turn this
+off with **Window keys only while Dota is in front** in **Settings → Interface → Window**.
+Whether Dota runs is read from the names in the process list only. On Linux the desktop
+portal binds its shortcuts for every application, so this applies only to the X11 key-grab
+fallback; on Wayland the active window is unknown and the keys work everywhere.
+
 **Over the game, without muting it.** Both windows stay on top of other windows. On Windows,
 and on Linux with X11 when the window manager honours the hint, a window shown by its key or
 clicked does not take the keyboard from the game, so the game stays in front and keeps its

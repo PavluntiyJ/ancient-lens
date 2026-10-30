@@ -6,7 +6,11 @@ import { typingTarget } from '../src/ui/WindowFrame';
 import type { AppInfo, LocalState } from '../src/shared/domain';
 
 vi.mock('../src/ui/App', () => ({
-  api: { setCloseToTray: () => Promise.resolve(), setAutoHide: () => Promise.resolve() },
+  api: {
+    setCloseToTray: () => Promise.resolve(),
+    setAutoHide: () => Promise.resolve(),
+    setKeysOverGame: () => Promise.resolve(),
+  },
   errorMessage: String,
 }));
 
@@ -103,6 +107,34 @@ describe('window settings', () => {
     );
     expect(checkbox(wayland)).toContain('disabled');
     expect(wayland).toContain('Wayland does not tell applications which window is active');
+  });
+
+  it('keeps the window keys to the game by default, where they can be released', () => {
+    const checkbox = (html: string) =>
+      /<input type="checkbox"([^>]*)\/>Window keys only while Dota is in front/.exec(html)?.[1];
+    const on = renderToStaticMarkup(
+      <WindowSettings local={local} update={() => {}} info={info({ autoHide: true, keysOverGame: true })} />,
+    );
+    expect(checkbox(on)).toContain('checked=""');
+    expect(checkbox(on)).not.toContain('disabled');
+    expect(on).toContain('over other apps they reach that app');
+    const off = renderToStaticMarkup(
+      <WindowSettings
+        local={{ ...local, keysOverGame: false }}
+        update={() => {}}
+        info={info({ keysOverGame: true })}
+      />,
+    );
+    expect(checkbox(off)).not.toContain('checked');
+    const portal = renderToStaticMarkup(
+      <WindowSettings
+        local={local}
+        update={() => {}}
+        info={info({ platform: 'linux', shortcutTrigger: 'Alt+KP_Begin', keysOverGame: false })}
+      />,
+    );
+    expect(checkbox(portal)).toContain('disabled');
+    expect(portal).toContain('your desktop binds these keys for every application');
   });
 
   it('reports a key another application owns, and the Wayland limits', () => {

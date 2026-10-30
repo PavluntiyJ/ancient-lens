@@ -10,6 +10,10 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
   folder, the desktop, the taskbar); clicking the game or the windows themselves keeps them
   up. Bring them back with their keys or the tray. Turn it off with **Hide when you switch to
   another app** in **Settings → Interface → Window**. Not available on Wayland.
+- While Dota is running, the match and profile keys work only over Dota and the Ancient Lens
+  windows; over a browser or any other app the key reaches that app. Without Dota they work
+  everywhere. Turn it off with **Window keys only while Dota is in front** in **Settings →
+  Interface → Window**. On Linux this applies only without the desktop portal.
 
 ## 0.7.2 — October 30, 2026
 

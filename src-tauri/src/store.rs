@@ -279,7 +279,7 @@ impl Store {
         let snapshot = self.data["accountId"]
             .as_str()
             .map_or(Value::Null, |id| self.data["ratingSnapshots"][id].clone());
-        json!({"revision":self.revision,"accountId": self.data["accountId"], "notes":self.data["notes"], "mmr":entries,"unassignedMmrCount":unassigned,"ownAccount":self.own,"ratingSnapshot":snapshot,"nativeRosterReader":self.data["nativeRosterReader"],"closeToTray":self.close_to_tray(),"autoHide":self.auto_hide(),"updateCheck":self.update_check(),"skippedVersion":self.data["skippedVersion"],"shortcuts":self.shortcuts(),"recordedMatches":self.recorded(self.data["accountId"].as_str().unwrap_or("")).len(),"journalRevision":self.journal_revision})
+        json!({"revision":self.revision,"accountId": self.data["accountId"], "notes":self.data["notes"], "mmr":entries,"unassignedMmrCount":unassigned,"ownAccount":self.own,"ratingSnapshot":snapshot,"nativeRosterReader":self.data["nativeRosterReader"],"closeToTray":self.close_to_tray(),"autoHide":self.auto_hide(),"keysOverGame":self.keys_over_game(),"updateCheck":self.update_check(),"skippedVersion":self.data["skippedVersion"],"shortcuts":self.shortcuts(),"recordedMatches":self.recorded(self.data["accountId"].as_str().unwrap_or("")).len(),"journalRevision":self.journal_revision})
     }
     /// The stored bindings, with defaults for any key an older state file did not have.
     pub fn shortcuts(&self) -> Value {
@@ -300,6 +300,10 @@ impl Store {
     /// Both windows hide when the user activates another application (absent = on).
     pub fn auto_hide(&self) -> bool {
         self.data["autoHide"].as_bool().unwrap_or(true)
+    }
+    /// While the game runs, the window keys listen only over it and this app (absent = on).
+    pub fn keys_over_game(&self) -> bool {
+        self.data["keysOverGame"].as_bool().unwrap_or(true)
     }
     /// Whether the app asks GitHub for new releases (absent = on).
     pub fn update_check(&self) -> bool {
@@ -515,6 +519,11 @@ impl Store {
                 next["autoHide"] =
                     json!(args["value"].as_bool().ok_or("Invalid auto-hide setting")?);
             }
+            "state:keys-over-game" => {
+                next["keysOverGame"] = json!(args["value"]
+                    .as_bool()
+                    .ok_or("Invalid shortcut scope setting")?);
+            }
             "state:update-check" => {
                 next["updateCheck"] = json!(args["value"]
                     .as_bool()
@@ -685,6 +694,8 @@ fn validate(v: &Value) -> Result<()> {
     if v.get("closeToTray")
         .is_some_and(|value| !value.is_boolean())
         || v.get("autoHide").is_some_and(|value| !value.is_boolean())
+        || v.get("keysOverGame")
+            .is_some_and(|value| !value.is_boolean())
         || v.get("updateCheck")
             .is_some_and(|value| !value.is_boolean())
         || v.get("skippedVersion")
@@ -907,6 +918,31 @@ mod tests {
             .change("state:auto-hide", &json!({"value":true}))
             .unwrap();
         assert!(Store::open(dir.path().into()).unwrap().auto_hide());
+    }
+    #[test]
+    fn keys_only_over_the_game_default_on_and_persist() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut store = Store::open(dir.path().into()).unwrap();
+        assert!(store.keys_over_game());
+        assert_eq!(store.public()["keysOverGame"], true);
+        let value = store
+            .change("state:keys-over-game", &json!({"value":false}))
+            .unwrap();
+        assert_eq!(value["keysOverGame"], false);
+        let mut reopened = Store::open(dir.path().into()).unwrap();
+        assert!(!reopened.keys_over_game());
+        for value in [json!("on"), json!(null), json!(1)] {
+            assert!(reopened
+                .change("state:keys-over-game", &json!({"value":value}))
+                .is_err());
+            let mut invalid = reopened.data.clone();
+            invalid["keysOverGame"] = value;
+            assert!(validate(&invalid).is_err());
+        }
+        reopened
+            .change("state:keys-over-game", &json!({"value":true}))
+            .unwrap();
+        assert!(Store::open(dir.path().into()).unwrap().keys_over_game());
     }
     #[test]
     fn release_check_defaults_on_and_a_skipped_version_persists() {
