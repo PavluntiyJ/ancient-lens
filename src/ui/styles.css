@@ -4770,6 +4770,22 @@ article.player-card {
   margin: 0;
   padding: 0 2px;
 }
+/* Match lists take the height of the main column and scroll; they never make the card taller. */
+.preview-recent {
+  display: flex;
+  flex-direction: column;
+  height: 0;
+  min-height: 100%;
+}
+.preview-recent .preview-matches {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  align-content: start;
+  /* Room for the scroll bar, so it never covers the result. */
+  padding-right: 8px;
+  scrollbar-width: thin;
+}
 .preview-recent h4 {
   margin: 0 0 6px;
   color: var(--accent-light);
