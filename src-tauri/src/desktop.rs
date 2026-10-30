@@ -43,6 +43,13 @@ struct Desktop {
     auto_hide: AtomicBool,
     /// When activating another application last hid a visible window.
     auto_hidden: std::sync::Mutex<Option<std::time::Instant>>,
+    /// Copy of the stored setting: while the game runs, the keys listen only over it.
+    keys_over_game: AtomicBool,
+    /// The keys are bound through the global-shortcut plugin (Windows, or the X11 fallback on
+    /// Linux), so they can be released over other applications; portal shortcuts cannot.
+    keys_releasable: AtomicBool,
+    /// The keys are released because another application is in front while the game runs.
+    keys_released: AtomicBool,
     /// Held while Steam is being closed and its settings edited, so only one repair runs.
     steam_repair: Mutex<()>,
     /// The newest release above this version from the last successful check, if any.
@@ -153,6 +160,8 @@ fn portal_shortcut(app: tauri::AppHandle, keys: [String; 2]) {
                 let grabbed = app.global_shortcut().register(key.as_str()).is_ok();
                 bound.store(grabbed, Ordering::Relaxed);
             }
+            // Unlike the portal's shortcuts, a grab can be let go over other applications.
+            desktop.keys_releasable.store(true, Ordering::Relaxed);
         }
     });
 }
@@ -185,11 +194,30 @@ fn show_both(app: &tauri::AppHandle) {
     }
 }
 /// A window of process `pid` running `exe` became active. Any program but this app and the
-/// game hides both windows, unless the user turned that off. Returns whether one was visible.
-fn foreground(app: &tauri::AppHandle, pid: u32, exe: Option<&str>) -> bool {
+/// game hides both windows, unless the user turned that off. While the game runs, the window
+/// keys listen only over the game and this app, unless the user turned that off. `running`
+/// replaces the process list in tests. Returns whether a window was visible and hid.
+fn foreground(app: &tauri::AppHandle, pid: u32, exe: Option<&str>, running: Option<bool>) -> bool {
     let Some(desktop) = app.try_state::<Desktop>() else {
         return false;
     };
+    if desktop.keys_releasable.load(Ordering::Relaxed) {
+        let own = pid == std::process::id();
+        let game = exe.is_some_and(crate::foreground::is_game);
+        // The names in the process list are read only while another app is in front; over
+        // the game or this app the keys listen either way.
+        let running = game
+            || !own && {
+                use steam_setup::Host;
+                running.unwrap_or_else(|| steam_setup::host().game_running())
+            };
+        listen(
+            app,
+            &desktop,
+            !desktop.keys_over_game.load(Ordering::Relaxed)
+                || crate::foreground::keys_active(running, game, own),
+        );
+    }
     if !desktop.auto_hide.load(Ordering::Relaxed)
         || !crate::foreground::hide_for(pid, std::process::id(), exe)
     {
@@ -209,6 +237,30 @@ fn foreground(app: &tauri::AppHandle, pid: u32, exe: Option<&str>) -> bool {
         }
     }
     hidden
+}
+/// Registers the window keys again, or releases them so that a key reaches the application in
+/// front. A released key is still bound for Settings; one that another application took in
+/// the meantime is reported as unbound.
+fn listen(app: &tauri::AppHandle, desktop: &Desktop, on: bool) {
+    if desktop.keys_released.swap(!on, Ordering::Relaxed) != on {
+        return;
+    }
+    let keys = desktop
+        .global_keys
+        .lock()
+        .map(|keys| keys.clone())
+        .unwrap_or_default();
+    for (key, bound) in keys
+        .iter()
+        .zip([&desktop.shortcut, &desktop.profile_shortcut])
+    {
+        if on {
+            let registered = app.global_shortcut().register(key.as_str()).is_ok();
+            bound.store(registered, Ordering::Relaxed);
+        } else if bound.load(Ordering::Relaxed) {
+            let _ = app.global_shortcut().unregister(key.as_str());
+        }
+    }
 }
 /// Clicking the tray icon activates the taskbar first, which already hid the windows the click
 /// meant to hide; toggling then would bring them straight back.
@@ -439,7 +491,7 @@ async fn desktop_call(
         "app:info" => {
             let store = state.store.lock().await;
             Ok(
-                json!({"version":env!("CARGO_PKG_VERSION"),"platform":if cfg!(windows){"win32"}else{std::env::consts::OS},"runtime":"Tauri + Rust","wayland":std::env::var_os("WAYLAND_DISPLAY").is_some(),"shortcut":state.shortcut.load(Ordering::Relaxed),"shortcutKey":store.shortcuts()["global"],"shortcutTrigger":state.shortcut_trigger.lock().ok().and_then(|t| t.clone()),"profileShortcut":state.profile_shortcut.load(Ordering::Relaxed),"profileShortcutKey":store.shortcuts()["profile"],"profileShortcutTrigger":state.profile_trigger.lock().ok().and_then(|t| t.clone()),"overlay":overlay::passive(),"autoHide":crate::foreground::available(),"window":window.label(),"tray":state.tray.load(Ordering::Relaxed),"dataPath":store.directory,"gsiPort":state.port.load(Ordering::Relaxed),"readerPrompt":reader_prompt()}),
+                json!({"version":env!("CARGO_PKG_VERSION"),"platform":if cfg!(windows){"win32"}else{std::env::consts::OS},"runtime":"Tauri + Rust","wayland":std::env::var_os("WAYLAND_DISPLAY").is_some(),"shortcut":state.shortcut.load(Ordering::Relaxed),"shortcutKey":store.shortcuts()["global"],"shortcutTrigger":state.shortcut_trigger.lock().ok().and_then(|t| t.clone()),"profileShortcut":state.profile_shortcut.load(Ordering::Relaxed),"profileShortcutKey":store.shortcuts()["profile"],"profileShortcutTrigger":state.profile_trigger.lock().ok().and_then(|t| t.clone()),"overlay":overlay::passive(),"autoHide":crate::foreground::available(),"keysOverGame":crate::foreground::available() && state.keys_releasable.load(Ordering::Relaxed),"keysListening":!state.keys_released.load(Ordering::Relaxed),"window":window.label(),"tray":state.tray.load(Ordering::Relaxed),"dataPath":store.directory,"gsiPort":state.port.load(Ordering::Relaxed),"readerPrompt":reader_prompt()}),
             )
         }
         "player:site" => {
@@ -669,7 +721,22 @@ async fn desktop_call(
             } else {
                 0
             };
-            Ok(json!(foreground(&app, pid, args["exe"].as_str())))
+            let hidden = foreground(&app, pid, args["exe"].as_str(), args["running"].as_bool());
+            Ok(json!({"hidden": hidden, "keys": !state.keys_released.load(Ordering::Relaxed)}))
+        }
+        "state:keys-over-game" => {
+            let value = state.store.lock().await.change(&command, &args)?;
+            let on = value["keysOverGame"] == true;
+            state.keys_over_game.store(on, Ordering::Relaxed);
+            // Turned off, the keys listen everywhere at once; turned on, from the next switch.
+            if !on {
+                let handle = app.clone();
+                let _ = app.run_on_main_thread(move || {
+                    listen(&handle, &handle.state::<Desktop>(), true);
+                });
+            }
+            let _ = app.emit("state:update", &value);
+            Ok(value)
         }
         // A global binding can fail because another application owns the combination; in
         // that case the store keeps the old object and the page shows the conflict.
@@ -680,7 +747,15 @@ async fn desktop_call(
             #[cfg(not(target_os = "linux"))]
             {
                 let previous = global_keys(&store.shortcuts());
-                rebind(&app, &previous, &next)?;
+                let rebound = rebind(&app, &previous, &next);
+                // Released keys stay released: registering only checked them for conflicts.
+                if state.keys_released.load(Ordering::Relaxed) {
+                    let kept = if rebound.is_ok() { &next } else { &previous };
+                    for key in kept {
+                        let _ = app.global_shortcut().unregister(key.as_str());
+                    }
+                }
+                rebound?;
                 for (i, bound) in [&state.shortcut, &state.profile_shortcut]
                     .into_iter()
                     .enumerate()
@@ -957,6 +1032,7 @@ pub fn run() {
                 std::env::var_os("ANCIENT_TEST_DATA").is_none() && tray_host() && tray(app).is_ok();
             let close_to_tray = store.close_to_tray();
             let auto_hide = store.auto_hide();
+            let keys_over_game = store.keys_over_game();
             app.manage(Desktop {
                 store: Mutex::new(store),
                 api: std::sync::RwLock::new(api),
@@ -974,6 +1050,10 @@ pub fn run() {
                 close_to_tray: AtomicBool::new(close_to_tray),
                 auto_hide: AtomicBool::new(auto_hide),
                 auto_hidden: std::sync::Mutex::new(None),
+                keys_over_game: AtomicBool::new(keys_over_game),
+                // Linux binds through the portal unless it falls back to a grab.
+                keys_releasable: AtomicBool::new(!cfg!(target_os = "linux")),
+                keys_released: AtomicBool::new(false),
                 steam_repair: Mutex::new(()),
                 release: RwLock::new(None),
                 release_wake: tokio::sync::Notify::new(),
@@ -990,7 +1070,7 @@ pub fn run() {
                 let watched = crate::foreground::watch(move |pid, exe| {
                     let app = handle.clone();
                     let _ = handle.run_on_main_thread(move || {
-                        foreground(&app, pid, exe.as_deref());
+                        foreground(&app, pid, exe.as_deref(), None);
                     });
                 });
                 if let Err(error) = watched {

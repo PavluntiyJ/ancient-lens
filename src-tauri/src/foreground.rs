@@ -14,15 +14,20 @@
 /// The app's own windows and the game keep them; any other program, or one that cannot be
 /// named, hides them.
 pub fn hide_for(foreground_pid: u32, own_pid: u32, exe: Option<&str>) -> bool {
-    if foreground_pid == own_pid {
-        return false;
-    }
-    let Some(exe) = exe else {
-        return true;
-    };
+    foreground_pid != own_pid && !exe.is_some_and(is_game)
+}
+/// Whether the global keys listen, when the user wants them only over the game: always while
+/// the game is not running (a draft or a profile is prepared anywhere), otherwise only while
+/// the game or one of this app's windows is in front. Over anything else they are released,
+/// so the key reaches that application.
+pub fn keys_active(game_running: bool, foreground_is_game: bool, foreground_is_ours: bool) -> bool {
+    !game_running || foreground_is_game || foreground_is_ours
+}
+/// Whether `exe`, a path or file name, is the game's program on either system.
+pub fn is_game(exe: &str) -> bool {
     // Split by hand: a Windows path must name the same file when tests run on Linux.
     let name = exe.rsplit(['/', '\\']).next().unwrap_or(exe);
-    !["dota2.exe", "dota2"]
+    ["dota2.exe", "dota2"]
         .iter()
         .any(|game| name.eq_ignore_ascii_case(game))
 }
@@ -215,7 +220,24 @@ mod platform {
 
 #[cfg(test)]
 mod tests {
-    use super::hide_for;
+    use super::{hide_for, is_game, keys_active};
+
+    #[test]
+    fn keys_listen_over_the_game_and_the_app_while_the_game_runs() {
+        // No game: everywhere, whatever is in front.
+        assert!(keys_active(false, false, false));
+        assert!(keys_active(false, false, true));
+        // The game runs: over the game or an Ancient Lens window, not over a browser.
+        assert!(keys_active(true, true, false));
+        assert!(keys_active(true, false, true));
+        assert!(!keys_active(true, false, false));
+        assert!(is_game(
+            "D:\\SteamLibrary\\steamapps\\common\\dota 2 beta\\game\\bin\\win64\\dota2.exe"
+        ));
+        assert!(!is_game(
+            "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
+        ));
+    }
 
     #[test]
     fn own_windows_and_the_game_keep_the_overlay() {

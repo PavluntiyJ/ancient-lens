@@ -61,6 +61,8 @@ export type LocalState = {
   closeToTray?: boolean;
   /** Both windows hide when another application is activated; absent = on. */
   autoHide?: boolean;
+  /** While Dota runs, the window keys work only over it and Ancient Lens; absent = on. */
+  keysOverGame?: boolean;
   /** Whether the app asks GitHub for new releases; absent = on. */
   updateCheck?: boolean;
   /** The release whose notice the user turned away with Skip this version. */
@@ -359,6 +361,10 @@ export type AppInfo = {
   tray?: boolean;
   /** The desktop reports which window is active, so the windows can hide for another app. */
   autoHide?: boolean;
+  /** The window keys can be released over other apps (not with the Linux desktop portal). */
+  keysOverGame?: boolean;
+  /** False while the keys are released because another app is in front during a game. */
+  keysListening?: boolean;
   dataPath: string;
   gsiPort: number;
   /** False in isolated test runs, so automation never meets the first-run reader question. */
@@ -515,6 +521,7 @@ export type DesktopApi = {
   setNativeRosterReader?(value: 'off' | 'on'): Promise<LocalState>;
   setCloseToTray?(value: boolean): Promise<LocalState>;
   setAutoHide?(value: boolean): Promise<LocalState>;
+  setKeysOverGame?(value: boolean): Promise<LocalState>;
   setUpdateCheck?(value: boolean): Promise<LocalState>;
   skipVersion?(version: string): Promise<LocalState>;
   /** This version and the newest newer release the last check found. */
