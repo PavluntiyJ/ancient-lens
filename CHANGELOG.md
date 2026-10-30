@@ -4,6 +4,12 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ## Unreleased
 
+## 0.7.3 — October 31, 2026
+
+A patch release: the windows step aside for other applications, the window keys stay with the
+game, and on Linux the match window opens in front again. Existing settings, notes and rating
+history are kept.
+
 ### Added
 
 - The match and profile windows minimize to the taskbar when you switch to another
