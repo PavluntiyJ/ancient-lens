@@ -15,6 +15,10 @@ or unverified, and what is planned.
 
 ## Known limitations
 
+- **Native CI coverage:** Windows runs the native UI scenarios before packaging
+  and preserves reusable executables and failure diagnostics. Linux shares the
+  diagnostic capture but still needs a local desktop run; its ordinary checks
+  and distributions run in CI. See [verification](dev/verification.md#ci).
 - **0.7 match interface on Linux:** the roomier table, player hover card and simplified note
   controls were inspected on Windows with synthetic native fixtures. Linux has passed the
   ordinary CI checks for the interface changes, but the new layout and interactions still

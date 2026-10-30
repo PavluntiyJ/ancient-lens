@@ -69,6 +69,7 @@ Details and troubleshooting: [setup and data](docs/guide/setup.md), and the
 | Matchups, position recommendations, meta and counter picks                        | Your STRATZ token and the local service | Yes                             | Yes                                      |
 | Ten-player roster, picks and bans in **your own** match; exact MMR and confidence | Optional memory reader, off by default  | Yes                             | Yes                                      |
 | Match and profile windows above the game that leave it the keyboard (and sound)   | Borderless or windowed game             | Yes, sound not yet checked live | X11 only; on Wayland the desktop decides |
+| Native UI verification and failure diagnostics                                  | Isolated synthetic fixtures             | CI before packaging             | Local desktop check; no native CI job    |
 
 In your own match Dota's GSI sends only your own player, on both systems. With the reader
 off, an empty enemy roster there is expected, not a failed installation. **Connect STRATZ**

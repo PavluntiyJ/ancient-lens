@@ -29,6 +29,25 @@ real pointer and keyboard input, and the native window size; on Windows the size
 isolated-only `window:test-size` command. Build first and close competing Ancient Lens windows.
 The optional `ANCIENT_NATIVE_BINARY` selects an alternate executable.
 
+`npm run test:native` writes per-scenario results to `test-results/native/`:
+`results.json`, `summary.md`, and each scenario's `scenario.log`. On failure, the
+driver captures the isolated match and profile windows before cleanup, with
+`failure-main.png`, `failure-profile.png`, `geometry.json`, `error.txt` and
+`application.log`. Geometry records viewport, DPI, window and panel bounds; it
+does not export saved state, local storage or credentials. An unavailable or
+hidden renderer can prevent a screenshot; capture errors are recorded without
+replacing the original failure. The runner stops on the first failed scenario
+and returns a failing exit status, without retrying it.
+
+To exercise diagnostics deliberately, run the same built executable with
+`ANCIENT_NATIVE_DIAGNOSTIC_FAILURE=1 npm run test:native` on Linux; on Windows set
+`$env:ANCIENT_NATIVE_DIAGNOSTIC_FAILURE='1'` before the command and remove it
+afterwards. This throws after the synthetic match loads and must fail. Keep the
+failure output before starting another run: the runner clears its own
+`test-results/native/` directory at startup. A normal run against the same
+executable should report the same executable SHA-256. Never set this flag in
+ordinary CI or use personal data to test diagnostics.
+
 Window size and maximize checks need a screen of at least 1740×1100. On a smaller screen,
 such as the 1024×768 Windows CI runner, the scenario checks only the minimum window the app
 computes for that screen and logs what it skipped. A Linux window is stopped at its minimum
@@ -96,9 +115,32 @@ ordinary tests.
 
 ## CI
 
-`.github/workflows/build.yml` checks formatting, frontend, Rust, Python and the service on
-GitHub-hosted Ubuntu and Windows for every code change and pull request. Tags and manual runs
-build Linux and Windows distributions; Windows also runs the shared native scenario on the
-runner's 1024×768 screen. On Linux it is a local desktop check, not currently a CI job. `docs.yml` runs the public-source and link
-check for documentation-only changes, and `audit.yml` audits the lockfiles weekly. Distribution artifacts expire and
-are not a published release. Public pull requests must never use a personal runner.
+`.github/workflows/build.yml` checks formatting, frontend, Rust, Python and the
+service on GitHub-hosted Ubuntu and Windows for every code change and pull
+request. After those checks, `native-build` builds the Windows application
+without installers and saves both executables with their source revision and
+SHA-256 checksums. A separate `native-smoke` job downloads that exact artifact,
+verifies its revision and checksums, and runs the native scenarios. This happens
+on pull requests and main pushes as well as release tags and manual runs.
+
+The Windows native job uses the runner's small desktop. Its summary identifies
+the commit, executable checksum and failed scenario, and links to the diagnostic
+artifact. Diagnostics upload even after test failure. Linux uses the same
+diagnostic capture and runner locally, but Linux native smoke remains a desktop
+check rather than a CI job; ordinary Linux checks and distributions still run.
+
+For a native failure, open the `native-smoke` job and choose **Re-run jobs →
+Re-run failed jobs**, or rerun that job alone. Its successful build dependency is
+not rebuilt. The artifact is selected by ID, so retrying the test uses the same
+executables and checksums. Each attempt gets a separate diagnostic artifact.
+Build and diagnostic artifacts expire after seven days; missing/expired builds
+fail explicitly and require a new build, never a silent fallback to a different
+executable. Rerunning all jobs rebuilds the application and does not provide the
+same-build comparison.
+
+Tags and manual runs package Linux and Windows only after the native gate
+passes. Windows downloads the verified application and runs `tauri bundle`
+without recompiling it. The Linux distribution path is unchanged. Artifacts are
+not a published release; a tag can create only a draft prerelease, after all
+gates pass. Public pull requests must never use a personal runner. `docs.yml`
+checks documentation-only pushes, and `audit.yml` audits lockfiles weekly.
