@@ -56,7 +56,7 @@ On Windows, in PowerShell, print the hash and compare it with the line for that
 file in `SHA256SUMS.txt`:
 
 ```powershell
-Get-FileHash .\Ancient-Lens-0.7.0-x64-setup.exe -Algorithm SHA256
+Get-FileHash .\Ancient-Lens-0.7.1-x64-setup.exe -Algorithm SHA256
 ```
 
 `Get-FileHash` prints capital letters; upper and lower case do not matter. Do
