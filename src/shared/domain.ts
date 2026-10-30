@@ -59,6 +59,8 @@ export type LocalState = {
   unassignedMmrCount?: number;
   nativeRosterReader?: 'off' | 'on';
   closeToTray?: boolean;
+  /** Both windows hide when another application is activated; absent = on. */
+  autoHide?: boolean;
   /** Whether the app asks GitHub for new releases; absent = on. */
   updateCheck?: boolean;
   /** The release whose notice the user turned away with Skip this version. */
@@ -355,6 +357,8 @@ export type AppInfo = {
   /** The windows stay above the game and do not take the keyboard until a text field is clicked. */
   overlay?: boolean;
   tray?: boolean;
+  /** The desktop reports which window is active, so the windows can hide for another app. */
+  autoHide?: boolean;
   dataPath: string;
   gsiPort: number;
   /** False in isolated test runs, so automation never meets the first-run reader question. */
@@ -510,6 +514,7 @@ export type DesktopApi = {
   setAccount(id: string): Promise<LocalState>;
   setNativeRosterReader?(value: 'off' | 'on'): Promise<LocalState>;
   setCloseToTray?(value: boolean): Promise<LocalState>;
+  setAutoHide?(value: boolean): Promise<LocalState>;
   setUpdateCheck?(value: boolean): Promise<LocalState>;
   skipVersion?(version: string): Promise<LocalState>;
   /** This version and the newest newer release the last check found. */

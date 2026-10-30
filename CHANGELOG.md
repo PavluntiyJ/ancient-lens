@@ -4,6 +4,13 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ## Unreleased
 
+### Added
+
+- The match and profile windows hide when you switch to another application (a browser, a
+  folder, the desktop, the taskbar); clicking the game or the windows themselves keeps them
+  up. Bring them back with their keys or the tray. Turn it off with **Hide when you switch to
+  another app** in **Settings → Interface → Window**. Not available on Wayland.
+
 ## 0.7.2 — October 30, 2026
 
 A patch release: the match screen no longer jumps at some Windows window sizes, and the two

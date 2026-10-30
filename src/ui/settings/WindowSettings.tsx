@@ -58,11 +58,46 @@ export function WindowSettings({
           : 'Change the keys under Shortcuts above.'}{' '}
         Run the game in borderless windowed mode: exclusive fullscreen covers the windows.
       </p>
+      {api.setAutoHide && <AutoHideSetting local={local} update={update} available={!!info?.autoHide} />}
       {api.setCloseToTray && <TraySetting local={local} update={update} available={!!info?.tray} />}
       <span className="badge">
         {info?.platform ?? 'Desktop'} · v{info?.version ?? '0.2.0'}
       </span>
     </section>
+  );
+}
+
+function AutoHideSetting({
+  local,
+  update,
+  available,
+}: {
+  local: LocalState;
+  update(value: LocalState): void;
+  available: boolean;
+}) {
+  const [error, setError] = useState('');
+  return (
+    <>
+      <label className={available ? undefined : 'disabled'}>
+        <input
+          type="checkbox"
+          disabled={!available}
+          checked={available && local.autoHide !== false}
+          onChange={(event) => {
+            setError('');
+            api.setAutoHide!(event.target.checked).then(update, (e) => setError(errorMessage(e)));
+          }}
+        />
+        Hide when you switch to another app
+      </label>
+      <p className="fine-print">
+        {available
+          ? 'Activating a browser, a folder, the desktop or the taskbar hides both windows; clicking the game or these windows keeps them up. Bring them back with their keys or the tray.'
+          : 'Unavailable: Wayland does not tell applications which window is active, so the windows stay up.'}
+      </p>
+      {error && <Notice error>{error}</Notice>}
+    </>
   );
 }
 

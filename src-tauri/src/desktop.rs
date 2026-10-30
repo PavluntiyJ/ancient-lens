@@ -39,6 +39,10 @@ struct Desktop {
     tray: AtomicBool,
     /// Copy of the stored setting, read by the close handler without awaiting the store.
     close_to_tray: AtomicBool,
+    /// Copy of the stored setting, read when another window becomes active.
+    auto_hide: AtomicBool,
+    /// When activating another application last hid a visible window.
+    auto_hidden: std::sync::Mutex<Option<std::time::Instant>>,
     /// Held while Steam is being closed and its settings edited, so only one repair runs.
     steam_repair: Mutex<()>,
     /// The newest release above this version from the last successful check, if any.
@@ -180,6 +184,39 @@ fn show_both(app: &tauri::AppHandle) {
         overlay::raise(&w.as_ref().window());
     }
 }
+/// A window of process `pid` running `exe` became active. Any program but this app and the
+/// game hides both windows, unless the user turned that off. Returns whether one was visible.
+fn foreground(app: &tauri::AppHandle, pid: u32, exe: Option<&str>) -> bool {
+    let Some(desktop) = app.try_state::<Desktop>() else {
+        return false;
+    };
+    if !desktop.auto_hide.load(Ordering::Relaxed)
+        || !crate::foreground::hide_for(pid, std::process::id(), exe)
+    {
+        return false;
+    }
+    let mut hidden = false;
+    for label in WINDOWS {
+        if let Some(w) = app.get_webview_window(label) {
+            let w = w.as_ref().window();
+            hidden |= w.is_visible().unwrap_or(false);
+            overlay::hide(&w);
+        }
+    }
+    if hidden {
+        if let Ok(mut at) = desktop.auto_hidden.lock() {
+            *at = Some(std::time::Instant::now());
+        }
+    }
+    hidden
+}
+/// Clicking the tray icon activates the taskbar first, which already hid the windows the click
+/// meant to hide; toggling then would bring them straight back.
+fn just_auto_hidden(app: &tauri::AppHandle) -> bool {
+    app.try_state::<Desktop>()
+        .and_then(|desktop| *desktop.auto_hidden.lock().ok()?)
+        .is_some_and(|at| at.elapsed() < std::time::Duration::from_secs(1))
+}
 /// Moves the two global keys from `previous` to `next`. Another application may own a
 /// requested combination; then every binding is put back and the conflict is reported.
 #[cfg(not(target_os = "linux"))]
@@ -247,7 +284,9 @@ fn tray(app: &tauri::App) -> tauri::Result<()> {
                 ..
             } = event
             {
-                let _ = toggle(tray.app_handle(), MATCH);
+                if !just_auto_hidden(tray.app_handle()) {
+                    let _ = toggle(tray.app_handle(), MATCH);
+                }
             }
         });
     if let Some(icon) = app.default_window_icon() {
@@ -400,7 +439,7 @@ async fn desktop_call(
         "app:info" => {
             let store = state.store.lock().await;
             Ok(
-                json!({"version":env!("CARGO_PKG_VERSION"),"platform":if cfg!(windows){"win32"}else{std::env::consts::OS},"runtime":"Tauri + Rust","wayland":std::env::var_os("WAYLAND_DISPLAY").is_some(),"shortcut":state.shortcut.load(Ordering::Relaxed),"shortcutKey":store.shortcuts()["global"],"shortcutTrigger":state.shortcut_trigger.lock().ok().and_then(|t| t.clone()),"profileShortcut":state.profile_shortcut.load(Ordering::Relaxed),"profileShortcutKey":store.shortcuts()["profile"],"profileShortcutTrigger":state.profile_trigger.lock().ok().and_then(|t| t.clone()),"overlay":overlay::passive(),"window":window.label(),"tray":state.tray.load(Ordering::Relaxed),"dataPath":store.directory,"gsiPort":state.port.load(Ordering::Relaxed),"readerPrompt":reader_prompt()}),
+                json!({"version":env!("CARGO_PKG_VERSION"),"platform":if cfg!(windows){"win32"}else{std::env::consts::OS},"runtime":"Tauri + Rust","wayland":std::env::var_os("WAYLAND_DISPLAY").is_some(),"shortcut":state.shortcut.load(Ordering::Relaxed),"shortcutKey":store.shortcuts()["global"],"shortcutTrigger":state.shortcut_trigger.lock().ok().and_then(|t| t.clone()),"profileShortcut":state.profile_shortcut.load(Ordering::Relaxed),"profileShortcutKey":store.shortcuts()["profile"],"profileShortcutTrigger":state.profile_trigger.lock().ok().and_then(|t| t.clone()),"overlay":overlay::passive(),"autoHide":crate::foreground::available(),"window":window.label(),"tray":state.tray.load(Ordering::Relaxed),"dataPath":store.directory,"gsiPort":state.port.load(Ordering::Relaxed),"readerPrompt":reader_prompt()}),
             )
         }
         "player:site" => {
@@ -613,6 +652,24 @@ async fn desktop_call(
                 .store(value["closeToTray"] == true, Ordering::Relaxed);
             let _ = app.emit("state:update", &value);
             Ok(value)
+        }
+        "state:auto-hide" => {
+            let value = state.store.lock().await.change(&command, &args)?;
+            state
+                .auto_hide
+                .store(value["autoHide"] == true, Ordering::Relaxed);
+            let _ = app.emit("state:update", &value);
+            Ok(value)
+        }
+        // Isolated tests do not watch the active window (see `run`); they report an activation
+        // here instead: one of this app's windows, or another program by its file name.
+        "window:test-foreground" if std::env::var_os("ANCIENT_TEST_DATA").is_some() => {
+            let pid = if args["own"] == true {
+                std::process::id()
+            } else {
+                0
+            };
+            Ok(json!(foreground(&app, pid, args["exe"].as_str())))
         }
         // A global binding can fail because another application owns the combination; in
         // that case the store keeps the old object and the page shows the conflict.
@@ -899,6 +956,7 @@ pub fn run() {
             let has_tray =
                 std::env::var_os("ANCIENT_TEST_DATA").is_none() && tray_host() && tray(app).is_ok();
             let close_to_tray = store.close_to_tray();
+            let auto_hide = store.auto_hide();
             app.manage(Desktop {
                 store: Mutex::new(store),
                 api: std::sync::RwLock::new(api),
@@ -914,6 +972,8 @@ pub fn run() {
                 global_keys: std::sync::Mutex::new(keys.clone()),
                 tray: AtomicBool::new(has_tray),
                 close_to_tray: AtomicBool::new(close_to_tray),
+                auto_hide: AtomicBool::new(auto_hide),
+                auto_hidden: std::sync::Mutex::new(None),
                 steam_repair: Mutex::new(()),
                 release: RwLock::new(None),
                 release_wake: tokio::sync::Notify::new(),
@@ -921,6 +981,21 @@ pub fn run() {
             #[cfg(target_os = "linux")]
             if !isolated {
                 portal_shortcut(app.handle().clone(), keys);
+            }
+            // Isolated runs leave the windows up whatever the user activates, so tests stay
+            // deterministic; ANCIENT_TEST_AUTO_HIDE=1 watches as a normal session does.
+            if !isolated || std::env::var_os("ANCIENT_TEST_AUTO_HIDE").is_some_and(|v| v == "1") {
+                let handle = app.handle().clone();
+                // Setup runs on the main thread, whose message loop delivers the Windows hook.
+                let watched = crate::foreground::watch(move |pid, exe| {
+                    let app = handle.clone();
+                    let _ = handle.run_on_main_thread(move || {
+                        foreground(&app, pid, exe.as_deref());
+                    });
+                });
+                if let Err(error) = watched {
+                    eprintln!("Active window: {error}; the windows stay up for other apps");
+                }
             }
             // Optional fixture feed only in isolated tests; never read it in a normal session.
             let test_feed = isolated
