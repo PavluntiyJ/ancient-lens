@@ -1502,9 +1502,25 @@ try {
   const chips = () => execute('return [...document.querySelectorAll(".filter-chip")].map(c=>c.textContent)');
   const requestsBeforeFilters = historyRequests;
   const tableTop = () => execute('return document.querySelector(".profile-table").getBoundingClientRect().top');
+  // An open menu floats over the page inside the window: its centre is the menu itself, and the
+  // page does not grow (a menu left in the page flow lands below the window and adds a scrollbar).
+  const pageHeight = () => execute('return document.documentElement.scrollHeight');
+  const menuShown = (label) =>
+    waitFor(
+      () =>
+        execute(
+          'const menu=document.querySelector(`.profile-menu[aria-label="${arguments[0]}"]`); if(!menu) return false; const r=menu.getBoundingClientRect(); if(getComputedStyle(menu).visibility!=="visible" || r.width<40 || r.height<40 || r.top<0 || r.left<0 || r.bottom>innerHeight || r.right>innerWidth) return false; return menu.contains(document.elementFromPoint(r.left+r.width/2, r.top+r.height/2))',
+          [label],
+        ),
+      `The ${label} menu did not open inside the window`,
+      5000,
+    );
   const before = await tableTop();
+  const height = await pageHeight();
   await clickButton('Filter Safe Lane');
   await clickButton('More');
+  await menuShown('More');
+  assert.equal(await pageHeight(), height, 'Opening More made the page taller');
   assert.ok(Math.abs((await tableTop()) - before) < 1, 'Opening More moved the table');
   await choose('Profile duration', 'medium');
   await waitFor(async () => (await profileRows()) === 5, 'Position filter did not re-select history');
@@ -1512,6 +1528,16 @@ try {
   await choose('Profile duration', 'short');
   await waitFor(async () => (await profileRows()) === 0, 'Duration filter did not re-select history');
   await clickButton('Close more');
+  if (
+    await execute(
+      'return [...document.querySelectorAll(".profile-menu-trigger")].some(b=>b.textContent.trim()==="Columns" && b.offsetParent)',
+    )
+  ) {
+    await clickButton('Columns');
+    await menuShown('Columns');
+    assert.equal(await pageHeight(), height, 'Opening Columns made the page taller');
+    await clickButton('Close columns');
+  }
   await execute('document.querySelector(`[aria-label="Clear filter: Under 25 min"]`).click()');
   await waitFor(async () => (await chips()).join() === 'Safe Lane', 'Chip × did not clear its filter');
   await execute('document.querySelector(`[aria-label="Clear filter: Safe Lane"]`).click()');

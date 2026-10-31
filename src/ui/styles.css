@@ -2778,6 +2778,50 @@ td small {
   border: 1px solid var(--line-strong);
   border-radius: 6px;
 }
+/* More and Columns (ProfileMenu.tsx): a panel on document.body, placed by script under its
+   button and kept inside the window. Without position: fixed it falls into the page flow below
+   the window and only adds a scrollbar. */
+.profile-menu {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  min-width: 240px;
+  overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px #000000a0;
+  color: var(--text);
+}
+.profile-menu > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 6px 6px 12px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+.profile-menu-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 12px;
+}
+.profile-menu-fields label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.profile-menu-fields select {
+  margin-left: auto;
+  width: 190px;
+  height: 30px;
+  padding: 0 8px;
+}
 .profile-info {
   padding: 0 8px;
   color: var(--text);
