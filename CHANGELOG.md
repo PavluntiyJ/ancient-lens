@@ -4,6 +4,11 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ## Unreleased
 
+### Fixed
+
+- **More** and **Columns** in the profile open their menus again. They had been placed below
+  the window, so a click only added a scrollbar and nudged the page.
+
 ## 0.7.3 — October 31, 2026
 
 A patch release: the windows step aside for other applications, the window keys stay with the
