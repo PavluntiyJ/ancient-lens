@@ -38,14 +38,14 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - uses: dtolnay/rust-toolchain@stable
@@ -74,10 +74,10 @@ jobs:
     outputs:
       artifact-id: ${{ steps.app.outputs.artifact-id }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -90,7 +90,7 @@ jobs:
         run: npm run build
       - name: Record source revision and executable checksums
         run: node scripts/native-build-artifact.mjs create
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         id: app
         with:
           name: native-app-Windows-${{ github.sha }}-${{ github.run_attempt }}
@@ -125,16 +125,16 @@ jobs:
               $env:NATIVE_ARTIFACT_ID -notmatch '^[1-9][0-9]*$') {
             throw 'Provide a complete source run ID, artifact ID and full commit SHA.'
           }
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
           ref: ${{ github.sha }}
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
       - run: npm ci
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           artifact-ids: ${{ env.NATIVE_ARTIFACT_ID }}
           run-id: ${{ env.NATIVE_SOURCE_RUN }}
@@ -147,7 +147,7 @@ jobs:
         run: npm run test:native
       - name: Save native diagnostics
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         id: diagnostics
         with:
           name: native-diagnostics-Windows-${{ github.run_attempt }}
@@ -184,10 +184,10 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -204,7 +204,7 @@ jobs:
         run: npm run dist:linux
       - name: Download tested Windows application
         if: runner.os == 'Windows'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           artifact-ids: ${{ needs.native-build.outputs.artifact-id }}
           path: src-tauri/target/release
@@ -252,7 +252,7 @@ jobs:
       - name: Windows portable ZIP
         if: runner.os == 'Windows'
         run: node scripts/package-native.mjs
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ancient-lens-${{ runner.os }}
           path: |
@@ -274,10 +274,10 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: ancient-lens-*
           path: artifacts
