@@ -38,10 +38,6 @@ export async function waitFor(check, message, timeout = 30000) {
  * and `type` use real input.
  */
 export async function nativeDriver(directory, extraEnv = {}) {
-  if (process.platform === 'linux')
-    throw new Error(
-      'Linux native launches are blocked after host Alt+Tab failures. See docs/dev/verification.md#desktop-isolation.',
-    );
   if (!['linux', 'win32'].includes(process.platform)) throw new Error('Native tests require Linux or Windows.');
   const windows = process.platform === 'win32';
   const binary = resolve(
