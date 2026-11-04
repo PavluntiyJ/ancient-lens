@@ -82,6 +82,16 @@ if (isTauri()) {
         void pending.then((unlisten) => unlisten()).catch(() => {});
       };
     },
+    onWindowShown: (callback) => {
+      let disposed = false;
+      const pending = listen('window:shown', () => {
+        if (!disposed) callback();
+      });
+      return () => {
+        disposed = true;
+        void pending.then((unlisten) => unlisten()).catch(() => {});
+      };
+    },
     openRelease: () => call('release:open'),
     setShortcuts: (shortcuts) => call('state:shortcuts', { shortcuts }),
     setAccount: (id) => call('state:account', { id }),

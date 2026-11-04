@@ -186,6 +186,9 @@ fn toggle(app: &tauri::AppHandle, label: &str) -> Result<bool> {
         overlay::hide(&w);
         Ok(false)
     } else {
+        if label == MATCH {
+            show_match_draft(app);
+        }
         overlay::show(&w);
         activate_off_game(app, &w);
         Ok(true)
@@ -208,8 +211,17 @@ fn activate_off_game(app: &tauri::AppHandle, w: &tauri::Window) {
 }
 fn show(app: &tauri::AppHandle, label: &str) {
     if let Some(w) = app.get_webview_window(label) {
+        if label == MATCH {
+            show_match_draft(app);
+        }
         overlay::show(&w.as_ref().window());
     }
+}
+/// The match window comes back on the draft screen: its hotkey and the tray are for checking
+/// the draft, and the page last opened (Notes, Settings, Item build) would hide it. The page
+/// state lives in the frontend, so it is told to go home.
+fn show_match_draft(app: &tauri::AppHandle) {
+    let _ = app.emit_to(MATCH, "window:shown", ());
 }
 /// Shows both windows with the match window in front and the profile window behind it.
 fn show_both(app: &tauri::AppHandle) {

@@ -164,6 +164,10 @@ export function App() {
     const unsubscribeRelease = api.onRelease?.((value) => {
       if (active) setRelease(value);
     });
+    // The match hotkey, tray and header icon land on the draft screen, not the last page.
+    const unsubscribeShown = api.onWindowShown?.(() => {
+      if (active) setPage('home');
+    });
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => {
       active = false;
@@ -171,6 +175,7 @@ export function App() {
       unsubscribeState?.();
       unsubscribeProvider?.();
       unsubscribeRelease?.();
+      unsubscribeShown?.();
       clearInterval(timer);
     };
   }, []);

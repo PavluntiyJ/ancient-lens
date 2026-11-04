@@ -2380,6 +2380,28 @@ try {
     if (!first) assert.equal(await call('toggleWindow', name), true);
   }
   assert.equal(await app.windowCount(), 2);
+  // The match window comes back on the draft screen, not the page that was open last.
+  await useWindow('main');
+  await clickButton('Notes');
+  const currentPage = async () =>
+    await execute(
+      'return document.querySelector(\'nav[aria-label=Sections] [aria-current="page"]\')?.getAttribute("aria-label")',
+    );
+  await waitFor(async () => (await currentPage()) === 'Notes', 'Notes did not open');
+  assert.equal(await call('showWindow', 'main'), true);
+  await waitFor(
+    async () => (await currentPage()) === 'Match and draft',
+    'The match window did not return to the draft screen',
+  );
+  // The hotkey does the same after hiding: it comes up on the draft screen.
+  await clickButton('Notes');
+  await waitFor(async () => (await currentPage()) === 'Notes', 'Notes did not open again');
+  if (!(await call('toggleWindow', 'main')))
+    assert.equal(await call('toggleWindow', 'main'), true, 'The match key did not show the window');
+  await waitFor(
+    async () => (await currentPage()) === 'Match and draft',
+    'The match key did not return to the draft screen',
+  );
   // Both hidden at once; each comes back on its own, and the header icon shows the profile.
   // On Wayland a press may raise instead of hide, depending on focus, so only the end
   // state above is checked there.
