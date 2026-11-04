@@ -32,6 +32,9 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
   "Account <id>" or makes a profile history load fail with "Wait for loading to finish":
   Steam names wait for their own slots, and saved Steam names and item statistics no longer
   need a loading slot at all.
+- **Item build** draws on a year of league matches instead of six months. OpenDota Explorer
+  holds far fewer parsed matches lately, so the half-year sample was often too thin: about
+  ten times more enemy matchups now have enough games to suggest an item.
 - **More** and **Columns** in the profile open their menus again. They had been placed below
   the window, so a click only added a scrollbar and nudged the page.
 

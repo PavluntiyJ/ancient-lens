@@ -123,7 +123,7 @@ A genuine fetch failure has a Retry button; an older saved sample is labelled se
 The demo's thin Ember Spirit sample intentionally illustrates the standard-build fallback.
 
 Data is from **OpenDota Explorer**, without STRATZ: at most 2,000 league matches per hero
-from the last 180 days with a purchase log and ten player rows. Standard equipment sets
+from the last 365 days with a purchase log and ten player rows. Standard equipment sets
 come from actual final inventories, excluding raw components; the purchase log establishes
 order. The 24 most purchased eligible completed items are considered for matchup additions.
 The sample combines roles, ranks and potentially patches. Its dates, fetch time and source

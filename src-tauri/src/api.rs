@@ -1120,6 +1120,7 @@ fn prune_cache(directory: &std::path::Path, max_age: Duration) {
             "items-v1-",
             "items-v2-",
             "items-v3-",
+            "items-v4-",
             "steam-profile-v1-",
         ]
         .iter()
@@ -1571,7 +1572,7 @@ mod partial_tests {
             "pairs": [],
         });
         crate::store::atomic_json(
-            &dir.path().join("items-v3-1.json"),
+            &dir.path().join("items-v4-1.json"),
             &serde_json::json!({"at": chrono::Utc::now().timestamp_millis(), "data": empty}),
         )
         .unwrap();
@@ -1618,7 +1619,7 @@ mod partial_tests {
             "pairs": [],
         });
         crate::store::atomic_json(
-            &dir.path().join("items-v3-1.json"),
+            &dir.path().join("items-v4-1.json"),
             &serde_json::json!({"at": at, "data": empty}),
         )
         .unwrap();

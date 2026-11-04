@@ -76,7 +76,7 @@ state) and `release:update` (a newer release was found) as events. The page neve
 
 `items:get(heroId)` loads a validated historical purchase sample from OpenDota Explorer.
 Only a bounded integer hero ID enters a fixed read-only query; the page cannot submit SQL.
-Requests use the existing OpenDota limiter and bounded response reader. `items-v3-*.json`
+Requests use the existing OpenDota limiter and bounded response reader. `items-v4-*.json`
 caches are per hero, fresh for six hours with a labelled seven-day stale fallback.
 `src/shared/item-build.ts` binds the sample to YOU and ranks it locally against confirmed
 picks. Up to three distinct standard equipment sets come from sampled inventories, ranked by

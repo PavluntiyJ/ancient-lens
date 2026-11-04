@@ -29,6 +29,14 @@ describe('historical item recommendations', () => {
       }
     }
   });
+  it('accepts a sample spanning one year and rejects a longer one', () => {
+    const year = 365 * 86400;
+    const raw = structuredClone(fixtures.stats['8']);
+    raw.newest = raw.oldest + year;
+    expect(parseItemData(raw, 8).newest).toBe(raw.newest);
+    raw.newest += 1;
+    expect(() => parseItemData(raw, 8)).toThrow('Invalid item statistics');
+  });
   it('does not create recommendations from ally evidence alone or count duplicate picks twice', () => {
     const ctx = { ...draft(), enemies: [69] };
     expect(rankItems(data(), ctx)).toEqual([]);
