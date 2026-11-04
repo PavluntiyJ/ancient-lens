@@ -35,6 +35,10 @@ or unverified, and what is planned.
   ordinary CI checks for the interface changes, but the new layout and interactions still
   need a Linux desktop run of `npm run test:native` and visual review. This is a verification
   gap, not an intentionally Windows-only feature.
+- **Own account on Linux without memory reading:** Windows reads the Steam account from the
+  registry; Linux finds it in the Dota process environment, which is only opened with
+  **Allow Dota memory reading**. With reading off, Linux knows the account from the first
+  match's GSI, not in the main menu.
 - **Memory readers** are validated on specific game builds (see the
   [maintenance guide](dev/native-reader.md#verified-builds)). A game update can make them
   report `unsupported` until discovery is checked again. The anti-cheat response to external
@@ -69,8 +73,8 @@ or unverified, and what is planned.
   statistics service): STRATZ has no party data for a match in progress, and records it for
   only part of past matches. Friends who queue together rarely, or players with private
   profiles and no public teammate, are not marked; an older statistics service shows none.
-- **Profile filters:** party size and season need data the app does not load. History is
-  paged by scrolling, not by numbered pages.
+- **Profile filters:** party size and season need data the app does not load. Older history
+  loads with a button, not by numbered pages.
 - **Performance points:** the profile shows STRATZ IMP per match; there is no own
   performance score yet.
 

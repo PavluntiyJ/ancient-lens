@@ -171,8 +171,10 @@ Proxy configuration and public hosting are not included in this repository.
 
 `GET /health` reports readiness and protocol version. Fixed endpoints are
 `POST /v1/summaries`, `/v1/totals`, `/v1/history` (25-match pages with all ten
-players of each match), `/v1/draft`, and `/v1/match` (one match by ID, used to
-complete matches recorded by the match journal). The desktop app and the service
+players of each match), `/v1/draft`, `/v1/averages` (hero averages by position and
+match duration for one rank bracket), `/v1/parties` (recent teammates and STRATZ
+parties of a roster), and `/v1/match` (one match by ID, used to complete matches
+recorded by the match journal). The desktop app and the service
 are built from the same source: after updating, restart the service as well, or
 new fields such as match lineups stay empty.
 Example summary request (synthetic IDs; replace with public accounts you intend

@@ -73,9 +73,11 @@ after a game update, see [the native reader guide](../dev/native-reader.md#after
 
 ## Your profile
 
-**My profile** finds your account without a token. Windows uses the active Steam account
-from the registry. Linux uses the Steam login that launched Dota and, when that is
-unavailable, your own GSI events. **Set profile manually** is the fallback on both systems.
+**My profile** finds your account without a token; there is no manual entry. Windows uses
+the active Steam account from the registry, with or without memory reading. Linux reads the
+Steam login from the environment of the running Dota process, so it needs **Allow Dota
+memory reading**. Without it, Linux waits for your own GSI events: the main menu sends no
+account, so the profile appears once you are in a match.
 
 ## Memory reading
 
@@ -244,5 +246,5 @@ No analytics, telemetry, or Ancient Lens cloud account is used.
 | Empty draft recommendations      | Press **Connect STRATZ** ([details](stats-service.md)); OpenDota alone does not power these panels.                                              |
 | Rate limit or stale statistics   | Wait for the cooldown and retry. Provider coverage can differ; unavailable history does not prove a private profile.                             |
 | No Linux MMR measurement         | Enable **Allow Dota memory reading** and start Dota from Steam. Without Steam's launch environment, the rating waits for your first in-game GSI. |
-| No automatic profile             | Wait for your own GSI event on Linux or Steam login on Windows, or use **Set profile manually**.                                                 |
-| Profile totals look incomplete   | Check period/mode/Turbo filters and the incomplete-sample label; use **Load more history**.                                                      |
+| No automatic profile             | Windows: log in to Steam. Linux: allow memory reading, or wait for your first match, when your own GSI event names the account.                  |
+| Profile totals look incomplete   | Check period/mode/Turbo filters and the incomplete-sample label; use **Load older matches**.                                                     |
