@@ -15,6 +15,11 @@ or unverified, and what is planned.
 
 ## Known limitations
 
+- **Linux native automation:** temporarily blocked locally after host Alt+Tab failed again
+  following a private-bus nested KWin run. Prior passing UI scenarios do not establish
+  desktop safety. Further native verification requires a separate machine or VM and a
+  reviewed fix; do not bypass the guard on the user desktop.
+
 - **Native CI coverage:** Windows runs the native UI scenarios before packaging
   and preserves reusable executables and failure diagnostics. Linux shares the
   diagnostic capture but still needs a local desktop run; its ordinary checks
