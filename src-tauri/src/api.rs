@@ -83,6 +83,10 @@ pub struct Api {
     cooldown: Mutex<Instant>,
     issue: Mutex<String>,
     paused: tokio::sync::Notify,
+    steam_next: Mutex<Instant>,
+    steam_cooldown: Mutex<Instant>,
+    steam_issue: Mutex<String>,
+    steam_paused: tokio::sync::Notify,
     locks: Mutex<HashMap<String, Arc<Mutex<()>>>>,
     slots: Semaphore,
     summary_slots: Semaphore,
@@ -128,6 +132,10 @@ impl Api {
             cooldown: Mutex::new(Instant::now()),
             issue: Mutex::new(String::new()),
             paused: tokio::sync::Notify::new(),
+            steam_next: Mutex::new(Instant::now()),
+            steam_cooldown: Mutex::new(Instant::now()),
+            steam_issue: Mutex::new(String::new()),
+            steam_paused: tokio::sync::Notify::new(),
             locks: Mutex::new(HashMap::new()),
             slots: Semaphore::new(40),
             summary_slots: Semaphore::new(20),
@@ -139,6 +147,137 @@ impl Api {
     }
     pub fn info(&self) -> Value {
         json!({"source":if self.broker.is_some(){"STRATZ"}else{"OpenDota"},"hasToken":false,"persistent":false,"automatic":true,"serviceConfigured":self.broker.is_some(),"status":if self.broker.is_some(){"Service configured; access is checked when loading a match."}else{"Using public OpenDota. Connect STRATZ for draft statistics and faster player history."}})
+    }
+    /// Dedicated pacing for Steam Community fetches. Keeps its own next/cooldown/pause
+    /// state so a Steam error never blocks OpenDota, and an OpenDota pause never
+    /// blocks Steam.
+    async fn steam_pace(&self) -> Result<()> {
+        if Instant::now() < *self.steam_cooldown.lock().await {
+            return Err(self.steam_issue.lock().await.clone());
+        }
+        let when = {
+            let mut next = self.steam_next.lock().await;
+            let when = (*next).max(Instant::now());
+            *next = when + Duration::from_millis(1100);
+            when
+        };
+        tokio::select! { _ = tokio::time::sleep_until(when.into()) => {}, _ = self.steam_paused.notified() => {} }
+        if Instant::now() < *self.steam_cooldown.lock().await {
+            return Err(self.steam_issue.lock().await.clone());
+        }
+        Ok(())
+    }
+    async fn steam_pause(&self, seconds: u64, message: &str) {
+        *self.steam_issue.lock().await = message.into();
+        *self.steam_cooldown.lock().await = Instant::now() + Duration::from_secs(seconds);
+        *self.steam_next.lock().await = Instant::now();
+        self.steam_paused.notify_waiters();
+    }
+    async fn steam_fetch(&self, id: &str) -> Result<String> {
+        let steam_id = id.parse::<u64>().unwrap() + 76561197960265728;
+        // One transient retry for parity with OpenDota's request_once; a second
+        // failure pauses new Steam requests for a minute via steam_pause()
+        // (does not touch OpenDota's pause state).
+        for attempt in 0..2 {
+            self.steam_pace().await?;
+            let mut steam_url = reqwest::Url::parse("https://steamcommunity.com/profiles").unwrap();
+            steam_url
+                .path_segments_mut()
+                .expect("https URL has segments")
+                .push(&steam_id.to_string());
+            steam_url.query_pairs_mut().append_pair("xml", "1");
+            let mut response = match self
+                .client
+                .get(steam_url)
+                .timeout(Duration::from_secs(8))
+                .send()
+                .await
+            {
+                Ok(r) => r,
+                Err(_) if attempt == 0 => continue,
+                Err(_) => {
+                    let message = "Steam profile refresh unavailable after a retry. New Steam requests are paused for one minute.";
+                    self.steam_pause(60, message).await;
+                    return Err(message.into());
+                }
+            };
+            if response.status().is_server_error() && attempt == 0 {
+                continue;
+            }
+            if !response.status().is_success()
+                || response
+                    .content_length()
+                    .is_some_and(|size| size > crate::steam_profile::LIMIT as u64)
+            {
+                return Err("Steam profile refresh unavailable".into());
+            }
+            let mut bytes = Vec::new();
+            while let Some(chunk) = response
+                .chunk()
+                .await
+                .map_err(|_| "Could not read Steam profile")?
+            {
+                if bytes.len() + chunk.len() > crate::steam_profile::LIMIT {
+                    return Err("Steam profile response is too large".into());
+                }
+                bytes.extend_from_slice(&chunk);
+            }
+            let xml = std::str::from_utf8(&bytes).map_err(|_| "Invalid Steam profile text")?;
+            return Ok(xml.to_owned());
+        }
+        unreachable!()
+    }
+
+    pub async fn steam_profile(&self, input: &str, refresh: bool) -> Result<Value> {
+        let id = account_id(input)?;
+        let _slot = self
+            .player_slots
+            .try_acquire()
+            .map_err(|_| "Wait for loading to finish")?;
+        let key = format!("steam-profile-v1-{id}");
+        let lock = self.lock(&key).await;
+        let _guard = lock.lock().await;
+        let path = self.directory.join(format!("{key}.json"));
+        let cached = read_cache(&path).filter(|value| crate::steam_profile::validate(value, &id));
+        // Isolated demos serve only synthetic fixtures, explicitly labelled.
+        if std::env::var_os("ANCIENT_TEST_DATA").is_some() {
+            return cached
+                .map(|mut value| {
+                    value["demonstration"] = json!(true);
+                    value
+                })
+                .ok_or("No isolated Steam identity fixture".into());
+        }
+        if let Some(value) = cached
+            .as_ref()
+            .filter(|value| !refresh && fresh(value, crate::steam_profile::TTL))
+        {
+            return Ok(value.clone());
+        }
+        let result: Result<Value> = async {
+            // Isolated demos never reach live Steam; cached synthetic data is
+            // served below with `demonstration: true` instead.
+            if std::env::var_os("ANCIENT_TEST_DATA").is_some() {
+                return Err("No isolated Steam identity fixture".into());
+            }
+            let xml = self.steam_fetch(&id).await?;
+            crate::steam_profile::parse(&xml, &id)
+        }
+        .await;
+        match result {
+            Ok(value) => {
+                let _ = atomic_json(&path, &value);
+                Ok(value)
+            }
+            Err(error) => match cached {
+                Some(mut value) => {
+                    value["stale"] = json!(true);
+                    value["demonstration"] = json!(false);
+                    Ok(value)
+                }
+                None => Err(error),
+            },
+        }
     }
     /// One cached league sample per own hero; changing the draft reranks locally.
     pub async fn item_stats(&self, hero: u64) -> Result<Value> {
@@ -969,6 +1108,7 @@ fn prune_cache(directory: &std::path::Path, max_age: Duration) {
             "items-v1-",
             "items-v2-",
             "items-v3-",
+            "steam-profile-v1-",
         ]
         .iter()
         .any(|prefix| stem.starts_with(prefix))
@@ -1662,4 +1802,27 @@ mod partial_tests {
         )
         .is_err());
     }
+}
+/// Keep Steam and OpenDota pacing/pause state independent.
+#[tokio::test]
+async fn steam_pause_state_is_independent_from_opendota_pause_state() {
+    let dir = tempfile::tempdir().unwrap();
+    let api = Api::new(dir.path().into(), None).unwrap();
+    // Steam pauses only Steam.
+    api.steam_pause(60, "steam down").await;
+    assert!(api.steam_pace().await.is_err());
+    // OpenDota pace/pause state untouched: its cooldown is still in the past.
+    assert!(*api.cooldown.lock().await <= Instant::now());
+    assert!(api.issue.lock().await.is_empty());
+    // OpenDota pauses only OpenDota.
+    let before_steam_issue = api.steam_issue.lock().await.clone();
+    api.pause(60, "opendota down").await;
+    assert_eq!(*api.steam_issue.lock().await, before_steam_issue);
+    assert!(*api.steam_cooldown.lock().await > Instant::now());
+    // Steam next slot is unaffected by OpenDota's next-slot reset.
+    let steam_next_before = *api.steam_next.lock().await;
+    api.pause(60, "opendota again").await;
+    assert_eq!(*api.steam_next.lock().await, steam_next_before);
+    // OpenDota's own gate now refuses, Steam's is still refusing (both paused, independent).
+    assert!(*api.cooldown.lock().await > Instant::now());
 }

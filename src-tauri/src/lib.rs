@@ -28,3 +28,5 @@ pub mod stats;
 pub mod steam_setup;
 pub mod store;
 pub mod stratz_token;
+
+pub mod steam_profile;

@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Pencil } from 'lucide-react';
-import { accountId, matchWon, type Hero, type LocalState, type Match, type PlayerHistory } from '../shared/domain';
+import {
+  accountId,
+  matchWon,
+  type Hero,
+  type LocalState,
+  type Match,
+  type PlayerHistory,
+  type SteamIdentity,
+} from '../shared/domain';
 import { filterHistory, patchOf, streakRun, type HistoryFilter, type Patch } from '../shared/history';
 import { ownProfileRank } from '../shared/own-rank';
 import { sortProfileHistory } from '../shared/profile-history';
@@ -39,6 +47,36 @@ export function OwnProfile({ local, update }: { local: LocalState; update(state:
   const generation = useRef(0);
   const mounted = useRef(true);
   const loading = useRef(false);
+  const [identity, setIdentity] = useState<SteamIdentity>();
+  const identityGeneration = useRef(0);
+  const [identityBusy, setIdentityBusy] = useState(false);
+  const [identityError, setIdentityError] = useState('');
+
+  async function refreshIdentity(refresh = false) {
+    if (!local.accountId || !api.getSteamProfile) return;
+    const token = ++identityGeneration.current;
+    setIdentityBusy(true);
+    setIdentityError('');
+    try {
+      const value = await api.getSteamProfile(local.accountId, refresh);
+      if (mounted.current && token === identityGeneration.current && value.accountId === local.accountId)
+        setIdentity(value);
+    } catch (error) {
+      if (mounted.current && token === identityGeneration.current) setIdentityError(errorMessage(error));
+    } finally {
+      if (mounted.current && token === identityGeneration.current) setIdentityBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    setIdentity(undefined);
+    setIdentityBusy(false);
+    setIdentityError('');
+    void refreshIdentity();
+    return () => {
+      identityGeneration.current++;
+    };
+  }, [local.accountId]);
 
   async function load(offset = 0) {
     if (!local.accountId || loading.current) return;
@@ -191,8 +229,13 @@ export function OwnProfile({ local, update }: { local: LocalState; update(state:
         local={local}
         data={data}
         rank={rank}
-        busy={busy}
-        onRefresh={() => void load()}
+        busy={busy || identityBusy}
+        identityError={identityError}
+        identity={identity?.accountId === local.accountId ? identity : undefined}
+        onRefresh={() => {
+          void load();
+          void refreshIdentity(true);
+        }}
         actions={
           local.accountId && !local.ownAccount?.accountId ? (
             <button
@@ -233,6 +276,9 @@ export function OwnProfile({ local, update }: { local: LocalState; update(state:
           />
         }
       />
+      {(data?.demonstration || identity?.demonstration) && (
+        <p className="item-demo-label">Synthetic demonstration · invented profile and statistics</p>
+      )}
       {(!local.accountId || editing) && (
         <form className="search-panel" onSubmit={(event) => void connect(event)}>
           <label htmlFor="own-account">My Dota ID / SteamID64</label>

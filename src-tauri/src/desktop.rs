@@ -558,6 +558,12 @@ async fn desktop_call(
             Ok(value)
         }
         "state:get" => Ok(state.store.lock().await.public()),
+        "steam:profile" => {
+            state
+                .api()
+                .steam_profile(args["id"].as_str().unwrap_or(""), args["refresh"] == true)
+                .await
+        }
         "state:account" | "note:save" | "note:delete" | "mmr:add" | "mmr:delete" => {
             let value = state.store.lock().await.change(&command, &args)?;
             let _ = app.emit("state:update", &value);
