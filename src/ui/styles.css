@@ -2572,22 +2572,37 @@ td small {
   gap: 4px;
   min-width: 240px;
 }
-.profile-account-choice {
+.profile-account-entry {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 5px;
+}
+.profile-account-entry:hover,
+.profile-account-entry.selected {
+  background: var(--raised);
+}
+.profile-account-pick {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
   padding: 9px;
-  border-radius: 5px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
   text-align: left;
 }
-.profile-account-choice:hover,
-.profile-account-choice[aria-pressed='true'] {
-  background: var(--raised);
-}
-.profile-account-choice small {
+.profile-account-pick small {
   display: block;
   color: var(--muted);
+}
+.profile-account-remove {
+  flex: none;
+  margin-right: 6px;
 }
 .profile-account-add {
   display: grid;
@@ -2632,7 +2647,7 @@ td small {
   --medal: 40px;
 }
 .own-mmr {
-  color: var(--accent);
+  color: var(--text);
   font-size: 26px;
   font-weight: 700;
   line-height: 1;
@@ -5579,7 +5594,7 @@ article.player-card {
   width: 20px;
   height: 20px;
 }
-.profile-account-choice > span {
+.profile-account-pick > span {
   min-width: 0;
   overflow-wrap: anywhere;
 }

@@ -8,7 +8,9 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 - Profile names wrap above the update status and open a saved-account menu. Browsing an
   alternate profile leaves automatic account detection and each account's MMR separate.
-- A saved calibrated MMR keeps its derived medal visible after Dota closes. MMR is blue;
+- Saved accounts can be removed from the menu; their saved readings and notes stay in the
+  data file, and adding the ID again restores them. The game's current account stays.
+- A saved calibrated MMR keeps its derived medal visible after Dota closes. MMR is white;
   the GPM table heading is gold with a coin icon.
 - My profile refreshes names and avatars directly from Steam Community, including its
   Fastly avatar host; Steam identity updates have their own timestamp and cache fallback.

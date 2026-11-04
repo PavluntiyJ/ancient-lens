@@ -581,7 +581,12 @@ async fn desktop_call(
             .lock()
             .await
             .profile_account(args["id"].as_str().unwrap_or("")),
-        "state:account" | "state:add-profile" | "note:save" | "note:delete" | "mmr:add"
+        "state:account"
+        | "state:add-profile"
+        | "state:remove-profile"
+        | "note:save"
+        | "note:delete"
+        | "mmr:add"
         | "mmr:delete" => {
             let value = state.store.lock().await.change(&command, &args)?;
             let _ = app.emit("state:update", &value);

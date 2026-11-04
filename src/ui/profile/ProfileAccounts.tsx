@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { X } from 'lucide-react';
 import { accountId, type SteamIdentity } from '../../shared/domain';
 import { api, errorMessage } from '../App';
 import { ProfileMenu } from '../ProfileMenu';
@@ -8,11 +9,16 @@ function AccountChoice({
   selected,
   active,
   choose,
+  remove,
+  removing,
 }: {
   id: string;
   selected: boolean;
   active: boolean;
   choose(): void;
+  /** Absent for the app's current account, which the game's key relies on. */
+  remove?: () => void;
+  removing?: boolean;
 }) {
   const [identity, setIdentity] = useState<SteamIdentity>();
   useEffect(() => {
@@ -27,17 +33,31 @@ function AccountChoice({
       keep = false;
     };
   }, [id]);
+  const name = identity?.name ?? `Account ${id}`;
   return (
-    <button className="profile-account-choice" aria-pressed={selected} onClick={choose}>
-      <span>
-        {identity?.name ?? `Account ${id}`}
-        <small>
-          {id}
-          {active ? ' · Current account' : ''}
-        </small>
-      </span>
-      {selected && <small>Selected</small>}
-    </button>
+    <div className={`profile-account-entry${selected ? ' selected' : ''}`}>
+      <button className="profile-account-pick" aria-pressed={selected} onClick={choose}>
+        <span>
+          {name}
+          <small>
+            {id}
+            {active ? ' · Current account' : ''}
+          </small>
+        </span>
+        {selected && <small>Selected</small>}
+      </button>
+      {remove && (
+        <button
+          className="icon-button profile-account-remove"
+          aria-label={`Remove ${name}`}
+          title="Remove saved profile"
+          disabled={removing}
+          onClick={remove}
+        >
+          <X size={13} />
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -48,6 +68,7 @@ export function ProfileAccounts({
   accounts,
   choose,
   add,
+  remove,
 }: {
   name: string;
   selected: string;
@@ -55,10 +76,13 @@ export function ProfileAccounts({
   accounts: string[];
   choose(id: string): void;
   add(id: string): Promise<void>;
+  remove(id: string): Promise<void>;
 }) {
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
+  const [removeError, setRemoveError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [removing, setRemoving] = useState<string>();
   async function submit(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
@@ -70,6 +94,17 @@ export function ProfileAccounts({
       setError(errorMessage(e));
     } finally {
       setBusy(false);
+    }
+  }
+  async function removeAccount(id: string) {
+    setRemoveError('');
+    setRemoving(id);
+    try {
+      await remove(id);
+    } catch (e) {
+      setRemoveError(errorMessage(e));
+    } finally {
+      setRemoving(undefined);
     }
   }
   return (
@@ -85,9 +120,22 @@ export function ProfileAccounts({
     >
       <div className="profile-account-list">
         {[...new Set([active, selected, ...accounts].filter(Boolean))].map((id) => (
-          <AccountChoice key={id} id={id} selected={id === selected} active={id === active} choose={() => choose(id)} />
+          <AccountChoice
+            key={id}
+            id={id}
+            selected={id === selected}
+            active={id === active}
+            choose={() => choose(id)}
+            remove={id === active ? undefined : () => void removeAccount(id)}
+            removing={removing === id}
+          />
         ))}
       </div>
+      {removeError && (
+        <small role="alert" className="error-text">
+          {removeError}
+        </small>
+      )}
       <form className="profile-account-add" onSubmit={(event) => void submit(event)}>
         <label htmlFor="add-profile-account">Add account</label>
         <input

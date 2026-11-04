@@ -293,6 +293,12 @@ function OwnProfileContent({
               update(await api.addProfileAccount(id));
               choose(id);
             }}
+            remove={async (id) => {
+              if (!api.removeProfileAccount) throw new Error('Removing profiles is unavailable in this version');
+              update(await api.removeProfileAccount(id));
+              // A removed profile must not stay on screen; the game's account remains.
+              if (id === local.accountId) choose(activeAccountId);
+            }}
           />
         )}
         chart={

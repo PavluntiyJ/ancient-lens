@@ -284,6 +284,12 @@ impl Store {
             .count();
         let snapshot = self.data["ratingSnapshots"][id].clone();
         let mut accounts = Vec::<String>::new();
+        let hidden: Vec<&str> = self.data["hiddenProfiles"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .collect();
         let candidates = self.data["profileAccounts"]
             .as_array()
             .into_iter()
@@ -304,7 +310,10 @@ impl Store {
             )
             .chain(self.data["accountId"].as_str());
         for candidate in candidates {
-            if !candidate.is_empty() && !accounts.iter().any(|old| old == candidate) {
+            if !candidate.is_empty()
+                && !hidden.contains(&candidate)
+                && !accounts.iter().any(|old| old == candidate)
+            {
                 accounts.push(candidate.to_owned());
             }
         }
@@ -420,7 +429,7 @@ impl Store {
     }
     pub fn export(&self) -> Value {
         // Include all accounts and legacy unassigned records, without the GSI secret.
-        json!({"accountId":self.data["accountId"],"notes":self.data["notes"],"mmr":self.data["mmr"],"ratingSnapshots":self.data["ratingSnapshots"],"profileAccounts":self.data["profileAccounts"],"nativeRosterReader":self.data["nativeRosterReader"],"matches":self.matches})
+        json!({"accountId":self.data["accountId"],"notes":self.data["notes"],"mmr":self.data["mmr"],"ratingSnapshots":self.data["ratingSnapshots"],"profileAccounts":self.data["profileAccounts"],"hiddenProfiles":self.data["hiddenProfiles"],"nativeRosterReader":self.data["nativeRosterReader"],"matches":self.matches})
     }
     /// Matches recorded from the game for one account.
     pub fn recorded(&self, account: &str) -> Vec<Value> {
@@ -571,6 +580,10 @@ impl Store {
             }
             "state:add-profile" => {
                 let id = account_id(args["id"].as_str().unwrap_or(""))?;
+                // Adding an account that was removed from the menu shows it again.
+                if let Some(hidden) = next.get_mut("hiddenProfiles").and_then(Value::as_array_mut) {
+                    hidden.retain(|old| old != &id);
+                }
                 if !next["profileAccounts"].is_array() {
                     next["profileAccounts"] = json!([]);
                 }
@@ -580,6 +593,27 @@ impl Store {
                         return Err("Up to 32 saved profiles are supported".into());
                     }
                     rows.push(json!(id));
+                }
+            }
+            "state:remove-profile" => {
+                let id = account_id(args["id"].as_str().unwrap_or(""))?;
+                // The game's account stays in the menu; its key and the header icon rely on it.
+                if next["accountId"] == id {
+                    return Err("The current account cannot be removed".into());
+                }
+                // Removing hides the entry; readings, notes and matches are kept.
+                if let Some(rows) = next
+                    .get_mut("profileAccounts")
+                    .and_then(Value::as_array_mut)
+                {
+                    rows.retain(|old| old != &id);
+                }
+                if !next["hiddenProfiles"].is_array() {
+                    next["hiddenProfiles"] = json!([]);
+                }
+                let hidden = next["hiddenProfiles"].as_array_mut().unwrap();
+                if !hidden.iter().any(|old| old == &id) {
+                    hidden.push(json!(id));
                 }
             }
             "state:account" => {
@@ -761,6 +795,16 @@ fn validate(v: &Value) -> Result<()> {
             .ok_or(invalid)?;
         let mut seen = std::collections::HashSet::new();
         for id in accounts {
+            let id = id.as_str().ok_or(invalid)?;
+            if account_id(id)? != id || !seen.insert(id) {
+                return Err(invalid.into());
+            }
+        }
+    }
+    if let Some(hidden) = v.get("hiddenProfiles") {
+        let hidden = hidden.as_array().ok_or(invalid)?;
+        let mut seen = std::collections::HashSet::new();
+        for id in hidden {
             let id = id.as_str().ok_or(invalid)?;
             if account_id(id)? != id || !seen.insert(id) {
                 return Err(invalid.into());
@@ -1156,6 +1200,47 @@ mod tests {
             .as_array()
             .unwrap()
             .contains(&json!("789")));
+    }
+    #[test]
+    fn removing_a_saved_profile_hides_it_and_keeps_its_data() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut store = Store::open(dir.path().into()).unwrap();
+        store.observe_account(measured("456", 3000)).unwrap();
+        store.observe_account(measured("123", 6586)).unwrap();
+        assert!(store.public()["profileAccounts"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("456")));
+        store
+            .change("state:remove-profile", &json!({"id":"456"}))
+            .unwrap();
+        assert!(!store.public()["profileAccounts"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("456")));
+        // The game's current account cannot leave the menu.
+        assert!(store
+            .change("state:remove-profile", &json!({"id":"123"}))
+            .is_err());
+        // Readings stay available for the hidden account.
+        assert_eq!(
+            store.profile_account("456").unwrap()["mmr"][0]["value"],
+            3000
+        );
+        // The choice survives a restart, and adding the ID again brings the entry back.
+        let reopened = Store::open(dir.path().into()).unwrap();
+        assert!(!reopened.public()["profileAccounts"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("456")));
+        drop(reopened);
+        store
+            .change("state:add-profile", &json!({"id":"456"}))
+            .unwrap();
+        assert!(store.public()["profileAccounts"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("456")));
     }
     #[test]
     fn legacy_rating_is_preserved_without_guessing_its_owner() {
