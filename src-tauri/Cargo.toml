@@ -43,7 +43,7 @@ sha2 = "0.10"
 subtle = "2"
 dirs = "6"
 futures = "0.3"
-rfd = { version = "0.15", optional = true }
+rfd = { version = "0.17", optional = true }
 tempfile = "3"
 open = { version = "5", optional = true }
 
@@ -57,7 +57,7 @@ libc = "0.2"
 # Already in the tree via single-instance/rfd; used to detect a tray host before hiding to it.
 zbus = { version = "5.9", optional = true }
 # Already in the tree via global-shortcut; reads which window is active for hiding the overlay.
-x11rb = { version = "0.13", optional = true }
+x11rb = { version = "0.14", optional = true }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 winreg = "0.55"

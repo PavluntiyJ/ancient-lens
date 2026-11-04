@@ -91,6 +91,8 @@ pub struct Api {
     slots: Semaphore,
     summary_slots: Semaphore,
     player_slots: Semaphore,
+    /// Steam identity fetches wait here instead of taking player-history slots.
+    steam_slots: Semaphore,
     broker: Option<mpsc::Sender<Pending>>,
     totals: Option<mpsc::Sender<Pending>>,
     broker_url: Option<String>,
@@ -140,6 +142,7 @@ impl Api {
             slots: Semaphore::new(40),
             summary_slots: Semaphore::new(20),
             player_slots: Semaphore::new(3),
+            steam_slots: Semaphore::new(2),
             broker,
             totals,
             broker_url,
@@ -230,10 +233,6 @@ impl Api {
 
     pub async fn steam_profile(&self, input: &str, refresh: bool) -> Result<Value> {
         let id = account_id(input)?;
-        let _slot = self
-            .player_slots
-            .try_acquire()
-            .map_err(|_| "Wait for loading to finish")?;
         let key = format!("steam-profile-v1-{id}");
         let lock = self.lock(&key).await;
         let _guard = lock.lock().await;
@@ -254,12 +253,16 @@ impl Api {
         {
             return Ok(value.clone());
         }
+        // The account menu asks for every saved account at once. Steam has its own slots and
+        // pacing, and the callers wait for them, so names never take the player-history slots
+        // and never fail just because another Steam fetch is running. Repeated requests for
+        // one account wait on its key lock above and then hit the fresh cache.
         let result: Result<Value> = async {
-            // Isolated demos never reach live Steam; cached synthetic data is
-            // served below with `demonstration: true` instead.
-            if std::env::var_os("ANCIENT_TEST_DATA").is_some() {
-                return Err("No isolated Steam identity fixture".into());
-            }
+            let _slot = self
+                .steam_slots
+                .acquire()
+                .await
+                .map_err(|_| "Steam profile refresh unavailable")?;
             let xml = self.steam_fetch(&id).await?;
             crate::steam_profile::parse(&xml, &id)
         }
@@ -282,10 +285,6 @@ impl Api {
     /// One cached league sample per own hero; changing the draft reranks locally.
     pub async fn item_stats(&self, hero: u64) -> Result<Value> {
         let sql = crate::item_stats::query(hero)?;
-        let _slot = self
-            .slots
-            .try_acquire()
-            .map_err(|_| "Wait for loading to finish")?;
         let key = format!("{}-{hero}", crate::item_stats::VERSION);
         let lock = self.lock(&key).await;
         let _guard = lock.lock().await;
@@ -322,6 +321,11 @@ impl Api {
                 .map(|v| public(v, true))
                 .ok_or("No isolated item statistics fixture".into());
         }
+        // Only the network fetch needs a slot; a cached sample is served while others load.
+        let _slot = self
+            .slots
+            .try_acquire()
+            .map_err(|_| "Wait for loading to finish")?;
         let mut url = reqwest::Url::parse("https://api.opendota.com/api/explorer").unwrap();
         url.query_pairs_mut().append_pair("sql", &sql);
         let endpoint = format!("explorer?{}", url.query().unwrap());
@@ -1520,6 +1524,57 @@ mod partial_tests {
         std::fs::write(&path, b"{").unwrap();
         assert!(read_json(&path, 64).is_err());
     }
+    #[tokio::test]
+    async fn steam_identity_leaves_player_slots_alone_and_serves_cache_without_a_slot() {
+        let dir = tempfile::tempdir().unwrap();
+        let api = Api::new(dir.path().into(), None).unwrap();
+        crate::store::atomic_json(
+            &dir.path().join("steam-profile-v1-123.json"),
+            &json!({"accountId":"123","name":"Cached name","source":"Steam Community",
+                "avatar":"https://avatars.fastly.steamstatic.com/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_full.jpg",
+                "fetchedAt":crate::store::now(),"stale":false}),
+        )
+        .unwrap();
+        // Profile history and player lookups hold every player slot, and Steam is busy.
+        let _players = api.player_slots.try_acquire_many(3).unwrap();
+        let _steam = api.steam_slots.try_acquire_many(2).unwrap();
+        // A fresh identity is served from the cache without waiting for any slot.
+        let cached = api.steam_profile("123", false).await.unwrap();
+        assert_eq!(cached["name"], "Cached name");
+        drop(_steam);
+        // An uncached account never reports the player-history slots as busy: it reaches
+        // Steam's own gate, which is paused here so no request leaves the test.
+        api.steam_pause(60, "steam paused for the test").await;
+        // (Not compared with the pause text: another test briefly sets ANCIENT_TEST_DATA.)
+        let error = api.steam_profile("456", false).await.unwrap_err();
+        assert_ne!(error, "Wait for loading to finish");
+        assert_eq!(api.player_slots.available_permits(), 0);
+    }
+
+    #[tokio::test]
+    async fn fresh_item_sample_is_served_while_loading_slots_are_busy() {
+        let dir = tempfile::tempdir().unwrap();
+        let empty = serde_json::json!({
+            "heroId": 1,
+            "sampleMatches": 0,
+            "oldest": null,
+            "newest": null,
+            "standardBuilds": [],
+            "items": [],
+            "pairs": [],
+        });
+        crate::store::atomic_json(
+            &dir.path().join("items-v3-1.json"),
+            &serde_json::json!({"at": chrono::Utc::now().timestamp_millis(), "data": empty}),
+        )
+        .unwrap();
+        let api = Api::new(dir.path().into(), None).unwrap();
+        let _busy = api.slots.try_acquire_many(40).unwrap();
+        let data = api.item_stats(1).await.unwrap();
+        assert_eq!(data["stale"], false);
+        assert_eq!(data["sampleMatches"], 0);
+    }
+
     #[tokio::test]
     async fn items_cache_older_than_a_week_is_refused_for_isolated_demos() {
         let dir = tempfile::tempdir().unwrap();

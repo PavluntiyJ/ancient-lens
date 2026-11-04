@@ -28,6 +28,10 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 - The match window's hotkey and the tray's **Match window** entry return to **Match and
   draft** instead of restoring the page that was open last (**Notes**, **Settings** or
   **Item build**).
+- Opening the account menu with several saved accounts no longer leaves some names as
+  "Account <id>" or makes a profile history load fail with "Wait for loading to finish":
+  Steam names wait for their own slots, and saved Steam names and item statistics no longer
+  need a loading slot at all.
 - **More** and **Columns** in the profile open their menus again. They had been placed below
   the window, so a click only added a scrollbar and nudged the page.
 
