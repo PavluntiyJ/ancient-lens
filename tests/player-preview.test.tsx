@@ -10,6 +10,7 @@ vi.mock('../src/ui/MatchScreen', () => ({
   CountryFlag: () => null,
   RankMedal: ({ tier }: { tier?: number | null }) => <span data-tier={tier} />,
   Portrait: ({ hero }: { hero?: { id: number } }) => <i data-hero={hero?.id} />,
+  ProBadge: ({ name }: { name: string }) => <span className="pro-badge" data-pro={name} />,
 }));
 const heroes: Hero[] = [5, 14].map((id) => ({
   id,
@@ -138,4 +139,18 @@ it('names this match role and the reason a profile failed', () => {
   expect(html).toContain('Off Lane · most probable position');
   expect(html).toContain('Could not load: The service did not return a player profile.');
   expect(html).toContain('No profile data');
+});
+
+it('leads with the professional name STRATZ links and keeps the Steam name as a fact', () => {
+  const pro = summary([], {
+    profile: { rank_tier: 80, profile: { account_id: 55, personaname: 'Fixture Persona', pro_name: 'FixturePro' } },
+  });
+  const html = renderToStaticMarkup(<PlayerPreview name="Fixture Persona" summary={pro} met={null} heroes={heroes} />);
+  expect(html).toContain('<b class="pro">FixturePro<span class="pro-badge" data-pro="FixturePro">');
+  expect(html).toContain('<dt>Steam name</dt><dd>Fixture Persona</dd>');
+  const plain = renderToStaticMarkup(
+    <PlayerPreview name="Fixture Persona" summary={summary([])} met={null} heroes={heroes} />,
+  );
+  expect(plain).not.toContain('pro-badge');
+  expect(plain).toContain('<b>Fixture Persona</b>');
 });

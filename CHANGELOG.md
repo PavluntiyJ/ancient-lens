@@ -6,6 +6,9 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ### Added
 
+- Professional players show the name STRATZ links to their account, in light blue with a
+  check, above their Dota name in the match table; the hover card and profile header show it
+  too. Needs the statistics service.
 - On Linux, **My profile** finds the account signed in to Steam without memory reading, as on
   Windows. Before, with reading off, the account appeared only once a match started.
 - Profile names wrap above the update status and open a saved-account menu. Browsing an

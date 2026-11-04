@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Bookmark, Lock, RefreshCw, Settings, Swords, UserPlus, UserRound } from 'lucide-react';
+import { BadgeCheck, Bookmark, Lock, RefreshCw, Settings, Swords, UserPlus, UserRound } from 'lucide-react';
 import {
   rankName,
   winRateTone,
@@ -192,6 +192,16 @@ export function CountryFlag({ code, source, id }: { code?: string | null; source
       aria-label={label}
       onError={() => setFailed(true)}
     />
+  );
+}
+/** The check after a professional player's name. STRATZ links the name to the account; the
+ * app never guesses a professional from a nickname. */
+export function ProBadge({ name }: { name: string }) {
+  const label = `Professional player ${name} · name from STRATZ`;
+  return (
+    <span className="pro-badge" title={label} aria-label={label} role="img">
+      <BadgeCheck size={15} aria-hidden />
+    </span>
   );
 }
 export function RankMedal({ tier, leaderboard }: { tier?: number | null; leaderboard?: number | null }) {
@@ -1072,8 +1082,9 @@ export function MatchScreen({
                         player?.accountId && player.accountId !== ownAccountId
                           ? meetings(ownHistory, player.accountId, live.matchId)
                           : null;
-                      const name =
-                        player?.name || data?.profile.profile?.personaname || (player ? 'Name not provided' : '—');
+                      const persona = player?.name || data?.profile.profile?.personaname;
+                      const proName = data?.profile.profile?.pro_name || undefined;
+                      const name = proName || persona || (player ? 'Name not provided' : '—');
                       const isSelf =
                         draftRow.isSelf ||
                         player?.key === 'self' ||
@@ -1155,12 +1166,13 @@ export function MatchScreen({
                               <div>
                                 <span className="player-name">
                                   <button
-                                    className="player-link"
+                                    className={`player-link${proName ? ' pro' : ''}`}
                                     disabled={!player?.accountId}
                                     onClick={() => player?.accountId && setSelected(player.accountId)}
                                   >
                                     {name}
                                   </button>
+                                  {proName && <ProBadge name={proName} />}
                                   {isSelf && <span className="self-badge">YOU</span>}
                                   {player?.accountId && smurfs.has(player.accountId) && (
                                     <span className="smurf-badge" title={smurfExplanation} tabIndex={0}>
@@ -1178,6 +1190,11 @@ Note of ${noteDate(note.updatedAt)}`}
                                     </span>
                                   )}
                                 </span>
+                                {proName && persona && persona !== proName && (
+                                  <small className="persona-name" title="Name in Dota">
+                                    {persona}
+                                  </small>
+                                )}
                                 {oldSelection && (
                                   <small className="previous-selection">Previous sample · {data.days} days</small>
                                 )}

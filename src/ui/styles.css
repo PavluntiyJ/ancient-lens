@@ -1220,6 +1220,38 @@ td small {
   gap: 6px;
   min-width: 0;
 }
+/* A professional name from STRATZ: coloured, with a check, and the Dota name below. */
+.player-link.pro,
+.preview-who b.pro,
+.profile-pro-name {
+  color: var(--accent-light);
+}
+.pro-badge {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--accent-light);
+}
+.player-name .pro-badge {
+  margin-left: -3px;
+}
+.match-player small.persona-name {
+  display: block;
+  max-width: 100%;
+  margin-top: -1px;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.profile-pro-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 500;
+}
 .match-table td > .muted {
   font-size: 13px;
   white-space: nowrap;

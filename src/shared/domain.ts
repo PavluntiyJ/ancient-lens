@@ -109,6 +109,8 @@ export const profileSchema = z.object({
       avatarfull: z.string().optional(),
       /** Steam profile location, ISO 3166-1 alpha-2; absent when the player set none. */
       loccountrycode: z.string().nullable().optional(),
+      /** Professional player name STRATZ links to the account; absent when it links none. */
+      pro_name: z.string().nullable().optional(),
     })
     .nullable()
     .optional(),

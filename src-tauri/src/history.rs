@@ -21,7 +21,7 @@ impl Request {
     }
 }
 pub fn query(request: &Request) -> String {
-    format!("{{ player(steamAccountId:{}) {{ steamAccountId steamAccount {{ name avatar countryCode seasonRank seasonLeaderboardRank isAnonymous }} matches(request:{{take:25,skip:{},playerList:ALL}}) {{ id endDateTime durationSeconds didRadiantWin gameMode lobbyType rank players {{ steamAccountId steamAccount {{ name }} heroId isRadiant kills deaths assists goldPerMinute experiencePerMinute role position numLastHits numDenies networth heroDamage towerDamage heroHealing imp }} }} }} }}", request.id, request.offset)
+    format!("{{ player(steamAccountId:{}) {{ steamAccountId steamAccount {{ name avatar countryCode seasonRank seasonLeaderboardRank isAnonymous proSteamAccount {{ name }} }} matches(request:{{take:25,skip:{},playerList:ALL}}) {{ id endDateTime durationSeconds didRadiantWin gameMode lobbyType rank players {{ steamAccountId steamAccount {{ name }} heroId isRadiant kills deaths assists goldPerMinute experiencePerMinute role position numLastHits numDenies networth heroDamage towerDamage heroHealing imp }} }} }} }}", request.id, request.offset)
 }
 pub fn page(row: &Value, request: &Request) -> Result<Value> {
     if row["steamAccountId"]
@@ -79,6 +79,9 @@ pub fn page(row: &Value, request: &Request) -> Result<Value> {
     }
     if let Some(country) = crate::stats::country(&row["steamAccount"]["countryCode"]) {
         profile["profile"]["loccountrycode"] = json!(country);
+    }
+    if let Some(name) = crate::stats::pro_name(&row["steamAccount"]) {
+        profile["profile"]["pro_name"] = json!(name);
     }
     Ok(
         json!({"accountId":request.id,"source":"STRATZ","fetchedAt":now(),"profile":profile,"matches":matches,"nextOffset":request.offset + count as u32,"hasMore":count == 25 && request.offset + (count as u32) <= 5000 && !private,"historyUnavailable":private || raw.is_none(),"stale":false,"warning":if private {Some("STRATZ history is private. Showing previously saved matches.")} else if raw.is_none() {Some("STRATZ returned no history. Showing saved matches.")} else if rejected > 0 {Some("Some matches were skipped because their data was incomplete.")} else {None}}),
@@ -251,7 +254,21 @@ mod tests {
         };
         assert!(query(&request).contains("role position"));
         assert!(query(&request).contains("avatar countryCode"));
+        assert!(query(&request).contains("isAnonymous proSteamAccount { name } }"));
         assert!(query(&request).contains("players { steamAccountId steamAccount { name } heroId"));
+        let named = |account: Value| {
+            page(
+                &json!({"steamAccountId":1,"steamAccount":account,"matches":[]}),
+                &request,
+            )
+            .unwrap()["profile"]["profile"]["pro_name"]
+                .clone()
+        };
+        assert_eq!(
+            named(json!({"proSteamAccount":{"name":"Fixture Pro"}})),
+            "Fixture Pro"
+        );
+        assert!(named(json!({"proSteamAccount":null})).is_null());
         // SINGLE returns only the requested player; teammates and opponents need ALL.
         assert!(query(&request).contains("playerList:ALL"));
         for position in [
