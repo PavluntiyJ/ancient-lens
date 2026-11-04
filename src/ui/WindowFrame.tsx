@@ -125,14 +125,16 @@ export const typingTarget =
 /**
  * A window above the game does not take the keyboard when clicked, so the game keeps its
  * focus and sound. A click on a text field, or on a button that records keys, asks for the
- * keyboard; the window gives it back when it loses the focus.
+ * keyboard; the window gives it back when it loses the focus. The page's own focus says
+ * nothing about the keyboard: WebView2 reports focus after a click into the passive window
+ * while the game still has the keys, so every such click asks; asking again is harmless.
  */
 export function useKeyboardOnDemand(info?: AppInfo) {
   const overlay = !!info?.overlay;
   useEffect(() => {
     if (!overlay || !api.setKeyboard) return;
     const down = (event: PointerEvent) => {
-      if (document.hasFocus() || !(event.target instanceof Element)) return;
+      if (!(event.target instanceof Element)) return;
       const target = event.target.closest<HTMLElement>(typingTarget);
       if (!target) return;
       void api.setKeyboard!(true).then(

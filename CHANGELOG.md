@@ -29,8 +29,9 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 - With memory reading off, **Connect Dota 2** on Linux no longer reads the running game's
   environment and command line. It finds the account in Steam's files, as My profile does.
-- Clicking **Add note** or **Edit note** in a player card above the game gives the window the
-  keyboard. Before, the note field showed a cursor while the keys still went to Dota.
+- Clicking **Add note** or **Edit note** in a player card, or any text field, in a window above
+  the game gives the window the keyboard. Before, the field showed a cursor while the keys
+  still went to Dota.
 - Unknown results stay unknown. A meeting without a known result no longer counts as a loss
   in the **With me** summary. A hero without a measured match shows **—** instead of **0**
   in the profile's MMR column. A player whose match history failed to load is no longer
