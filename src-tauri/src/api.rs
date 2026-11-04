@@ -76,6 +76,15 @@ pub fn client() -> reqwest::Client {
         .build()
         .expect("TLS client")
 }
+const OPENDOTA: &str = "https://api.opendota.com/api";
+/// What a final OpenDota failure does to other requests.
+#[derive(Clone, Copy, PartialEq)]
+enum Failure {
+    /// Pause all OpenDota requests for a minute: the service itself looks down.
+    Pause,
+    /// Report it to this caller only.
+    Report,
+}
 pub struct Api {
     directory: PathBuf,
     client: reqwest::Client,
@@ -96,6 +105,8 @@ pub struct Api {
     /// An isolated run (`ANCIENT_TEST_DATA`): fixtures only, never a live provider. Read once
     /// at construction so tests can build an isolated API without the process environment.
     isolated: bool,
+    /// OpenDota's API root; a local fake in tests.
+    opendota: String,
     broker: Option<mpsc::Sender<Pending>>,
     totals: Option<mpsc::Sender<Pending>>,
     broker_url: Option<String>,
@@ -109,9 +120,14 @@ struct Pending {
 impl Api {
     pub fn new(directory: PathBuf, broker_url: Option<String>) -> Result<Arc<Self>> {
         let isolated = std::env::var_os("ANCIENT_TEST_DATA").is_some();
-        Self::build(directory, broker_url, isolated)
+        Self::build(directory, broker_url, isolated, OPENDOTA)
     }
-    fn build(directory: PathBuf, broker_url: Option<String>, isolated: bool) -> Result<Arc<Self>> {
+    fn build(
+        directory: PathBuf,
+        broker_url: Option<String>,
+        isolated: bool,
+        opendota: &str,
+    ) -> Result<Arc<Self>> {
         let client = client();
         let broker = if let Some(url) = broker_url.clone() {
             let parsed = reqwest::Url::parse(&url).map_err(|_| "Invalid statistics service URL")?;
@@ -151,6 +167,7 @@ impl Api {
             player_slots: Semaphore::new(3),
             steam_slots: Semaphore::new(2),
             isolated,
+            opendota: opendota.into(),
             broker,
             totals,
             broker_url,
@@ -337,8 +354,10 @@ impl Api {
         let mut url = reqwest::Url::parse("https://api.opendota.com/api/explorer").unwrap();
         url.query_pairs_mut().append_pair("sql", &sql);
         let endpoint = format!("explorer?{}", url.query().unwrap());
+        // A slow or failing Explorer query says nothing about the rest of OpenDota, so it never
+        // pauses match and profile loading; a rate limit still does.
         let result = self
-            .request(&endpoint)
+            .request_with(&endpoint, Failure::Report)
             .await
             .and_then(|v| crate::item_stats::parse(&v, hero));
         match result {
@@ -359,8 +378,11 @@ impl Api {
         locks.entry(key.into()).or_default().clone()
     }
     async fn request(&self, endpoint: &str) -> Result<Value> {
+        self.request_with(endpoint, Failure::Pause).await
+    }
+    async fn request_with(&self, endpoint: &str, failure: Failure) -> Result<Value> {
         let started = Instant::now();
-        let result = self.request_once(endpoint).await;
+        let result = self.request_once(endpoint, failure).await;
         net_log(
             &format!("OpenDota {}", endpoint_shape(endpoint)),
             started,
@@ -368,7 +390,7 @@ impl Api {
         );
         result
     }
-    async fn request_once(&self, endpoint: &str) -> Result<Value> {
+    async fn request_once(&self, endpoint: &str, failure: Failure) -> Result<Value> {
         for attempt in 0..2 {
             if Instant::now() < *self.cooldown.lock().await {
                 return Err(self.issue.lock().await.clone());
@@ -385,12 +407,15 @@ impl Api {
             }
             let response = match self
                 .client
-                .get(format!("https://api.opendota.com/api/{endpoint}"))
+                .get(format!("{}/{endpoint}", self.opendota))
                 .send()
                 .await
             {
                 Ok(r) => r,
                 Err(_) if attempt == 0 => continue,
+                Err(_) if failure == Failure::Report => {
+                    return Err("OpenDota did not respond after a retry.".into());
+                }
                 Err(_) => {
                     let message = "OpenDota did not respond after a retry. New requests are paused for one minute.";
                     self.pause(60, message).await;
@@ -413,6 +438,12 @@ impl Api {
             }
             if response.status().is_server_error() && attempt == 0 {
                 continue;
+            }
+            if response.status().is_server_error() && failure == Failure::Report {
+                return Err(format!(
+                    "OpenDota unavailable (HTTP {}).",
+                    response.status().as_u16()
+                ));
             }
             if response.status().is_server_error() {
                 let message = format!(
@@ -1120,6 +1151,7 @@ fn prune_cache(directory: &std::path::Path, max_age: Duration) {
             "items-v1-",
             "items-v2-",
             "items-v3-",
+            "items-v4-",
             "steam-profile-v1-",
         ]
         .iter()
@@ -1571,7 +1603,7 @@ mod partial_tests {
             "pairs": [],
         });
         crate::store::atomic_json(
-            &dir.path().join("items-v3-1.json"),
+            &dir.path().join("items-v4-1.json"),
             &serde_json::json!({"at": chrono::Utc::now().timestamp_millis(), "data": empty}),
         )
         .unwrap();
@@ -1583,9 +1615,27 @@ mod partial_tests {
     }
 
     #[tokio::test]
+    async fn failing_item_query_never_pauses_the_rest_of_opendota() {
+        use axum::{http::StatusCode, routing::get, Router};
+        let router = Router::new().fallback(get(|| async { StatusCode::SERVICE_UNAVAILABLE }));
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+        let dir = tempfile::tempdir().unwrap();
+        let api = Api::build(dir.path().into(), None, false, &format!("http://{addr}")).unwrap();
+        let error = api.item_stats(1).await.unwrap_err();
+        assert_eq!(error, "OpenDota unavailable (HTTP 503).");
+        assert!(*api.cooldown.lock().await <= Instant::now());
+        assert!(api.issue.lock().await.is_empty());
+        // Any other OpenDota request that fails the same way still pauses the service.
+        assert!(api.request("heroes").await.unwrap_err().contains("paused"));
+        assert!(*api.cooldown.lock().await > Instant::now());
+    }
+
+    #[tokio::test]
     async fn isolated_steam_identity_serves_only_labelled_fixtures() {
         let dir = tempfile::tempdir().unwrap();
-        let api = Api::build(dir.path().into(), None, true).unwrap();
+        let api = Api::build(dir.path().into(), None, true, OPENDOTA).unwrap();
         // No fixture: an error, never a live Steam request.
         assert_eq!(
             api.steam_profile("123", true).await.unwrap_err(),
@@ -1618,11 +1668,11 @@ mod partial_tests {
             "pairs": [],
         });
         crate::store::atomic_json(
-            &dir.path().join("items-v3-1.json"),
+            &dir.path().join("items-v4-1.json"),
             &serde_json::json!({"at": at, "data": empty}),
         )
         .unwrap();
-        let api = Api::build(dir.path().into(), None, true).unwrap();
+        let api = Api::build(dir.path().into(), None, true, OPENDOTA).unwrap();
         let result = api.item_stats(1).await;
         assert!(
             matches!(result, Err(error) if error.contains("No isolated item statistics fixture"))

@@ -60,7 +60,7 @@ await writeFile(
 );
 for (const [hero, data] of Object.entries(fixture.stats)) {
   const { source, fetchedAt, stale, demonstration, ...raw } = data;
-  await writeFile(join(cache, `items-v3-${hero}.json`), JSON.stringify({ at: Date.now(), data: raw }));
+  await writeFile(join(cache, `items-v4-${hero}.json`), JSON.stringify({ at: Date.now(), data: raw }));
 }
 if (demo) {
   const avatar = 'https://avatars.fastly.steamstatic.com/0000000000000000000000000000000000000000_full.jpg';
@@ -238,7 +238,7 @@ try {
     assert.equal(await firstItem(), null);
     // Stale cache remains visible as stale, never relabelled as fresh.
     const raw = fixture.stats['106'];
-    await writeFile(join(cache, 'items-v3-106.json'), JSON.stringify({ at: Date.now() - 7 * 3600000, data: raw }));
+    await writeFile(join(cache, 'items-v4-106.json'), JSON.stringify({ at: Date.now() - 7 * 3600000, data: raw }));
     await emit(2, { matchId: 'synthetic-items-stale' });
     await selectItems();
     await waitFor(async () => (await text()).includes('Saved statistics'), 'Stale cache was not marked');
@@ -288,7 +288,7 @@ try {
     await waitFor(async () => (await firstItem()) === '226', 'Changed offlane draft did not recommend Lotus Orb');
     await capture('offlane-lotus.png');
     // Undo the intentionally stale cache before the interactive examples are opened.
-    await writeFile(join(cache, 'items-v3-106.json'), JSON.stringify({ at: Date.now(), data: fixture.stats['106'] }));
+    await writeFile(join(cache, 'items-v4-106.json'), JSON.stringify({ at: Date.now(), data: fixture.stats['106'] }));
   }
   if (demo) {
     await emit(0);

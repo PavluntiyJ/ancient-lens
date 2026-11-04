@@ -4,14 +4,18 @@ use crate::store::Result;
 use serde_json::{json, Value};
 use std::collections::HashSet;
 
-pub const VERSION: &str = "items-v3";
+pub const VERSION: &str = "items-v4";
 pub const TTL: i64 = 6 * 3_600_000;
+/// Explorer keeps only parsed league matches, and in the last half year far fewer of them:
+/// a year gives roughly ten times more matchup evidence per hero (at most 2,000 matches).
+pub const SAMPLE_DAYS: u64 = 365;
 
 pub fn query(hero: u64) -> Result<String> {
     if !(1..=1000).contains(&hero) {
         return Err("Invalid own hero".into());
     }
     // Only the validated integer is interpolated. No SQL or filters come from the page.
+    let window = SAMPLE_DAYS * 86_400;
     Ok(format!(
         r#"WITH recent AS (
  SELECT m.match_id, a.player_slot, a.purchase, a.purchase_log,
@@ -20,7 +24,7 @@ pub fn query(hero: u64) -> Result<String> {
  FROM player_matches a JOIN matches m ON m.match_id=a.match_id
  WHERE a.hero_id={hero} AND a.purchase IS NOT NULL AND a.purchase_log IS NOT NULL
  AND m.radiant_win IS NOT NULL AND m.leagueid>0
- AND m.start_time>extract(epoch from now())-15552000
+ AND m.start_time>extract(epoch from now())-{window}
  AND (SELECT count(*) FROM player_matches p WHERE p.match_id=m.match_id)=10
  ORDER BY m.match_id DESC LIMIT 2000
 ), eligible AS (
@@ -123,7 +127,7 @@ pub fn validate(data: &Value, hero: u64) -> Result<()> {
     }
     match (sample, data["oldest"].as_u64(), data["newest"].as_u64()) {
         (0, None, None) if data["oldest"].is_null() && data["newest"].is_null() => {}
-        (1.., Some(a), Some(b)) if a > 0 && a <= b && b - a <= 180 * 86400 => {}
+        (1.., Some(a), Some(b)) if a > 0 && a <= b && b - a <= SAMPLE_DAYS * 86_400 => {}
         _ => return Err(invalid()),
     }
     let items = data["items"].as_array().ok_or_else(invalid)?;
@@ -232,6 +236,7 @@ mod tests {
         assert!(sql.contains("purchase_log IS NOT NULL"));
         assert!(sql.contains("m.leagueid>0"));
         assert!(sql.contains("LIMIT 2000"));
+        assert!(sql.contains("now())-31536000"));
     }
     #[test]
     fn validates_subsets_not_just_nonnegative_counts() {
@@ -257,6 +262,14 @@ mod tests {
             .unwrap()
             .push(data()["pairs"][0].clone());
         assert!(validate(&duplicate, 1).is_err());
+    }
+    #[test]
+    fn sample_may_span_one_year_but_not_more() {
+        let mut year = data();
+        year["newest"] = json!(100 + SAMPLE_DAYS * 86_400);
+        assert!(validate(&year, 1).is_ok());
+        year["newest"] = json!(101 + SAMPLE_DAYS * 86_400);
+        assert!(validate(&year, 1).is_err());
     }
     #[test]
     fn standard_variants_require_distinct_supported_equipment_sets() {

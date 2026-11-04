@@ -2,6 +2,9 @@ import { z } from 'zod';
 import type { LiveState } from './domain';
 import { visibleDraftPicks, visibleDraftSlots } from './live-draft';
 
+/** Matches `SAMPLE_DAYS` in `src-tauri/src/item_stats.rs`. */
+const SAMPLE_DAYS = 365;
+
 const integer = z.number().int().min(0).max(2000);
 const counts = z.object({ games: integer, wins: integer, withGames: integer, withWins: integer });
 const equipmentSchema = z.object({
@@ -85,7 +88,7 @@ export function parseItemData(raw: unknown, heroId: number): ItemData {
     data.oldest === null ||
     data.newest === null ||
     data.oldest > data.newest ||
-    data.newest - data.oldest > 180 * 86400
+    data.newest - data.oldest > SAMPLE_DAYS * 86400
   )
     invalid();
   const ids = new Set<number>();
