@@ -77,6 +77,7 @@ pub fn client() -> reqwest::Client {
         .expect("TLS client")
 }
 const OPENDOTA: &str = "https://api.opendota.com/api";
+const STEAM: &str = "https://steamcommunity.com/profiles";
 /// What a final OpenDota failure does to other requests.
 #[derive(Clone, Copy, PartialEq)]
 enum Failure {
@@ -107,6 +108,8 @@ pub struct Api {
     isolated: bool,
     /// OpenDota's API root; a local fake in tests.
     opendota: String,
+    /// Steam Community's profile root; a local fake in tests.
+    steam: String,
     broker: Option<mpsc::Sender<Pending>>,
     totals: Option<mpsc::Sender<Pending>>,
     broker_url: Option<String>,
@@ -120,13 +123,14 @@ struct Pending {
 impl Api {
     pub fn new(directory: PathBuf, broker_url: Option<String>) -> Result<Arc<Self>> {
         let isolated = std::env::var_os("ANCIENT_TEST_DATA").is_some();
-        Self::build(directory, broker_url, isolated, OPENDOTA)
+        Self::build(directory, broker_url, isolated, OPENDOTA, STEAM)
     }
     fn build(
         directory: PathBuf,
         broker_url: Option<String>,
         isolated: bool,
         opendota: &str,
+        steam: &str,
     ) -> Result<Arc<Self>> {
         let client = client();
         let broker = if let Some(url) = broker_url.clone() {
@@ -168,6 +172,7 @@ impl Api {
             steam_slots: Semaphore::new(2),
             isolated,
             opendota: opendota.into(),
+            steam: steam.into(),
             broker,
             totals,
             broker_url,
@@ -208,10 +213,10 @@ impl Api {
         // (does not touch OpenDota's pause state).
         for attempt in 0..2 {
             self.steam_pace().await?;
-            let mut steam_url = reqwest::Url::parse("https://steamcommunity.com/profiles").unwrap();
+            let mut steam_url = reqwest::Url::parse(&self.steam).unwrap();
             steam_url
                 .path_segments_mut()
-                .expect("https URL has segments")
+                .expect("an http(s) URL has segments")
                 .push(&steam_id.to_string());
             steam_url.query_pairs_mut().append_pair("xml", "1");
             let mut response = match self
@@ -229,8 +234,30 @@ impl Api {
                     return Err(message.into());
                 }
             };
+            // Steam answers too many profile requests with 429: wait as long as it asks (one
+            // minute to an hour) instead of asking again on every menu open or refresh.
+            if response.status().as_u16() == 429 {
+                let retry = response
+                    .headers()
+                    .get("retry-after")
+                    .and_then(|v| v.to_str().ok())
+                    .and_then(|v| v.parse::<u64>().ok())
+                    .unwrap_or(60)
+                    .clamp(60, 3600);
+                let message = "Steam is limiting profile requests. Names refresh again later.";
+                self.steam_pause(retry, message).await;
+                return Err(message.into());
+            }
             if response.status().is_server_error() && attempt == 0 {
                 continue;
+            }
+            if response.status().is_server_error() {
+                let message = format!(
+                    "Steam profile refresh unavailable (HTTP {}). New Steam requests are paused for one minute.",
+                    response.status().as_u16()
+                );
+                self.steam_pause(60, &message).await;
+                return Err(message);
             }
             if !response.status().is_success()
                 || response
@@ -1622,7 +1649,14 @@ mod partial_tests {
         let addr = listener.local_addr().unwrap();
         tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
         let dir = tempfile::tempdir().unwrap();
-        let api = Api::build(dir.path().into(), None, false, &format!("http://{addr}")).unwrap();
+        let api = Api::build(
+            dir.path().into(),
+            None,
+            false,
+            &format!("http://{addr}"),
+            STEAM,
+        )
+        .unwrap();
         let error = api.item_stats(1).await.unwrap_err();
         assert_eq!(error, "OpenDota unavailable (HTTP 503).");
         assert!(*api.cooldown.lock().await <= Instant::now());
@@ -1633,9 +1667,50 @@ mod partial_tests {
     }
 
     #[tokio::test]
+    async fn steam_rate_limits_and_outages_pause_only_steam() {
+        use axum::{http::StatusCode, routing::get, Router};
+        async fn fake(status: StatusCode, retry: Option<&'static str>) -> String {
+            let router = Router::new().fallback(get(move || async move {
+                let mut response = axum::response::Response::new(axum::body::Body::empty());
+                *response.status_mut() = status;
+                if let Some(retry) = retry {
+                    response
+                        .headers_mut()
+                        .insert("retry-after", retry.parse().unwrap());
+                }
+                response
+            }));
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let addr = listener.local_addr().unwrap();
+            tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+            format!("http://{addr}/profiles")
+        }
+        let dir = tempfile::tempdir().unwrap();
+        // 429: wait as long as Steam asks.
+        let limited = fake(StatusCode::TOO_MANY_REQUESTS, Some("600")).await;
+        let api = Api::build(dir.path().into(), None, false, OPENDOTA, &limited).unwrap();
+        let error = api.steam_profile("123", true).await.unwrap_err();
+        assert!(error.contains("limiting"), "{error}");
+        assert!(*api.steam_cooldown.lock().await > Instant::now() + Duration::from_secs(500));
+        // The next request is refused locally, and OpenDota is untouched.
+        assert_eq!(api.steam_profile("456", true).await.unwrap_err(), error);
+        assert!(*api.cooldown.lock().await <= Instant::now());
+        // 5xx twice: a one-minute Steam pause.
+        let down = fake(StatusCode::SERVICE_UNAVAILABLE, None).await;
+        let api = Api::build(dir.path().into(), None, false, OPENDOTA, &down).unwrap();
+        let error = api.steam_profile("123", true).await.unwrap_err();
+        assert!(
+            error.contains("HTTP 503") && error.contains("paused"),
+            "{error}"
+        );
+        assert!(*api.steam_cooldown.lock().await > Instant::now() + Duration::from_secs(50));
+        assert!(*api.cooldown.lock().await <= Instant::now());
+    }
+
+    #[tokio::test]
     async fn isolated_steam_identity_serves_only_labelled_fixtures() {
         let dir = tempfile::tempdir().unwrap();
-        let api = Api::build(dir.path().into(), None, true, OPENDOTA).unwrap();
+        let api = Api::build(dir.path().into(), None, true, OPENDOTA, STEAM).unwrap();
         // No fixture: an error, never a live Steam request.
         assert_eq!(
             api.steam_profile("123", true).await.unwrap_err(),
@@ -1672,7 +1747,7 @@ mod partial_tests {
             &serde_json::json!({"at": at, "data": empty}),
         )
         .unwrap();
-        let api = Api::build(dir.path().into(), None, true, OPENDOTA).unwrap();
+        let api = Api::build(dir.path().into(), None, true, OPENDOTA, STEAM).unwrap();
         let result = api.item_stats(1).await;
         assert!(
             matches!(result, Err(error) if error.contains("No isolated item statistics fixture"))

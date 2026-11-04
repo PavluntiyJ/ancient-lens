@@ -37,6 +37,10 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
   ten times more enemy matchups now have enough games to suggest an item.
 - A failed **Item build** query no longer pauses match and profile loading from OpenDota for
   a minute; only an OpenDota rate limit still does.
+- When Steam limits profile requests or stays unavailable, profile names wait as long as
+  Steam asks (or a minute) instead of asking again on every menu open.
+- Removing saved accounts keeps the data file small: only accounts the menu would otherwise
+  bring back from saved readings are remembered, up to 256.
 - **More** and **Columns** in the profile open their menus again. They had been placed below
   the window, so a click only added a scrollbar and nudged the page.
 
