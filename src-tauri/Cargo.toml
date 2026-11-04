@@ -48,7 +48,7 @@ tempfile = "3"
 open = { version = "5", optional = true }
 
 # Roster reader: ELF and PE parsing are plain file work, so both build and are tested on every system.
-object = { version = "0.37", default-features = false, features = ["read", "elf", "pe", "std"] }
+object = { version = "0.40", default-features = false, features = ["read", "elf", "pe", "std"] }
 iced-x86 = { version = "1.21", default-features = false, features = ["std", "decoder"] }
 memchr = "2"
 
