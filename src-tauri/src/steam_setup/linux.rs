@@ -11,7 +11,7 @@ use std::{
 const FLATPAK: &str = "/.var/app/com.valvesoftware.Steam/";
 
 /// Processes of this user whose executable has exactly this file name.
-fn pids(name: &str) -> Vec<i32> {
+pub(crate) fn pids(name: &str) -> Vec<i32> {
     fs::read_dir("/proc")
         .into_iter()
         .flatten()

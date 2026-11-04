@@ -3,8 +3,8 @@
 //! localconfig.vdf and rewrites that file when it exits, so they are only edited while Steam is
 //! closed, after the user agreed to close it.
 #[cfg(target_os = "linux")]
-mod linux;
-mod vdf;
+pub(crate) mod linux;
+pub(crate) mod vdf;
 #[cfg(windows)]
 mod windows;
 use crate::store::Result;

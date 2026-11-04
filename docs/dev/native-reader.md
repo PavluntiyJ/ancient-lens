@@ -25,10 +25,14 @@ Polled every three seconds.
 
 - **Account.** Windows reads the active Steam user from the registry
   (`ActiveProcess.ActiveUser`) and checks it against the running Steam process; this is not
-  game memory and works without consent. Linux maps the Steam login that launched Dota
-  (`SteamAppUser` in the game's environment) through `loginusers.vdf`; the environment is
-  part of the game process, so it is read only with consent. A fresh own GSI packet can
-  confirm or, when it conflicts, block the binding until the game restarts.
+  game memory and works without consent. Linux does the same from Steam's files while a
+  `steam` process runs: `AutoLoginUser` in `registry.vdf`, mapped through `loginusers.vdf`,
+  or its single `MostRecent` or only user; files that disagree, also across native, Flatpak
+  and Snap installations, give no account. With consent, Linux binds the rating to the Steam
+  login that launched Dota (`SteamAppUser` in the game's environment); the environment is
+  part of the game process, so it is read only with consent. Without the game process, a
+  fresh own GSI packet names the account before Steam's files do. A fresh own GSI packet
+  can confirm or, when it conflicts, block the binding until the game restarts.
 - **Layout.** `layout.rs` (PE) and `layout_linux.rs` (ELF) find the rating getter by its
   code shape near the `rank_confidence` string. Every candidate must be the same function;
   the getter, adjustment and percent code are compared byte for byte except relative

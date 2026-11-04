@@ -6,6 +6,8 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ### Added
 
+- On Linux, **My profile** finds the account signed in to Steam without memory reading, as on
+  Windows. Before, with reading off, the account appeared only once a match started.
 - Profile names wrap above the update status and open a saved-account menu. Browsing an
   alternate profile leaves automatic account detection and each account's MMR separate.
 - Saved accounts can be removed from the menu; their saved readings and notes stay in the
