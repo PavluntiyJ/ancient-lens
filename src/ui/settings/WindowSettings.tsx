@@ -80,7 +80,7 @@ function AutoHideSetting({
   const [error, setError] = useState('');
   return (
     <>
-      <label className={available ? undefined : 'disabled'}>
+      <label className={available ? undefined : 'unavailable'}>
         <input
           type="checkbox"
           disabled={!available}
@@ -92,7 +92,7 @@ function AutoHideSetting({
         />
         Minimize when you switch to another app
       </label>
-      <p className="fine-print">
+      <p className={available ? 'fine-print' : 'fine-print reason'}>
         {available
           ? 'Activating a browser, a folder, the desktop or the taskbar minimizes both windows to the taskbar; clicking the game or these windows keeps them up. Bring one back from the taskbar or with its key. A window brought up by its key over another app takes the keyboard, so a click back into that app minimizes it.'
           : 'Unavailable: Wayland does not tell applications which window is active, so the windows stay up.'}
@@ -107,7 +107,7 @@ function KeysSetting({ local, update, info }: { local: LocalState; update(value:
   const available = !!info?.keysOverGame;
   return (
     <>
-      <label className={available ? undefined : 'disabled'}>
+      <label className={available ? undefined : 'unavailable'}>
         <input
           type="checkbox"
           disabled={!available}
@@ -119,7 +119,7 @@ function KeysSetting({ local, update, info }: { local: LocalState; update(value:
         />
         Window keys only while Dota is in front
       </label>
-      <p className="fine-print">
+      <p className={available ? 'fine-print' : 'fine-print reason'}>
         {available
           ? 'The two window keys work over Dota and these windows only; over any other app they reach that app, whether or not Dota is running. The taskbar and the tray still bring the windows up.'
           : info?.wayland
@@ -143,7 +143,7 @@ function TraySetting({
   const [error, setError] = useState('');
   return (
     <>
-      <label className={available ? undefined : 'disabled'}>
+      <label className={available ? undefined : 'unavailable'}>
         <input
           type="checkbox"
           disabled={!available}
@@ -155,7 +155,7 @@ function TraySetting({
         />
         Closing a window keeps Ancient Lens in the tray
       </label>
-      <p className="fine-print">
+      <p className={available ? 'fine-print' : 'fine-print reason'}>
         {available
           ? 'Match data and the rating reader keep working in the background. Quit from the tray icon menu.'
           : 'Unavailable: this desktop shows no tray icons, so closing the last visible window quits the app.'}

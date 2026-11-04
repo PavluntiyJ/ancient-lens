@@ -109,6 +109,20 @@ describe('window settings', () => {
     expect(wayland).toContain('Wayland does not tell applications which window is active');
   });
 
+  it('dims only the box of an unavailable option and keeps its reason readable', () => {
+    const wayland = renderToStaticMarkup(
+      <WindowSettings
+        local={local}
+        update={() => {}}
+        info={info({ platform: 'linux', wayland: true, autoHide: false, keysOverGame: false, tray: true })}
+      />,
+    );
+    expect(wayland.match(/<label class="unavailable">/g)).toHaveLength(2);
+    expect(wayland).not.toContain('<label class="disabled">');
+    expect(wayland).toContain('<p class="fine-print reason">Unavailable: Wayland does not tell applications');
+    expect(wayland).toContain('<p class="fine-print">Match data and the rating reader keep working');
+  });
+
   it('keeps the window keys to the game by default, where they can be released', () => {
     const checkbox = (html: string) =>
       /<input type="checkbox"([^>]*)\/>Window keys only while Dota is in front/.exec(html)?.[1];

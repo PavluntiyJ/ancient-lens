@@ -4102,6 +4102,15 @@ label.disabled {
 label.disabled {
   cursor: not-allowed;
 }
+/* An option this system cannot offer: only its box looks disabled; the label and the reason
+   under it stay readable. */
+label.unavailable > input {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.fine-print.reason {
+  color: var(--text-2);
+}
 .keycaps {
   display: inline-flex;
   align-items: center;

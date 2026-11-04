@@ -43,6 +43,9 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
   bring back from saved readings are remembered, up to 256.
 - **More** and **Columns** in the profile open their menus again. They had been placed below
   the window, so a click only added a scrollbar and nudged the page.
+- Window options this system cannot offer (on Wayland, **Minimize when you switch to another
+  app** and **Window keys only while Dota is in front**) are readable again: only the checkbox
+  looks disabled, and the reason under it is no longer faint grey.
 
 ## 0.7.3 — October 31, 2026
 
