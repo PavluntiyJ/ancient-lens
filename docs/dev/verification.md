@@ -57,15 +57,21 @@ scenario sets the window to that minimum.
 Hover checks move the real WebDriver pointer. WebKitWebDriver hangs on pointer
 actions while the window lacks keyboard focus (another application in front), so
 the smoke then dispatches the same pointer events and says so in its log. For a
-run that cannot be disturbed by the desktop, start it in a nested virtual KWin
-session:
+run that cannot be disturbed by the desktop, and does not disturb it, use the KDE guard:
 
 ```sh
-kwin_wayland --virtual --no-lockscreen --width 2560 --height 1600 --socket al-smoke \
-  --exit-with-session "/bin/sh -c 'WAYLAND_DISPLAY=al-smoke npm run test:native'"
+npm run test:native:kde
+# any command: node scripts/kde-desktop-guard.mjs run -- npm run test:native
 ```
 
-`--width 1024 --height 768` reproduces the Windows CI screen.
+It starts the command in a virtual KWin on a private session bus that activates no
+services, then repairs what nested sessions are known to break on the host desktop:
+KWin's window-switching shortcuts (Alt+Tab stays assigned but stops working), the
+flatpak document portal (`/run/user/<uid>/doc` unmounted, flatpak apps fail with
+`bwrap: Can't find source path`) and KDE portals left on the dead test bus. After a run
+started some other way, `node scripts/kde-desktop-guard.mjs repair` applies the same
+fixes; `check` only reports. `ANCIENT_GUARD_SCREEN=1024x768` reproduces the Windows CI
+screen.
 
 ## Native coverage
 
