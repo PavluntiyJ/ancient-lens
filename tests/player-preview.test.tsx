@@ -110,6 +110,21 @@ it('keeps the note and earlier meetings for a private profile, with unknowns as 
   expect(rows[0]).toContain('We won');
 });
 
+it('does not call a profile private when its history only failed to load', () => {
+  const html = renderToStaticMarkup(
+    <PlayerPreview
+      name="Kestrel"
+      summary={summary([], { source: 'OpenDota', isPublic: undefined, historyUnavailable: true })}
+      met={null}
+      heroes={heroes}
+    />,
+  );
+  expect(html).not.toContain('Match data is hidden');
+  expect(html).not.toContain('Private profile');
+  expect(html).toContain('Match history could not be loaded.');
+  expect(html).toMatch(/<dt>Last 14 days<\/dt><dd><span class="muted">—<\/span>/);
+});
+
 it('names this match role and the reason a profile failed', () => {
   const html = renderToStaticMarkup(
     <PlayerPreview

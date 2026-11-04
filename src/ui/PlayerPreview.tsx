@@ -93,7 +93,9 @@ export function PlayerPreview({
   const run = streak(matches);
   const place = country(summary?.profile.profile?.loccountrycode);
   const steamName = summary?.profile.profile?.personaname;
-  const hidden = summary?.isPublic === false || !!summary?.historyUnavailable;
+  // Only the service can say a profile is private; a failed history load is not that.
+  const hidden = summary?.isPublic === false;
+  const unavailable = !hidden && !!summary?.historyUnavailable;
   const roleName = role && rankedRoles.find((item) => item.id === role.position)?.name;
   const together = new Map(met?.games.map((game) => [game.match.match_id, game.ally]) ?? []);
   const metDecided = met?.games.filter((game) => game.won !== null) ?? [];
@@ -138,7 +140,12 @@ export function PlayerPreview({
         {error && <p className="preview-block preview-error">Could not load: {error}</p>}
         {hidden && (
           <p className="preview-block preview-hidden">
-            <b>Match data is hidden in this profile.</b> Rank and matches stay unknown; your note still work.
+            <b>Match data is hidden in this profile.</b> Rank and matches stay unknown; your note still works.
+          </p>
+        )}
+        {unavailable && (
+          <p className="preview-block preview-hidden">
+            <b>Match history could not be loaded.</b> Its matches stay unknown for now; your note still works.
           </p>
         )}
         <dl className="preview-block preview-facts">
@@ -158,7 +165,7 @@ export function PlayerPreview({
                   {matches.length} · <span className={tone(wins, results.length)}>{percent(wins, results.length)}</span>
                 </>
               ) : (
-                <span className="muted">{summary && !hidden ? 'No matches' : '—'}</span>
+                <span className="muted">{summary && !hidden && !unavailable ? 'No matches' : '—'}</span>
               )}
             </dd>
           </div>

@@ -38,7 +38,7 @@ export function MetBadge({ met, heroes }: { met: Meetings | null; heroes: Hero[]
     window.clearTimeout(closing.current);
     closing.current = window.setTimeout(() => setPlace(null), 150);
   };
-  const side = ({ games, wins }: Meetings['ally']) => `${games} (${wins}–${games - wins})`;
+  const side = ({ games, wins, losses }: Meetings['ally']) => `${games} (${wins}–${losses})`;
   const summary = `Already met: as ally ${side(met.ally)}, as opponent ${side(met.enemy)}. Wins and losses are yours.`;
   const decided = met.games.filter((game) => game.won !== null);
   const wins = decided.filter((game) => game.won).length;

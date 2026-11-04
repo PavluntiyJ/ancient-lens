@@ -39,9 +39,12 @@ export function HeroesPanel({
   selectedHero?: number;
   onHero(id: number): void;
 }) {
-  const rows = new Map<number, { games: number; wins: number; known: number; imp: number[]; delta: number }>();
+  const rows = new Map<
+    number,
+    { games: number; wins: number; known: number; imp: number[]; delta: number; rated: number }
+  >();
   for (const match of matches) {
-    const row = rows.get(match.hero_id) ?? { games: 0, wins: 0, known: 0, imp: [], delta: 0 };
+    const row = rows.get(match.hero_id) ?? { games: 0, wins: 0, known: 0, imp: [], delta: 0, rated: 0 };
     const won = matchWon(match);
     row.games++;
     if (won !== null) {
@@ -49,7 +52,11 @@ export function HeroesPanel({
       row.wins += Number(won);
     }
     if (typeof match.imp === 'number') row.imp.push(match.imp);
-    row.delta += ratings.get(match.match_id)?.delta ?? 0;
+    const rating = ratings.get(match.match_id);
+    if (rating) {
+      row.delta += rating.delta;
+      row.rated++;
+    }
     rows.set(match.hero_id, row);
   }
   const sorted = [...rows].sort((a, b) => b[1].games - a[1].games || a[1].delta - b[1].delta || a[0] - b[0]);
@@ -92,7 +99,12 @@ export function HeroesPanel({
             </span>
             <span>
               {measured ? (
-                <Signed value={row.delta} />
+                // A hero without a measured match has no MMR change, not a change of zero.
+                row.rated ? (
+                  <Signed value={row.delta} />
+                ) : (
+                  <span className="muted">—</span>
+                )
               ) : row.known ? (
                 <span className={`wr-${profileWinRateTone(row.wins, row.known)}`}>
                   {Math.round((row.wins / row.known) * 100)}%

@@ -1,6 +1,7 @@
 import { matchWon, type Match, type Participant } from './domain';
 
-export type Side = { games: number; wins: number };
+/** Games together; a game without a known result counts in `games` only. */
+export type Side = { games: number; wins: number; losses: number };
 export type Meeting = { match: Match; ally: boolean; won: boolean | null; player: Participant };
 export type Meetings = {
   ally: Side;
@@ -18,7 +19,11 @@ export type Meetings = {
 export function meetings(history: Match[], accountId: string, currentMatchId?: string): Meetings | null {
   const id = Number(accountId);
   if (!Number.isSafeInteger(id) || id <= 0) return null;
-  const result: Meetings = { ally: { games: 0, wins: 0 }, enemy: { games: 0, wins: 0 }, games: [] };
+  const result: Meetings = {
+    ally: { games: 0, wins: 0, losses: 0 },
+    enemy: { games: 0, wins: 0, losses: 0 },
+    games: [],
+  };
   for (const match of history) {
     if (String(match.match_id) === currentMatchId) continue;
     const asAlly = match.allies?.find((player) => player.id === id);
@@ -28,7 +33,8 @@ export function meetings(history: Match[], accountId: string, currentMatchId?: s
     const side = ally ? result.ally : result.enemy;
     const won = matchWon(match);
     side.games++;
-    if (won) side.wins++;
+    if (won === true) side.wins++;
+    if (won === false) side.losses++;
     result.games.push({ match, ally, won, player });
   }
   result.games.sort((a, b) => b.match.start_time - a.match.start_time || b.match.match_id - a.match.match_id);

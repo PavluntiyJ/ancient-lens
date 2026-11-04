@@ -22,13 +22,19 @@ it('counts earlier matches as ally or opponent with the own result and the last 
     game(9, 500, { allies: [{ id: 55 }] }),
   ];
   const met = meetings(history, '55', '9')!;
-  expect(met.ally).toEqual({ games: 1, wins: 1 });
-  expect(met.enemy).toEqual({ games: 2, wins: 1 });
+  expect(met.ally).toEqual({ games: 1, wins: 1, losses: 0 });
+  expect(met.enemy).toEqual({ games: 2, wins: 1, losses: 1 });
   expect(met.games.map((game) => game.match.match_id)).toEqual([2, 3, 1]);
   expect([met.games[0]!.ally, met.games[0]!.won, met.games[0]!.player.hero]).toEqual([false, false, 8]);
   expect(met.games[2]!.player.kills).toBe(3);
   expect(meetings(history, '77')).toBeNull();
   expect(meetings(history, 'x')).toBeNull();
+});
+
+it('counts a meeting without a known result as neither a win nor a loss', () => {
+  const met = meetings([game(1, 100, { allies: [{ id: 55 }], radiant_win: null })], '55')!;
+  expect(met.ally).toEqual({ games: 1, wins: 0, losses: 0 });
+  expect(met.games[0]!.won).toBeNull();
 });
 
 it('marks recent and heavy hero spam by their thresholds', () => {
