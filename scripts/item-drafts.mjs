@@ -346,5 +346,9 @@ try {
   if (demo && process.stdin.isTTY) process.stdin.setRawMode(false);
   if (demo) process.stdin.pause();
   await app?.close();
-  await rm(directory, { recursive: true, force: true });
+  // Windows may keep the WebView2 profile lockfile busy for a moment after the
+  // renderer exits; retrying beats failing the whole run over a unlocked file.
+  await rm(directory, { recursive: true, force: true, maxRetries: 12, retryDelay: 250 }).catch((error) =>
+    console.error(`Temporary data not removed: ${error.message}`),
+  );
 }
