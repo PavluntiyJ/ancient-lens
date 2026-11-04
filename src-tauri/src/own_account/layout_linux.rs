@@ -224,7 +224,9 @@ mod tests {
         assert!(locate(b"\x7fELF").is_none());
     }
 
-    /// `ANCIENT_DOTA_CLIENT=<…/linuxsteamrt64/libclient.so> cargo test -- --ignored` on the researched build.
+    /// `ANCIENT_DOTA_CLIENT=<…/linuxsteamrt64/libclient.so> cargo test -- --ignored` on the pinned
+    /// build. The addresses move with every client update, so after one, check that `locate`
+    /// still succeeds and pin the new values here.
     #[test]
     #[ignore = "requires ANCIENT_DOTA_CLIENT pointing to the installed libclient.so"]
     fn installed_libclient_matches_the_researched_layout() {
@@ -233,11 +235,13 @@ mod tests {
         let layout = locate(&bytes).expect("layout");
         assert_eq!(
             (layout.getter, layout.root, layout.clock),
-            (0x6b149c0, 0x98b7380, 0x9ad78c8)
+            // Dota 2 client 6971 (steam.inf ClientVersion), Nov 03 2026.
+            (0x6b153c0, 0x98b7d80, 0x9ad82c8)
         );
         // A changed formula constant (0.0056 → other) must fail closed.
         let image = Image::parse(&bytes).unwrap();
-        let constant = image.target(0x6acca10 + 0xdc).unwrap();
+        let percent = image.target(layout.getter + 0x67).unwrap();
+        let constant = image.target(percent + 0xdc).unwrap();
         let &(va, _, raw, ..) = image
             .sections
             .iter()
