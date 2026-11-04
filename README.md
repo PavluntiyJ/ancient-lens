@@ -64,6 +64,7 @@ Details and troubleshooting: [setup and data](docs/guide/setup.md), and the
 | What you get                                                                      | Needs                                   | Windows                         | Linux                                    |
 | --------------------------------------------------------------------------------- | --------------------------------------- | ------------------------------- | ---------------------------------------- |
 | Public profiles, notes, manual draft, MMR journal, automatic account detection    | Nothing: works out of the box           | Yes                             | Yes                                      |
+| Steam identity refresh from the public Steam Community profile                | Public Steam profile                    | Native verification pending     | Non-GUI checks; manual review pending    |
 | Historical item options for your hero against the known draft                    | Public OpenDota league sample           | Native verification pending     | Synthetic native scenario; local version |
 | 0.7 match layout, player hover card and note controls                            | Public statistics and your local history | Native fixtures checked          | Desktop check pending; CI checks only    |
 | Ten-player roster and picks while spectating                                      | Dota GSI setup (Quick start above)      | Yes                             | Yes                                      |

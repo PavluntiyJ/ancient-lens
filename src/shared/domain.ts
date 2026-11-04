@@ -503,6 +503,15 @@ export type Release = { version: string; url: string; prerelease: boolean; publi
 export type ReleaseInfo = { current: string; latest: Release | null };
 /** The match window (label `main`) and the profile window. */
 export type WindowName = 'main' | 'profile';
+export type SteamIdentity = {
+  accountId: string;
+  name: string;
+  avatar: string;
+  fetchedAt: string;
+  stale: boolean;
+  demonstration?: boolean;
+  source: 'Steam Community';
+};
 export type DesktopApi = {
   /** Which window this page is in. */
   windowName?: WindowName;
@@ -520,6 +529,7 @@ export type DesktopApi = {
   onState?(callback: (state: LocalState | OwnUpdate) => void): () => void;
   getInfo(): Promise<AppInfo>;
   setAccount(id: string): Promise<LocalState>;
+  getSteamProfile?(id: string, refresh?: boolean): Promise<SteamIdentity>;
   setNativeRosterReader?(value: 'off' | 'on'): Promise<LocalState>;
   setCloseToTray?(value: boolean): Promise<LocalState>;
   setAutoHide?(value: boolean): Promise<LocalState>;

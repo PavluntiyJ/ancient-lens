@@ -8,6 +8,8 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 - **More** and **Columns** in the profile open their menus again. They had been placed below
   the window, so a click only added a scrollbar and nudged the page.
+- My profile refreshes names and avatars directly from Steam Community, including its
+  Fastly avatar host; Steam identity updates have their own timestamp and cache fallback.
 - Linux native tests, captures and demos are temporarily blocked after repeated host
   Alt+Tab failures, including with the attempted private-bus isolation.
 - Up to three standard equipment sets ranked by observed frequency, with sample counts;

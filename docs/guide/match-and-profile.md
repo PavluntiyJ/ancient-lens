@@ -80,6 +80,16 @@ fullscreen notes are in [setup](setup.md#windows-hotkeys-and-tray).
 
 ![Draft panels: lane summary, Radiant recommendations and counters to Dire](../images/draft-panels.png)
 
+## Profile identity and accounts
+
+My profile loads the name and avatar from the public Steam Community profile, separately
+from OpenDota/STRATZ match history. Steam identity is cached for 15 minutes; **Refresh**
+bypasses that identity cache. If Steam is unavailable, a saved identity is labelled as
+saved, or the statistics provider's identity remains with an unavailable notice. A fresh
+history timestamp does not claim that Steam identity refreshed. The Steam XML endpoint is
+unversioned and may be unavailable or change.
+
+
 ## Item build
 
 The **Item build** button between **My profile** and **Notes** opens a separate page. It
