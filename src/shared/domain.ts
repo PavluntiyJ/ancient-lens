@@ -529,6 +529,8 @@ export type DesktopApi = {
   setWindowMinSize?(scale: number): Promise<{ width: number; height: number }>;
   getState(): Promise<LocalState>;
   onState?(callback: (state: LocalState | OwnUpdate) => void): () => void;
+  /** The match window was brought up; its last page is not restored. */
+  onWindowShown?(callback: () => void): () => void;
   getInfo(): Promise<AppInfo>;
   setAccount(id: string): Promise<LocalState>;
   getAccountState?(id: string): Promise<LocalState>;

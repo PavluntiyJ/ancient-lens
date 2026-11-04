@@ -118,7 +118,9 @@ its own, by its global key or by its close button (X):
 | Match   | `Alt+Num 5` |
 | Profile | `Alt+Num 6` |
 
-A key shows its window when it is hidden or minimized and hides it when it is up. On Windows
+A key shows its window when it is hidden or minimized and hides it when it is up. The match
+window always comes back on **Match and draft**, not on the page that was open last (**Notes**,
+**Settings** or **Item build**). On Windows
 the numpad keys work with Num Lock on; on Linux the desktop portal binds them with Num Lock off.
 The profile icon in the match window's header also brings up the profile window. Change the
 keys in **Settings → Interface → Shortcuts**; a combination another application already owns

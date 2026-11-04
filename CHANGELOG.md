@@ -23,6 +23,9 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ### Fixed
 
+- The match window's hotkey and the tray's **Match window** entry return to **Match and
+  draft** instead of restoring the page that was open last (**Notes**, **Settings** or
+  **Item build**).
 - **More** and **Columns** in the profile open their menus again. They had been placed below
   the window, so a click only added a scrollbar and nudged the page.
 
