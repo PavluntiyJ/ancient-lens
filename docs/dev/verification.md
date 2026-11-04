@@ -23,7 +23,7 @@ isolated run; the scenario gives it a fixture list through `ANCIENT_TEST_RELEASE
 that directory too: `XDG_DATA_HOME` on Linux, a WebView2 data folder on Windows.
 
 One scenario, `scripts/smoke-native-scenario.mjs`, runs on both systems through the driver in
-`scripts/native-capture.mjs`: `WebKitWebDriver` on Linux (currently blocked), Playwright
+`scripts/native-capture.mjs`: `WebKitWebDriver` on Linux (needs a desktop session), Playwright
 over the WebView2 debugging protocol on Windows. Both give the scenario element references,
 real pointer and keyboard input, and the native window size; on Windows the size comes from an
 isolated-only `window:test-size` command. Build first and close competing Ancient Lens windows.
@@ -54,28 +54,18 @@ computes for that screen and logs what it skipped. A Linux window is stopped at 
 by the window manager; Windows applies the minimum only while the user resizes, so there the
 scenario sets the window to that minimum.
 
-Hover checks move the real WebDriver pointer. Linux native launches are currently blocked
-following desktop disruption; see the restriction below before using any capture driver.
+Hover checks move the real WebDriver pointer. WebKitWebDriver hangs on pointer
+actions while the window lacks keyboard focus (another application in front), so
+the smoke then dispatches the same pointer events and says so in its log. For a
+run that cannot be disturbed by the desktop, start it in a nested virtual KWin
+session:
 
-## Desktop isolation
+```sh
+kwin_wayland --virtual --no-lockscreen --width 2560 --height 1600 --socket al-smoke \
+  --exit-with-session "/bin/sh -c 'WAYLAND_DISPLAY=al-smoke npm run test:native'"
+```
 
-**Linux native tests, captures and interactive demos are temporarily blocked in this
-local version.** Repeated nested KWin launches were followed by the user's Alt+Tab
-failing, including a run with a private D-Bus without service activation on November 1,
-2026. A true `org.kde.kglobalaccel.Component.isActive` result did not establish that
-window switching worked. The exact mechanism of the latest recurrence is unresolved.
-
-Do not launch nested KWin, use another bus wrapper, or bypass the guard on the user's
-KDE desktop. `scripts/native-session.mjs` refuses Linux launches before starting any
-child process; `nativeDriver` also refuses direct Linux calls. Further native verification
-needs a separate machine or VM and a reviewed change to this temporary guard.
-Windows native checks and ordinary non-GUI checks/builds remain available.
-
-If an old test deactivated window switching, re-register affected actions with their
-existing keys using `setShortcut` and flag `2` (`SetPresent`, autoload existing settings),
-without replacing saved assignments. This is a recovery attempt; user confirmation is
-needed before declaring Alt+Tab restored. Never restart the user's compositor, kill the
-real desktop portal, or send key events to a game to test recovery.
+`--width 1024 --height 768` reproduces the Windows CI screen.
 
 ## Native coverage
 

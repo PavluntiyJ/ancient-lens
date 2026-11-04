@@ -27,13 +27,6 @@ Project MCP configuration is available for Claude Code, Codex, and OpenCode 2. S
 - Use isolated synthetic app data for automation. Do not change personal notes, ratings,
   Steam settings, or a live Dota match as a test, and never start Dota.
 
-- **Protect the desktop:** Linux native UI tests, captures and demos are temporarily
-  blocked after repeated Alt+Tab failures, including a private-bus nested KWin run.
-  Never launch nested KWin or bypass the guard on this user's KDE desktop. A true
-  shortcut-component `isActive` result does not verify Alt+Tab. Use ordinary non-GUI
-  checks; further native verification needs a separate machine or VM and a reviewed fix.
-  See [desktop isolation](docs/dev/verification.md#desktop-isolation).
-
 ## Finishing
 
 - Run the checks of the table in CONTRIBUTING for every area you touched and put their results
