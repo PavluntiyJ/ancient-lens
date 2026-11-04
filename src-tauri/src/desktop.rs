@@ -897,12 +897,13 @@ async fn desktop_call(
             .map_err(|e| e.to_string())
         }
         "steam:status" => {
-            let config = gsi::config(
-                &state.store.lock().await.token(),
-                state.port.load(Ordering::Relaxed),
-            );
+            let (config, memory) = {
+                let store = state.store.lock().await;
+                let port = state.port.load(Ordering::Relaxed);
+                (gsi::config(&store.token(), port), store.memory_reader())
+            };
             let status = tokio::task::spawn_blocking(move || {
-                steam_setup::inspect(&steam_setup::host(), &config)
+                steam_setup::inspect(&steam_setup::host(memory), &config)
             })
             .await
             .map_err(|e| e.to_string())?;
@@ -919,12 +920,13 @@ async fn desktop_call(
                 return Err("Finish the current match first: the setup closes Dota 2.".into());
             }
             let launch = args["launch"].as_bool().unwrap_or(false);
-            let config = gsi::config(
-                &state.store.lock().await.token(),
-                state.port.load(Ordering::Relaxed),
-            );
+            let (config, memory) = {
+                let store = state.store.lock().await;
+                let port = state.port.load(Ordering::Relaxed);
+                (gsi::config(&store.token(), port), store.memory_reader())
+            };
             let outcome = tokio::task::spawn_blocking(move || {
-                steam_setup::repair(&steam_setup::host(), &config, launch)
+                steam_setup::repair(&steam_setup::host(memory), &config, launch)
             })
             .await
             .map_err(|e| e.to_string())??;

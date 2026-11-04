@@ -38,6 +38,9 @@ or unverified, and what is planned.
 - **Own account on Linux:** Steam's files say which account Steam signs in to, not whether
   it is signed in now. While Steam runs at its login screen, Linux keeps naming the last
   automatic login; Windows reads the signed-in user and names none.
+- **Restart notice after setup:** a Dota started before `-gamestateintegration` was added is
+  noticed only on Linux with memory reading allowed, from the game's command line. Windows,
+  and Linux with reading off, report the connection as ready; restart Dota by hand.
 - **Memory readers** are validated on specific game builds (see the
   [maintenance guide](dev/native-reader.md#verified-builds)). A game update can make them
   report `unsupported` until discovery is checked again. The anti-cheat response to external

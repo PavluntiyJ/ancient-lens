@@ -20,8 +20,9 @@ Lens's GSI file, and `-gamestateintegration` in Dota's launch options. When some
 - It writes `gamestate_integration_ancient_lens.cfg` into
   `<Dota 2>/game/dota/cfg/gamestate_integration/`.
 - It appends `-gamestateintegration` to the existing launch options of the Steam
-  account that launched Dota or signed in last (otherwise every account on this
-  computer that has played Dota). Steam keeps launch options in
+  account that is signed in (otherwise every account on this computer that has
+  played Dota). With memory reading allowed, Linux uses the account that launched
+  the running Dota instead. Steam keeps launch options in
   `userdata/<account>/config/localconfig.vdf` and rewrites that file on exit, so
   this step asks first, then closes Dota 2 and Steam, edits the file, and starts
   Steam again. **Start Dota 2 afterwards** also launches the game. The previous
@@ -31,7 +32,9 @@ Lens's GSI file, and `-gamestateintegration` in Dota's launch options. When some
 
 Steam on Linux may be a native, Flatpak, or Snap installation. Nothing is
 changed without pressing the button, and isolated test sessions never look at
-Steam.
+Steam. The check reads nothing from the running game unless **Allow Dota memory
+reading** is on: only then does Linux read the game's command line to notice a Dota
+started before the launch option was added, and ask to restart it. Windows never does.
 
 To set it up by hand instead, open **Set up manually**:
 

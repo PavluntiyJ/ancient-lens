@@ -156,13 +156,25 @@ fn spawn(command: Command) -> Result<()> {
     Ok(())
 }
 
-pub struct Native;
+/// `memory` is **Allow Dota memory reading**. The game's environment and command line are
+/// copied out of its memory by the kernel, so without that consent they stay unread, as on
+/// Windows; listing and closing the process do not read it.
+pub struct Native {
+    pub memory: bool,
+}
+impl Native {
+    /// The running game to read from: everything read from the process goes through here.
+    fn game(&self) -> Option<i32> {
+        self.memory.then(game).flatten()
+    }
+}
 impl Host for Native {
     fn steam_roots(&self) -> Vec<PathBuf> {
         let mut roots = vec![];
         // The installation that launched the running game comes first.
-        if let Some(path) =
-            game().and_then(|pid| environment(pid, "STEAM_COMPAT_CLIENT_INSTALL_PATH"))
+        if let Some(path) = self
+            .game()
+            .and_then(|pid| environment(pid, "STEAM_COMPAT_CLIENT_INSTALL_PATH"))
         {
             roots.push(PathBuf::from(path));
         }
@@ -186,8 +198,18 @@ impl Host for Native {
         unique
     }
     fn account(&self, steam: &Path) -> Option<String> {
-        game()
+        self.game()
             .and_then(crate::own_account::launch_account)
+            // Steam's own files, as My profile reads them; only for this installation.
+            .or_else(|| {
+                crate::own_account::steam_login().filter(|id| {
+                    steam
+                        .join("userdata")
+                        .join(id)
+                        .join("config/localconfig.vdf")
+                        .is_file()
+                })
+            })
             .or_else(|| {
                 vdf::most_recent_account(
                     &fs::read_to_string(steam.join("config/loginusers.vdf")).ok()?,
@@ -201,7 +223,7 @@ impl Host for Native {
         !pids("dota2").is_empty()
     }
     fn game_flag(&self) -> Option<bool> {
-        let command = fs::read(format!("/proc/{}/cmdline", game()?)).ok()?;
+        let command = fs::read(format!("/proc/{}/cmdline", self.game()?)).ok()?;
         Some(
             command
                 .split(|b| *b == 0)
@@ -266,5 +288,13 @@ mod tests {
         }
         let plain = launcher(Command::new("steam"), false);
         assert_eq!(plain.get_program(), "steam");
+    }
+
+    #[test]
+    fn without_consent_the_game_process_is_never_read() {
+        // Holds whether or not Dota runs on the machine running the tests.
+        let host = Native { memory: false };
+        assert_eq!(host.game(), None);
+        assert_eq!(host.game_flag(), None);
     }
 }
