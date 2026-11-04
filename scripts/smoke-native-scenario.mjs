@@ -1234,14 +1234,24 @@ try {
   );
   await execute('document.querySelector("main")?.scrollTo(0, 0); window.scrollTo(0, 0);');
 
-  await waitFor(
-    async () =>
-      batches.length >= beforeTurboBatches + 2 &&
-      (await execute(
-        'return !document.querySelector(".match-toolbar [role=status]") && !document.querySelector(".previous-selection")',
-      )),
-    'Turbo refresh did not finish before scale checks',
-  );
+  try {
+    await waitFor(
+      async () =>
+        batches.length >= beforeTurboBatches + 2 &&
+        (await execute(
+          'return !document.querySelector(".match-toolbar [role=status]") && !document.querySelector(".previous-selection")',
+        )),
+      'Turbo refresh did not finish before scale checks',
+    );
+  } catch (error) {
+    // Name the unmet condition: a flaky run then shows whether summary requests were missing,
+    // a refresh never ended, or rows kept an older sample (and the error each row reports).
+    const page = await execute(
+      'return { status: [...document.querySelectorAll(".match-toolbar [role=status]")].map(e=>e.textContent), note: document.querySelector(".table-refresh-note")?.textContent ?? null, previous: [...document.querySelectorAll(".match-table tbody tr")].filter(r=>r.querySelector(".previous-selection")).map(r=>({ player: r.querySelector(".player-name")?.textContent, sample: r.querySelector(".previous-selection").textContent, titles: [...r.querySelectorAll("small[title]")].map(s=>s.title).filter(Boolean) })) }',
+    ).catch((reason) => ({ unavailable: String(reason) }));
+    error.message += `\n${JSON.stringify({ summaryBatches: batches.slice(beforeTurboBatches), page }, null, 2)}`;
+    throw error;
+  }
   const scaleBatches = batches.length;
   const scaleDraftRequests = draftRequests;
   const toolbarHeights = [];
