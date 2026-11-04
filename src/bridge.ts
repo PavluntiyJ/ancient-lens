@@ -92,6 +92,7 @@ if (isTauri()) {
     getHistory: (id, offset = 0, cachedOnly = false, refresh = false) =>
       call('history:get', { id, offset, cachedOnly, refresh }),
     getHeroes: () => call('heroes:get'),
+    getItemStats: (heroId) => call('items:get', { heroId }),
     getPatches: () => call('patches:get'),
     getCountry: (id) => call('country:get', { id }),
     getTotals: (id) => call('totals:get', { id }),

@@ -16,6 +16,7 @@ import { Draft } from './Draft';
 import { Roster } from './Roster';
 import { MatchScreen } from './MatchScreen';
 import { MatchViewport } from './MatchViewport';
+import { ItemsPage } from './ItemsPage';
 import type { SettingsSection } from './settings/sections';
 import { HeaderNav, type Page } from './HeaderNav';
 import { TooltipLayer } from './Tooltip';
@@ -271,6 +272,9 @@ export function App() {
                 connectStratz={() => setStratzOpen('manual')}
               />
             </MatchViewport>
+            <div hidden={page !== 'items'}>
+              <ItemsPage live={live} connected={connected} ownAccountId={local.accountId} active={page === 'items'} />
+            </div>
             <div hidden={page !== 'draft'}>
               <Draft active={page === 'draft'} />
             </div>

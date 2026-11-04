@@ -628,6 +628,10 @@ async fn desktop_call(
             Ok(state.provider(Some(outcome.message)))
         }
         "heroes:get" => state.api().resource("heroes", 3_600_000).await,
+        "items:get" => {
+            let hero = args["heroId"].as_u64().ok_or("Invalid own hero")?;
+            state.api().item_stats(hero).await
+        }
         "patches:get" => state.api().patches().await,
         "country:get" => state.api().country(args["id"].as_str().unwrap_or("")).await,
         "totals:get" => state.api().totals(args["id"].as_str().unwrap_or("")).await,
