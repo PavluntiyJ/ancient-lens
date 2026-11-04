@@ -42,6 +42,10 @@ it('lists heroes as one table with a single header row, most played first', () =
   );
   expect(text(measured)).toContain('Hero G W – L IMP MMR');
   expect(text(measured)).toContain('+25');
+  // Enigma has no measured match: its MMR change is unknown, not zero.
+  const enigma = measured.split('<button').find((row) => row.includes('Enigma'))!;
+  expect(text(enigma).trim().endsWith('—')).toBe(true);
+  expect(text(enigma)).not.toMatch(/ 0$/);
 });
 
 it('shows both teams, the own row, MMR and the match links', () => {

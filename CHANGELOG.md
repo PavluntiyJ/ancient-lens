@@ -27,6 +27,10 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 - Clicking **Add note** or **Edit note** in a player card above the game gives the window the
   keyboard. Before, the note field showed a cursor while the keys still went to Dota.
+- Unknown results stay unknown. A meeting without a known result no longer counts as a loss
+  in the **With me** summary. A hero without a measured match shows **—** instead of **0**
+  in the profile's MMR column. A player whose match history failed to load is no longer
+  called a private profile in the hover card, and the recent-match count shows **—**.
 - The match window's hotkey and the tray's **Match window** entry return to **Match and
   draft** instead of restoring the page that was open last (**Notes**, **Settings** or
   **Item build**).
