@@ -535,6 +535,7 @@ export type DesktopApi = {
   setAccount(id: string): Promise<LocalState>;
   getAccountState?(id: string): Promise<LocalState>;
   addProfileAccount?(id: string): Promise<LocalState>;
+  removeProfileAccount?(id: string): Promise<LocalState>;
   getSteamProfile?(id: string, refresh?: boolean): Promise<SteamIdentity>;
   setNativeRosterReader?(value: 'off' | 'on'): Promise<LocalState>;
   setCloseToTray?(value: boolean): Promise<LocalState>;

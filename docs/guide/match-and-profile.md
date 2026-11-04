@@ -92,12 +92,14 @@ unversioned and may be unavailable or change.
 Click your name to choose another saved account or **Add account** with a Dota ID or
 SteamID64. This changes the viewed profile; it does not switch Steam or replace the account
 automatically detected from the game. Ratings, saved readings and recorded matches remain
-scoped to the selected account. The menu marks the app's current account.
+scoped to the selected account. The menu marks the app's current account. The cross beside a
+saved account removes it from the menu; its saved readings and notes stay in the data file,
+and adding the same ID again restores it. The game's current account always stays.
 
 Without a live Dota reading, the medal can be derived from the same saved calibrated MMR
 shown beside it. Its tooltip identifies the saved source and time. It is an MMR-based medal,
 not a new game observation, and it never invents leaderboard placement. Calibration hides
-this derived medal. The MMR value is blue; the GPM heading has a gold coin symbol while match
+this derived medal. The MMR value is white; the GPM heading has a gold coin symbol while match
 values retain their comparison colours.
 
 ## Item build

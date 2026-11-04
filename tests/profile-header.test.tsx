@@ -91,6 +91,7 @@ it('keeps the full identity in its own row and labels the Steam refresh separate
           accounts={['123', '456']}
           choose={() => {}}
           add={async () => {}}
+          remove={async () => {}}
         />
       )}
     />,

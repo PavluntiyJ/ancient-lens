@@ -97,6 +97,7 @@ if (isTauri()) {
     setAccount: (id) => call('state:account', { id }),
     getAccountState: (id) => call('state:profile-account', { id }),
     addProfileAccount: (id) => call('state:add-profile', { id }),
+    removeProfileAccount: (id) => call('state:remove-profile', { id }),
     getSteamProfile: (id, refresh = false) => call('steam:profile', { id, refresh }),
     getPlayer: (id) => call('player:get', { id }),
     setMedalRank: (matchId, tier) => call('journal:medal', { matchId, tier }),
