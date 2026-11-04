@@ -9,7 +9,7 @@ assets.
 
 ## Header and tools
 
-The match window's header has four icons: **Match and draft**, **My profile**, **Notes** and
+The match window's header has five icons: **Match and draft**, **My profile**, **Item build**, **Notes** and
 **Settings**. **My profile** brings up the profile window, which has no header of its own;
 `Alt+Num 6` shows or hides it too.
 The interface scale is in **Settings → Interface → Appearance**; the match screen also fits
@@ -79,6 +79,42 @@ In your own match the assigned position sets the initial lane. The window shortc
 fullscreen notes are in [setup](setup.md#windows-hotkeys-and-tray).
 
 ![Draft panels: lane summary, Radiant recommendations and counters to Dire](../images/draft-panels.png)
+
+## Item build
+
+The **Item build** button between **My profile** and **Notes** opens a separate page. It
+follows your confirmed hero (**YOU**), with two independent sections:
+
+- **Standard build:** up to three distinct observed five/six-item equipment sets,
+  ranked by how often the same set appeared in final inventories. Additional sets require
+  at least two sampled matches each. If no set repeats, show one observed set selected by
+  the final-inventory popularity of its items. Purchase order comes from a representative
+  match, not a timing model. Counts and win rates describe the observed set; they do not
+  establish that buying it caused the wins. Sets do not change with the draft.
+- **Good items this game:** situational additions ranked against the whole known enemy
+  team. Each card names all positively measured enemies, so an item useful against several
+  opponents benefits from each. Expand it for purchase comparisons and sample sizes.
+  Allies have weight 0.5 and their total contribution is capped at half the enemy signal.
+
+Sparse matchup data is a neutral status, not an error: the standard build remains visible.
+A genuine fetch failure has a Retry button; an older saved sample is labelled separately.
+The demo's thin Ember Spirit sample intentionally illustrates the standard-build fallback.
+
+Data is from **OpenDota Explorer**, without STRATZ: at most 2,000 league matches per hero
+from the last 180 days with a purchase log and ten player rows. Standard equipment sets
+come from actual final inventories, excluding raw components; the purchase log establishes
+order. The 24 most purchased eligible completed items are considered for matchup additions.
+The sample combines roles, ranks and potentially patches. Its dates, fetch time and source
+are displayed; new Dota items require updating the ID filter.
+
+Situational ranking compares purchase win rates with/without an item inside and outside
+each matchup, then shrinks small samples. Each group needs ten games. This is an association,
+not a causal win-rate improvement. Current inventory, economy and allies' planned purchases
+are unknown. Hovered or hidden picks never enter the calculation.
+
+Changing picks reranks locally. Samples are cached for six hours; failed updates may use a
+validated cache up to seven days old, labelled as saved. Only the item page requests item
+statistics, using the same OpenDota budget as profiles. It runs on both desktop platforms.
 
 ## Draft tracking
 

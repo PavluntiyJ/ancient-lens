@@ -23,6 +23,7 @@ const report = {
 };
 const scenarios = [
   ['shared', 'scripts/smoke-native-scenario.mjs'],
+  ['items', 'scripts/item-drafts.mjs'],
   ...(process.platform === 'win32' ? [['reader', 'scripts/smoke-roster-windows.mjs']] : []),
   ['onboarding', 'scripts/smoke-onboarding.mjs'],
 ];

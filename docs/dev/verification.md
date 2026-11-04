@@ -85,6 +85,11 @@ kwin_wayland --virtual --no-lockscreen --width 2560 --height 1600 --socket al-sm
   statistic, every header ⓘ card, and the MMR chart by pointer and arrow keys.
 - Lane summary page in the panel's own height, slot-colour frames for spectator
   keys and Linux draft slots, and settings save/restore with disabled options.
+- The **Item build** scenario (`scripts/item-drafts.mjs`) runs on both platforms and
+  covers invented drafts, standard equipment sets, multi-enemy purchase evidence,
+  offlane Pipe/Lotus choices, reranking without refetching, sparse samples, stale caches,
+  unknown self and rejected late responses. It captures local screenshots in
+  `test-results/native/items/`.
 - Windows account smoke (`scripts/smoke-own-account-windows.mjs`) checks A→B→A,
   calibration, invalidation, late history, and current versus saved rating.
 

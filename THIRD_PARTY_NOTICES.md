@@ -16,6 +16,10 @@ trademarks, fonts, or externally served data.
   player names and notes. Its SIL Open Font License is in `src/ui/fonts/OFL.txt`.
 - **Dependencies:** npm and Cargo dependencies retain their individual licenses;
   versions are pinned by `package-lock.json` and `src-tauri/Cargo.lock`.
+- **OpenDota dotaconstants (MIT, The OpenDota Project):** the completed-item ID filter
+  in `src-tauri/src/item_stats.rs` is selected from the public item catalogue.
+  See [dotaconstants](https://github.com/odota/dotaconstants) and its
+  [MIT license](https://github.com/odota/dotaconstants/blob/master/LICENSE).
 
 This repository does not include third-party application binaries, extracted
 source, private research captures or copied proprietary datasets. Ancient Lens is an

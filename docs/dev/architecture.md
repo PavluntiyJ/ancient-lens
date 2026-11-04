@@ -46,6 +46,7 @@ a token from Windows Credential Manager on Windows), or uses `ANCIENT_STATS_URL`
 | `api.rs`                                                                | Provider requests, caching, the OpenDota rate limit, batching to the service                          |
 | `stats.rs`, `history.rs`, `averages.rs`, `match_details.rs`, `draft.rs` | Shaping provider data: summaries, paged history, hero averages, one match, draft tables               |
 | `journal.rs`                                                            | Records own matches from GSI at post-game into `matches.json`; completes them later from the match ID |
+| `item_stats.rs`                                                         | Fixed OpenDota Explorer purchase query, count validation and league-sample limits |
 | `store.rs`                                                              | `state.json`: account, notes, rating journal, settings; atomic writes and migration                   |
 | `steam_setup.rs`, `steam_setup/`                                        | Finds Steam and Dota, installs the GSI file and the launch option                                     |
 | `local_service.rs`                                                      | Discovers or starts the statistics service                                                            |
@@ -72,6 +73,16 @@ prefix: `state:*` (settings and notes), `live:get`, `player:*`, `summary:get`, `
 `history:get`, `averages:get`, `draft:data`, `heroes:get`, `steam:*`, `window:*`, `gsi:export`,
 `release:*`. The core pushes `live:update` (GSI plus reader results), `state:update` (saved
 state) and `release:update` (a newer release was found) as events. The page never receives the GSI token, provider tokens or memory addresses.
+
+`items:get(heroId)` loads a validated historical purchase sample from OpenDota Explorer.
+Only a bounded integer hero ID enters a fixed read-only query; the page cannot submit SQL.
+Requests use the existing OpenDota limiter and bounded response reader. `items-v3-*.json`
+caches are per hero, fresh for six hours with a labelled seven-day stale fallback.
+`src/shared/item-build.ts` binds the sample to YOU and ranks it locally against confirmed
+picks. Up to three distinct standard equipment sets come from sampled inventories, ranked by
+frequency and ordered by a representative purchase log. Alternative sets need repeated
+observations; one popularity-weighted observed set is the fallback. Isolated native runs read
+invented cache data, mark it as a demonstration and refuse live item-provider requests.
 
 ## Live state
 
