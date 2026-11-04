@@ -5,6 +5,8 @@ use std::{
 };
 
 pub type Result<T> = std::result::Result<T, String>;
+/// Removed menu entries that are still remembered; far above any real number of accounts.
+const MAX_HIDDEN_PROFILES: usize = 256;
 pub fn now() -> String {
     chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
 }
@@ -607,11 +609,31 @@ impl Store {
                 {
                     rows.retain(|old| old != &id);
                 }
+                // Only IDs the menu would still derive from saved readings need remembering;
+                // the rest are dropped, so the list stays as small as the data it filters.
+                let derived: std::collections::HashSet<String> = next["ratingSnapshots"]
+                    .as_object()
+                    .into_iter()
+                    .flat_map(|rows| rows.keys().cloned())
+                    .chain(
+                        next["mmr"]
+                            .as_array()
+                            .into_iter()
+                            .flatten()
+                            .filter_map(|row| row["accountId"].as_str().map(str::to_owned)),
+                    )
+                    .collect();
                 if !next["hiddenProfiles"].is_array() {
                     next["hiddenProfiles"] = json!([]);
                 }
                 let hidden = next["hiddenProfiles"].as_array_mut().unwrap();
-                if !hidden.iter().any(|old| old == &id) {
+                hidden.retain(|old| old.as_str().is_some_and(|old| derived.contains(old)));
+                if derived.contains(&id) && !hidden.iter().any(|old| old == &id) {
+                    if hidden.len() >= MAX_HIDDEN_PROFILES {
+                        return Err(format!(
+                            "Up to {MAX_HIDDEN_PROFILES} removed profiles are remembered"
+                        ));
+                    }
                     hidden.push(json!(id));
                 }
             }
@@ -801,7 +823,10 @@ fn validate(v: &Value) -> Result<()> {
         }
     }
     if let Some(hidden) = v.get("hiddenProfiles") {
-        let hidden = hidden.as_array().ok_or(invalid)?;
+        let hidden = hidden
+            .as_array()
+            .filter(|rows| rows.len() <= MAX_HIDDEN_PROFILES)
+            .ok_or(invalid)?;
         let mut seen = std::collections::HashSet::new();
         for id in hidden {
             let id = id.as_str().ok_or(invalid)?;
@@ -1131,6 +1156,58 @@ mod tests {
         o.mmr = Some(mmr);
         o.confidence = Some(60);
         o
+    }
+    #[test]
+    fn removed_profiles_are_remembered_only_while_needed_and_within_a_limit() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut store = Store::open(dir.path().into()).unwrap();
+        store.observe_account(measured("1", 3000)).unwrap();
+        // An account added by hand has no readings: removing it just drops it from the list.
+        store
+            .change("state:add-profile", &json!({"id":"999"}))
+            .unwrap();
+        store
+            .change("state:remove-profile", &json!({"id":"999"}))
+            .unwrap();
+        assert!(!store.public()["profileAccounts"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("999")));
+        assert_eq!(store.data["hiddenProfiles"], json!([]));
+        // Many accounts with saved readings, all removed: the limit is an error, not a
+        // state file that could no longer be opened.
+        let reading = store.data["mmr"][0].clone();
+        assert_eq!(reading["accountId"], "1");
+        for id in 2..=MAX_HIDDEN_PROFILES + 2 {
+            let mut copy = reading.clone();
+            copy["id"] = json!(uuid::Uuid::new_v4().to_string());
+            copy["accountId"] = json!(id.to_string());
+            store.data["mmr"].as_array_mut().unwrap().push(copy);
+        }
+        for id in 2..MAX_HIDDEN_PROFILES + 2 {
+            store
+                .change("state:remove-profile", &json!({"id":id.to_string()}))
+                .unwrap();
+        }
+        let last = (MAX_HIDDEN_PROFILES + 2).to_string();
+        assert!(store
+            .change("state:remove-profile", &json!({"id":last}))
+            .unwrap_err()
+            .contains("removed profiles"));
+        assert_eq!(
+            Store::open(dir.path().into()).unwrap().data["hiddenProfiles"]
+                .as_array()
+                .unwrap()
+                .len(),
+            MAX_HIDDEN_PROFILES
+        );
+        // A hand-edited file over the limit is rejected like other corrupt lists.
+        let mut over = store.data.clone();
+        over["hiddenProfiles"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!(last));
+        assert!(validate(&over).is_err());
     }
     #[test]
     fn automatic_switch_isolates_history_and_unavailable_values() {
