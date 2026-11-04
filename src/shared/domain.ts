@@ -222,6 +222,8 @@ export type PlayerHistory = {
   /** The provider returned only a recent sample (OpenDota) with no way to page further. */
   limited?: boolean;
   warning?: string | null;
+  /** Invented statistics in an isolated demonstration. */
+  demonstration?: boolean;
   /** Matches of this account in the local match journal, merged into `matches`. */
   recordedCount?: number;
 };
@@ -538,6 +540,7 @@ export type DesktopApi = {
   openPlayerSite(id: string, site: import('./player-sites').ProfileSite): Promise<string>;
   openMatchSite?(id: string, site: import('./player-sites').PlayerSite): Promise<string>;
   getHeroes(): Promise<Hero[]>;
+  getItemStats?(heroId: number): Promise<import('./item-build').ItemData>;
   getPatches?(): Promise<import('./history').Patch[]>;
   /** Steam profile country from OpenDota, for profiles whose provider did not send one. */
   getCountry?(id: string): Promise<string | null>;

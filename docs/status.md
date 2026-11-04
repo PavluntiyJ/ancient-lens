@@ -15,6 +15,11 @@ or unverified, and what is planned.
 
 ## Known limitations
 
+- **Item recommendations:** the first version uses historical purchases in OpenDota's league
+  sample, across roles/ranks and potentially patches. Sparse matchups retain the standard
+  build without situational additions. Standard builds are observed five/six-item sets ranked
+  by frequency, in an observed purchase order, across all roles. There is no live inventory or
+  economic/timing model, and the completed-item ID filter needs maintenance for new items.
 - **Native CI coverage:** Windows runs the native UI scenarios before packaging
   and preserves reusable executables and failure diagnostics. Linux shares the
   diagnostic capture but still needs a local desktop run; its ordinary checks

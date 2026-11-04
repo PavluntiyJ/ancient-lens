@@ -19,10 +19,10 @@ vi.mock('../src/ui/preferences', () => ({
 afterEach(() => vi.unstubAllGlobals());
 
 describe('Header', () => {
-  it('shows match, profile, notes and settings, and no tools menu', () => {
+  it('shows the item build between profile and notes, and no tools menu', () => {
     const html = renderToStaticMarkup(<HeaderNav page="home" open={() => {}} />);
     const labels = [...html.matchAll(/<button[^>]*aria-label="([^"]+)"/g)].map((match) => match[1]);
-    expect(labels).toEqual(['Match and draft', 'My profile', 'Notes', 'Settings']);
+    expect(labels).toEqual(['Match and draft', 'My profile', 'Item build', 'Notes', 'Settings']);
     expect(html).not.toContain('Tools');
     expect(html).not.toContain('Manual draft');
   });

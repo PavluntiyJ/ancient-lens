@@ -10,6 +10,7 @@ pub mod draft;
 pub mod foreground;
 pub mod gsi;
 pub mod history;
+pub mod item_stats;
 pub mod journal;
 pub mod local_service;
 pub mod match_details;
