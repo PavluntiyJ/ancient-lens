@@ -21,6 +21,23 @@ it('offers to add a note, or shows the note with its date and an edit action', (
   expect(html).toContain('Edit note');
 });
 
+it('asks for the keyboard when the note block is clicked above the game', () => {
+  // The block is a div that turns into a text field after the click; without the marker a
+  // passive window would focus the field while the keys still go to the game.
+  const note = {
+    accountId: '55',
+    name: 'Kestrel',
+    text: 'Calls smokes',
+    tag: 'neutral',
+    updatedAt: '2026-10-26T12:00:00Z',
+  } as const;
+  for (const given of [undefined, note]) {
+    const html = renderToStaticMarkup(<NoteEditor accountId="55" name="Kestrel" note={given} />);
+    expect(html).toMatch(/<div class="card-note card-note-view[^"]*"[^>]*data-needs-keyboard=/);
+  }
+  expect(renderToStaticMarkup(<NoteEditor accountId="1" name="Me" self />)).not.toContain('data-needs-keyboard');
+});
+
 it('has no editor for the own account, only a compliment, and keeps an older note readable', () => {
   const html = renderToStaticMarkup(<NoteEditor accountId="1" name="Me" self />);
   expect(html).toContain('self-note');

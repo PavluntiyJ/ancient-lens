@@ -25,6 +25,8 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ### Fixed
 
+- Clicking **Add note** or **Edit note** in a player card above the game gives the window the
+  keyboard. Before, the note field showed a cursor while the keys still went to Dota.
 - The match window's hotkey and the tray's **Match window** entry return to **Match and
   draft** instead of restoring the page that was open last (**Notes**, **Settings** or
   **Item build**).
