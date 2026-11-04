@@ -1,4 +1,3 @@
-use rand::RngCore;
 use serde_json::{json, Value};
 use std::{
     io::Write,
@@ -236,7 +235,7 @@ impl Store {
             }
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
                 let mut bytes = [0u8; 32];
-                rand::thread_rng().fill_bytes(&mut bytes);
+                rand::fill(&mut bytes[..]);
                 let token: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
                 let v = json!({"version":1,"accountId":"","notes":[],"mmr":[],"token":token,"nativeRosterReader":"off"});
                 atomic_json(&path, &v)?;
