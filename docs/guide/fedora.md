@@ -112,7 +112,7 @@ token is never passed into the desktop UI.
 The generated shortcut and service refer to the checkout's absolute path. If
 you move the repository, run `--install` again. To remove desktop integration,
 stop the service, remove its unit from `~/.config/systemd/user/` and the
-`org.ancientlens.desktop` shortcut from `~/.local/share/applications/`, then run
+`ancient-lens.desktop` shortcut from `~/.local/share/applications/`, then run
 `systemctl --user daemon-reload`. Delete the keyring token separately if desired.
 
 ## Dota and the match window

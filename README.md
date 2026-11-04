@@ -50,7 +50,9 @@ Screenshots use invented players. A tour of every panel and shortcut:
    launch option.
 3. Restart Dota 2 and spectate a match: ten players should appear.
 4. Look at the profile window (`Alt+Num 6` shows or hides it, `Alt+Num 5` the match window).
-   Your account is detected from Steam; **Set profile manually** is the fallback.
+   Your account is detected from Steam on Windows. On Linux it is detected from Steam when
+   memory reading is allowed, otherwise from your first match
+   ([details](docs/guide/setup.md#your-profile)).
 5. The first start asks two optional questions: whether to enable the memory reader
    (below), then whether to connect STRATZ for draft recommendations and faster player
    loading ([details](docs/guide/stats-service.md)). **Not now** skips either one; both
@@ -63,7 +65,7 @@ Details and troubleshooting: [setup and data](docs/guide/setup.md), and the
 
 | What you get                                                                      | Needs                                   | Windows                         | Linux                                    |
 | --------------------------------------------------------------------------------- | --------------------------------------- | ------------------------------- | ---------------------------------------- |
-| Public profiles, notes, manual draft, MMR journal, automatic account detection    | Nothing: works out of the box           | Yes                             | Yes                                      |
+| Public profiles, notes, manual draft, MMR journal, automatic account detection    | Nothing: works out of the box           | Yes                             | Yes; account in a match if reader is off |
 | Steam profile refresh, saved-MMR medal and saved-account menu                     | Public Steam profile / local readings   | Yes                             | Yes                                      |
 | Historical item options for your hero against the known draft                    | Public OpenDota league sample           | Yes                             | Yes                                      |
 | 0.7 match layout, player hover card and note controls                            | Public statistics and your local history | Native fixtures checked          | Desktop check pending; CI checks only    |
