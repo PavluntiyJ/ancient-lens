@@ -73,13 +73,16 @@ export function NoteEditor({
         </span>
       </div>
     );
-  // The whole block opens the editor, not only its label.
+  // The whole block opens the editor, not only its label. Above the game the window is
+  // passive: the block is not a text field yet, so it asks for the keyboard itself, or the
+  // focused editor would show a cursor while the keys still went to the game.
   if (!editing)
     return (
       <div
         className={`card-note card-note-view${note ? '' : ' empty'}`}
         role="button"
         tabIndex={0}
+        data-needs-keyboard
         aria-label={note ? 'Edit note' : 'Add note'}
         onClick={open}
         onKeyDown={(event) => {
