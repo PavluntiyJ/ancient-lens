@@ -111,6 +111,15 @@ All local data lives in one folder: `%APPDATA%\Ancient Lens` on Windows,
 Writes are atomic (temporary file, then rename). A corrupt `state.json` is preserved, not
 overwritten.
 
+### Profile identity and browsing
+
+`steam:profile(id, refresh)` fetches bounded public Steam Community XML from a fixed URL,
+verifies the returned SteamID64 and returns only name/avatar identity. It uses a separate
+15-minute `steam-profile-v1-*` cache; an explicit refresh bypasses freshness, and failures
+fall back to the saved copy, labelled `stale`. `quick-xml` (already transitive) is a direct
+dependency to parse XML/CDATA without hand-written extraction. Isolated runs never request
+live Steam identities.
+
 ## Trust boundaries
 
 - **Game:** memory is read only with consent, through a read/query-only process handle, and

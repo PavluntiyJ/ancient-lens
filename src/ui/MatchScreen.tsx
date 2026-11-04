@@ -137,7 +137,7 @@ export function Avatar({
   useEffect(() => setFailed(false), [url]);
   const allowed =
     url &&
-    /^https:\/\/(avatars\.(?:steamstatic\.com|akamai\.steamstatic\.com|cloudflare\.steamstatic\.com|steamcommunity\.com))\/[a-f0-9]+(?:_full|_medium)?\.(?:jpg|png)$/i.test(
+    /^https:\/\/(avatars\.(?:steamstatic\.com|fastly\.steamstatic\.com|akamai\.steamstatic\.com|cloudflare\.steamstatic\.com|steamcommunity\.com))\/[a-f0-9]+(?:_full|_medium)?\.(?:jpg|png)$/i.test(
       url,
     );
   return (

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
 import { RefreshCw } from 'lucide-react';
-import type { LocalState, PlayerHistory } from '../../shared/domain';
+import type { LocalState, PlayerHistory, SteamIdentity } from '../../shared/domain';
 import { dayBands, nearestPoint } from '../../shared/mmr-chart';
 import { formatImp, impTier } from '../../shared/performance';
 import { Avatar, CountryFlag } from '../MatchScreen';
@@ -291,6 +291,8 @@ export function ProfileHeader({
   actions,
   chart,
   score,
+  identity,
+  identityError,
 }: {
   local: LocalState;
   data: PlayerHistory | null;
@@ -299,20 +301,41 @@ export function ProfileHeader({
   onRefresh(): void;
   /** Extra controls beside refresh (change ID). */
   actions?: ReactNode;
+  identity?: SteamIdentity;
+  identityError?: string;
   chart: ReactNode;
   score: ReactNode;
 }) {
-  const name = data?.profile.profile?.personaname || (local.accountId ? `Player ${local.accountId}` : 'My profile');
+  const name =
+    identity?.name ||
+    data?.profile.profile?.personaname ||
+    (local.accountId ? `Player ${local.accountId}` : 'My profile');
+  const updated = identity
+    ? identity.stale
+      ? 'Saved Steam profile · refresh unavailable'
+      : `Steam ${updatedText(identity)}`
+    : identityError
+      ? 'Steam refresh unavailable · using provider profile'
+      : data
+        ? data.stale
+          ? 'Saved profile'
+          : `History ${updatedText(data)}`
+        : '';
+  const title = identity
+    ? 'Name and avatar from Steam Community'
+    : data
+      ? `Match history from ${data.source}`
+      : undefined;
   return (
     <header className="profile-band">
       <div className="profile-who">
-        <Avatar url={data?.profile.profile?.avatarfull} />
+        <Avatar url={identity?.avatar ?? data?.profile.profile?.avatarfull} />
         <h2 className="profile-name">
           <CountryFlag code={data?.profile.profile?.loccountrycode} source={data?.source} id={data?.accountId} />
           <span className="profile-name-text">{name}</span>
-          {data && updatedText(data) && (
-            <small className="profile-updated" title={`Profile and match history from ${data.source}`}>
-              {updatedText(data)}
+          {updated && (
+            <small className="profile-updated" title={title}>
+              {updated}
             </small>
           )}
           {local.accountId && (

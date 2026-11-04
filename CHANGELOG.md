@@ -6,6 +6,9 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ### Added
 
+- My profile refreshes names and avatars directly from Steam Community, including its
+  Fastly avatar host; Steam identity updates have their own timestamp and cache fallback.
+
 - Item build options for the own hero: up to three standard equipment sets ranked by observed
   frequency, with sample counts; additional sets require repeated observations and are omitted
   when unavailable.
