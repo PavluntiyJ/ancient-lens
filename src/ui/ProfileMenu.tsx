@@ -1,4 +1,4 @@
-import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useId, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, X } from 'lucide-react';
 import { useDisplaySettings } from './preferences';
@@ -8,9 +8,13 @@ export function ProfileMenu({
   label,
   icon,
   caret = false,
+  trigger: triggerContent,
+  closeKey,
   children,
 }: {
   label: string;
+  trigger?: ReactNode;
+  closeKey?: string;
   icon?: ReactNode;
   /** A down caret after the label, for a menu that reads as a dropdown. */
   caret?: boolean;
@@ -22,6 +26,7 @@ export function ProfileMenu({
   const [open, setOpen] = useState(false);
   const [place, setPlace] = useState<{ left: number; top: number }>();
   const scale = useDisplaySettings().scale / 100;
+  useEffect(() => setOpen(false), [closeKey]);
   useLayoutEffect(() => {
     if (!open) return;
     const position = () => {
@@ -73,6 +78,7 @@ export function ProfileMenu({
       <button
         className="secondary profile-menu-trigger"
         ref={trigger}
+        aria-label={triggerContent ? label : undefined}
         aria-expanded={open}
         aria-controls={open ? id : undefined}
         onClick={() => {
@@ -81,7 +87,7 @@ export function ProfileMenu({
         }}
       >
         {icon}
-        {label}
+        {triggerContent ?? label}
         {caret && <ChevronDown size={13} aria-hidden="true" />}
       </button>
       {open &&

@@ -264,11 +264,17 @@ impl Store {
         })
     }
     pub fn public(&self) -> Value {
+        self.public_for_account(self.data["accountId"].as_str().unwrap_or(""))
+    }
+    pub fn profile_account(&self, input: &str) -> Result<Value> {
+        Ok(self.public_for_account(&account_id(input)?))
+    }
+    fn public_for_account(&self, id: &str) -> Value {
         let entries: Vec<_> = self.data["mmr"]
             .as_array()
             .unwrap()
             .iter()
-            .filter(|m| m["accountId"].is_string() && m["accountId"] == self.data["accountId"])
+            .filter(|m| m["accountId"].is_string() && m["accountId"] == id)
             .collect();
         let unassigned = self.data["mmr"]
             .as_array()
@@ -276,10 +282,33 @@ impl Store {
             .iter()
             .filter(|m| !m["accountId"].is_string())
             .count();
-        let snapshot = self.data["accountId"]
-            .as_str()
-            .map_or(Value::Null, |id| self.data["ratingSnapshots"][id].clone());
-        json!({"revision":self.revision,"accountId": self.data["accountId"], "notes":self.data["notes"], "mmr":entries,"unassignedMmrCount":unassigned,"ownAccount":self.own,"ratingSnapshot":snapshot,"nativeRosterReader":self.data["nativeRosterReader"],"closeToTray":self.close_to_tray(),"autoHide":self.auto_hide(),"keysOverGame":self.keys_over_game(),"updateCheck":self.update_check(),"skippedVersion":self.data["skippedVersion"],"shortcuts":self.shortcuts(),"recordedMatches":self.recorded(self.data["accountId"].as_str().unwrap_or("")).len(),"journalRevision":self.journal_revision})
+        let snapshot = self.data["ratingSnapshots"][id].clone();
+        let mut accounts = Vec::<String>::new();
+        let candidates = self.data["profileAccounts"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .chain(
+                self.data["ratingSnapshots"]
+                    .as_object()
+                    .into_iter()
+                    .flat_map(|rows| rows.keys().map(String::as_str)),
+            )
+            .chain(
+                self.data["mmr"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|row| row["accountId"].as_str()),
+            )
+            .chain(self.data["accountId"].as_str());
+        for candidate in candidates {
+            if !candidate.is_empty() && !accounts.iter().any(|old| old == candidate) {
+                accounts.push(candidate.to_owned());
+            }
+        }
+        json!({"revision":self.revision,"accountId": id, "notes":self.data["notes"], "mmr":entries,"unassignedMmrCount":unassigned,"ownAccount":self.own,"ratingSnapshot":snapshot,"profileAccounts":accounts,"nativeRosterReader":self.data["nativeRosterReader"],"closeToTray":self.close_to_tray(),"autoHide":self.auto_hide(),"keysOverGame":self.keys_over_game(),"updateCheck":self.update_check(),"skippedVersion":self.data["skippedVersion"],"shortcuts":self.shortcuts(),"recordedMatches":self.recorded(id).len(),"journalRevision":self.journal_revision})
     }
     /// The stored bindings, with defaults for any key an older state file did not have.
     pub fn shortcuts(&self) -> Value {
@@ -391,7 +420,7 @@ impl Store {
     }
     pub fn export(&self) -> Value {
         // Include all accounts and legacy unassigned records, without the GSI secret.
-        json!({"accountId":self.data["accountId"],"notes":self.data["notes"],"mmr":self.data["mmr"],"ratingSnapshots":self.data["ratingSnapshots"],"nativeRosterReader":self.data["nativeRosterReader"],"matches":self.matches})
+        json!({"accountId":self.data["accountId"],"notes":self.data["notes"],"mmr":self.data["mmr"],"ratingSnapshots":self.data["ratingSnapshots"],"profileAccounts":self.data["profileAccounts"],"nativeRosterReader":self.data["nativeRosterReader"],"matches":self.matches})
     }
     /// Matches recorded from the game for one account.
     pub fn recorded(&self, account: &str) -> Vec<Value> {
@@ -539,6 +568,19 @@ impl Store {
             }
             "state:shortcuts" => {
                 next["shortcuts"] = validate_shortcuts(&args["shortcuts"])?;
+            }
+            "state:add-profile" => {
+                let id = account_id(args["id"].as_str().unwrap_or(""))?;
+                if !next["profileAccounts"].is_array() {
+                    next["profileAccounts"] = json!([]);
+                }
+                let rows = next["profileAccounts"].as_array_mut().unwrap();
+                if !rows.iter().any(|old| old == &id) {
+                    if rows.len() >= 32 {
+                        return Err("Up to 32 saved profiles are supported".into());
+                    }
+                    rows.push(json!(id));
+                }
             }
             "state:account" => {
                 next["accountId"] = json!(account_id(args["id"].as_str().unwrap_or(""))?)
@@ -710,6 +752,19 @@ fn validate(v: &Value) -> Result<()> {
         for (id, snapshot) in snapshots.as_object().ok_or(invalid)? {
             account_id(id)?;
             validate_snapshot(snapshot).map_err(|_| invalid)?;
+        }
+    }
+    if let Some(accounts) = v.get("profileAccounts") {
+        let accounts = accounts
+            .as_array()
+            .filter(|rows| rows.len() <= 32)
+            .ok_or(invalid)?;
+        let mut seen = std::collections::HashSet::new();
+        for id in accounts {
+            let id = id.as_str().ok_or(invalid)?;
+            if account_id(id)? != id || !seen.insert(id) {
+                return Err(invalid.into());
+            }
         }
     }
     for n in v["notes"].as_array().ok_or(invalid)? {
@@ -1073,6 +1128,34 @@ mod tests {
         let reopened = Store::open(dir.path().into()).unwrap();
         assert_eq!(reopened.public()["mmr"], a["mmr"]);
         assert_eq!(reopened.export()["mmr"].as_array().unwrap().len(), 3);
+    }
+    #[test]
+    fn browsing_and_adding_profiles_preserves_the_active_account_and_scopes_ratings() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut store = Store::open(dir.path().into()).unwrap();
+        store.observe_account(measured("123", 6586)).unwrap();
+        store.observe_account(measured("456", 3000)).unwrap();
+        let current = store.public();
+        store
+            .change("state:add-profile", &json!({"id":"789"}))
+            .unwrap();
+        assert_eq!(store.public()["accountId"], "456");
+        assert!(store.public()["profileAccounts"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("789")));
+        let other = store.profile_account("123").unwrap();
+        assert_eq!(other["mmr"][0]["value"], 6586);
+        assert_eq!(other["ownAccount"]["accountId"], "456");
+        assert_eq!(store.public()["mmr"], current["mmr"]);
+        assert_eq!(store.profile_account("789").unwrap()["mmr"], json!([]));
+        assert!(store.profile_account("789").unwrap()["ratingSnapshot"].is_null());
+        let reopened = Store::open(dir.path().into()).unwrap();
+        assert_eq!(reopened.public()["accountId"], "456");
+        assert!(reopened.public()["profileAccounts"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("789")));
     }
     #[test]
     fn legacy_rating_is_preserved_without_guessing_its_owner() {

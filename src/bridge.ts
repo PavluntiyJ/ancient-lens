@@ -85,6 +85,8 @@ if (isTauri()) {
     openRelease: () => call('release:open'),
     setShortcuts: (shortcuts) => call('state:shortcuts', { shortcuts }),
     setAccount: (id) => call('state:account', { id }),
+    getAccountState: (id) => call('state:profile-account', { id }),
+    addProfileAccount: (id) => call('state:add-profile', { id }),
     getSteamProfile: (id, refresh = false) => call('steam:profile', { id, refresh }),
     getPlayer: (id) => call('player:get', { id }),
     setMedalRank: (matchId, tier) => call('journal:medal', { matchId, tier }),

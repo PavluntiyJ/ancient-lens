@@ -75,3 +75,26 @@ describe('account state delivery', () => {
     expect(applyStateUpdate(next, { ...base, revision: 7 }).ownAccount).toBeUndefined();
   });
 });
+
+it('keeps an MMR-based medal with its saved reading after Dota is closed', () => {
+  const local: LocalState = {
+    accountId: '123',
+    notes: [],
+    mmr: [],
+    ratingSnapshot: {
+      mmr: 5758,
+      confidence: 35,
+      behaviorScore: 8649,
+      communicationScore: 9157,
+      confirmedAt: '2026-11-01T08:00:00Z',
+    },
+  };
+  const result = ownProfileRank(local, null, 1000);
+  expect(result.tier).toBe(80);
+  expect(result.leaderboard).toBeNull();
+  expect(result.source).toContain('saved MMR');
+  expect(ownProfileRank({ ...local, ratingSnapshot: null }, null).tier).toBeNull();
+  expect(
+    ownProfileRank({ ...local, ratingSnapshot: { ...local.ratingSnapshot!, mmr: null, confidence: 20 } }, 80).tier,
+  ).toBeNull();
+});

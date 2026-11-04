@@ -23,12 +23,24 @@ export function ownProfileRank(
     age >= 0 &&
     age < 15000 &&
     (own.confidence ?? 0) >= 30;
+  const calibrating = own?.accountId === local.accountId && age >= 0 && age < 15000 && own.status === 'calibrating';
+  if (calibrating) return { tier: null, leaderboard: null, source: 'Dota 2 is calibrating this account' };
   const tier = live && own?.mmr != null ? rankTierFromMmr(own.mmr) : null;
   if (tier)
     return {
       tier,
       leaderboard: null,
       source: 'Based on current MMR from Dota 2',
+    };
+  const saved = local.ratingSnapshot;
+  if (saved && saved.confidence < 30 && saved.mmr == null)
+    return { tier: null, leaderboard: null, source: 'Saved Dota 2 calibration reading' };
+  const savedTier = saved && saved.confidence >= 30 && saved.mmr != null ? rankTierFromMmr(saved.mmr) : null;
+  if (savedTier)
+    return {
+      tier: savedTier,
+      leaderboard: null,
+      source: `Based on saved MMR from Dota 2 · ${new Date(saved!.confirmedAt).toLocaleString('en-GB')}`,
     };
   return { tier: publicTier, leaderboard, source: 'Public rank from profile history' };
 }
