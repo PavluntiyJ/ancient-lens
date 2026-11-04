@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { ArrowDown, ArrowUp } from 'lucide-react';
+import { ArrowDown, ArrowUp, Coins } from 'lucide-react';
 import {
   formatDecimal,
   formatDuration,
@@ -315,6 +315,7 @@ export function ProfileTable({
               >
                 {column.sort ? (
                   <button
+                    title={column.key === 'gold_per_min' ? 'Gold per minute' : undefined}
                     onClick={() =>
                       change({
                         sort: column.sort,
@@ -322,6 +323,7 @@ export function ProfileTable({
                       })
                     }
                   >
+                    {column.key === 'gold_per_min' && <Coins size={13} aria-hidden="true" />}
                     {column.label}
                     {view.sort === column.sort &&
                       (view.direction === 'asc' ? <ArrowUp size={11} /> : <ArrowDown size={11} />)}

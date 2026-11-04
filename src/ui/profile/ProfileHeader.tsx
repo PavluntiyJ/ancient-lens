@@ -288,21 +288,20 @@ export function ProfileHeader({
   rank,
   busy,
   onRefresh,
-  actions,
-  chart,
-  score,
   identity,
   identityError,
+  accountMenu,
+  chart,
+  score,
 }: {
   local: LocalState;
   data: PlayerHistory | null;
   rank: { tier?: number | null; leaderboard?: number | null; source: string };
   busy: boolean;
   onRefresh(): void;
-  /** Extra controls beside refresh (change ID). */
-  actions?: ReactNode;
   identity?: SteamIdentity;
   identityError?: string;
+  accountMenu?(name: string): ReactNode;
   chart: ReactNode;
   score: ReactNode;
 }) {
@@ -321,36 +320,41 @@ export function ProfileHeader({
           ? 'Saved profile'
           : `History ${updatedText(data)}`
         : '';
-  const title = identity
-    ? 'Name and avatar from Steam Community'
-    : data
-      ? `Match history from ${data.source}`
-      : undefined;
   return (
     <header className="profile-band">
       <div className="profile-who">
         <Avatar url={identity?.avatar ?? data?.profile.profile?.avatarfull} />
-        <h2 className="profile-name">
-          <CountryFlag code={data?.profile.profile?.loccountrycode} source={data?.source} id={data?.accountId} />
-          <span className="profile-name-text">{name}</span>
-          {updated && (
-            <small className="profile-updated" title={title}>
-              {updated}
-            </small>
-          )}
-          {local.accountId && (
-            <button
-              className="icon-button"
-              aria-label="Refresh"
-              title="Refresh profile"
-              disabled={busy}
-              onClick={onRefresh}
-            >
-              <RefreshCw size={13} className={busy ? 'loading-icon' : ''} />
-            </button>
-          )}
-          {actions}
-        </h2>
+        <div className="profile-identity">
+          <h2 className="profile-name">
+            <CountryFlag code={data?.profile.profile?.loccountrycode} source={data?.source} id={data?.accountId} />
+            {accountMenu?.(name) ?? (
+              <span className="profile-name-text" title={name}>
+                {name}
+              </span>
+            )}
+          </h2>
+          <div className="profile-identity-status">
+            {updated && (
+              <small
+                className="profile-updated"
+                title={identity ? 'Name and avatar from Steam Community' : `Match history from ${data?.source}`}
+              >
+                {updated}
+              </small>
+            )}
+            {local.accountId && (
+              <button
+                className="icon-button"
+                aria-label="Refresh"
+                title="Refresh profile"
+                disabled={busy}
+                onClick={onRefresh}
+              >
+                <RefreshCw size={13} className={busy ? 'loading-icon' : ''} />
+              </button>
+            )}
+          </div>
+        </div>
         <OwnRating local={local} rank={rank} />
       </div>
       {chart}

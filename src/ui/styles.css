@@ -2538,15 +2538,76 @@ td small {
   line-height: 1.1;
 }
 .profile-name-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
+.profile-identity {
+  min-width: 0;
+  align-self: center;
+}
+.profile-identity-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+.profile-name .profile-menu-trigger {
+  font: inherit;
+  height: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  min-width: 0;
+  max-width: 100%;
+  text-align: left;
+  white-space: normal;
+}
+.profile-name .profile-menu-trigger svg {
+  align-self: center;
+  flex: none;
+}
+.profile-account-list {
+  display: grid;
+  gap: 4px;
+  min-width: 240px;
+}
+.profile-account-choice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 9px;
+  border-radius: 5px;
+  text-align: left;
+}
+.profile-account-choice:hover,
+.profile-account-choice[aria-pressed='true'] {
+  background: var(--raised);
+}
+.profile-account-choice small {
+  display: block;
+  color: var(--muted);
+}
+.profile-account-add {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  margin-top: 8px;
+}
+.profile-account-add input {
+  min-width: 0;
+  width: 100%;
+}
+
 .profile-updated {
   font-size: 12px;
   font-weight: 400;
   color: var(--faint);
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 .profile-name .icon-button {
   width: 20px;
@@ -2571,7 +2632,7 @@ td small {
   --medal: 40px;
 }
 .own-mmr {
-  color: #fb923c;
+  color: var(--accent);
   font-size: 26px;
   font-weight: 700;
   line-height: 1;
@@ -2655,7 +2716,6 @@ td small {
   background: var(--win);
 }
 /* A saved reading stays readable but visibly not live. */
-.own-rating.saved .own-mmr,
 .own-rating.saved .own-meters {
   opacity: 0.6;
 }
@@ -3684,7 +3744,7 @@ button.profile-heroes-row:hover {
     padding: 8px 12px 16px;
   }
   .profile-updated {
-    display: none;
+    font-size: 11px;
   }
   .mmr-chart {
     min-height: 104px;
@@ -5487,6 +5547,10 @@ article.player-card {
   height: 20px;
 }
 
+.profile-table th[data-column='gold_per_min'] button {
+  color: var(--gold);
+}
+
 .standard-build-choices {
   display: flex;
   flex-wrap: wrap;
@@ -5508,4 +5572,14 @@ article.player-card {
 }
 .standard-build-choices small {
   color: var(--muted);
+}
+
+.profile-identity-status .icon-button {
+  flex: none;
+  width: 20px;
+  height: 20px;
+}
+.profile-account-choice > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }

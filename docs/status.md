@@ -15,6 +15,12 @@ or unverified, and what is planned.
 
 ## Known limitations
 
+- **Local profile update:** Steam Community's unversioned public XML can fail or change, in
+  which case the app keeps a labelled saved or provider identity. MMR-based medals are
+  estimates, not freshly observed rank or leaderboard data; calibration hides the derived
+  medal. Browsing an alternate account is read-only, so automatic account detection and the
+  active Steam identity stay with the game.
+
 - **Item recommendations:** the first version uses historical purchases in OpenDota's league
   sample, across roles/ranks and potentially patches. Sparse matchups retain the standard
   build without situational additions. Standard builds are observed five/six-item sets ranked

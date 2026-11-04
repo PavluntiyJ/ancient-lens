@@ -564,7 +564,13 @@ async fn desktop_call(
                 .steam_profile(args["id"].as_str().unwrap_or(""), args["refresh"] == true)
                 .await
         }
-        "state:account" | "note:save" | "note:delete" | "mmr:add" | "mmr:delete" => {
+        "state:profile-account" => state
+            .store
+            .lock()
+            .await
+            .profile_account(args["id"].as_str().unwrap_or("")),
+        "state:account" | "state:add-profile" | "note:save" | "note:delete" | "mmr:add"
+        | "mmr:delete" => {
             let value = state.store.lock().await.change(&command, &args)?;
             let _ = app.emit("state:update", &value);
             Ok(value)

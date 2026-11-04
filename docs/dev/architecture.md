@@ -120,6 +120,11 @@ fall back to the saved copy, labelled `stale`. `quick-xml` (already transitive) 
 dependency to parse XML/CDATA without hand-written extraction. Isolated runs never request
 live Steam identities.
 
+`state:add-profile` remembers an ID without switching the active account.
+`state:profile-account` returns a read-only account-scoped state for browsing. The profile
+view applies generation checks to identity/history responses when accounts change. A
+saved calibrated rating supplies the medal estimate when there is no live reading.
+
 ## Trust boundaries
 
 - **Game:** memory is read only with consent, through a read/query-only process handle, and

@@ -56,6 +56,8 @@ export type LocalState = {
   revision?: number;
   ownAccount?: OwnAccount | null;
   ratingSnapshot?: RatingSnapshot | null;
+  /** Known profile IDs; selecting one never changes the active Steam account. */
+  profileAccounts?: string[];
   unassignedMmrCount?: number;
   nativeRosterReader?: 'off' | 'on';
   closeToTray?: boolean;
@@ -529,6 +531,8 @@ export type DesktopApi = {
   onState?(callback: (state: LocalState | OwnUpdate) => void): () => void;
   getInfo(): Promise<AppInfo>;
   setAccount(id: string): Promise<LocalState>;
+  getAccountState?(id: string): Promise<LocalState>;
+  addProfileAccount?(id: string): Promise<LocalState>;
   getSteamProfile?(id: string, refresh?: boolean): Promise<SteamIdentity>;
   setNativeRosterReader?(value: 'off' | 'on'): Promise<LocalState>;
   setCloseToTray?(value: boolean): Promise<LocalState>;
