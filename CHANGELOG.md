@@ -10,6 +10,12 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
   the window, so a click only added a scrollbar and nudged the page.
 - Linux native tests, captures and demos are temporarily blocked after repeated host
   Alt+Tab failures, including with the attempted private-bus isolation.
+- Up to three standard equipment sets ranked by observed frequency, with sample counts;
+  additional sets require repeated observations and are omitted when unavailable.
+
+- A separate **Item build** page between My profile and Notes: a standard observed build
+  for your hero plus situational additions against multiple enemies, with ally influence
+  capped at 50%. Limited matchup evidence keeps the standard build visible.
 
 ## 0.7.3 — October 31, 2026
 

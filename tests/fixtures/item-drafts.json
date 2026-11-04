@@ -1,0 +1,656 @@
+{
+  "description": "Invented drafts and counts for recommendation checks; no measured game statistics.",
+  "heroes": [
+    {
+      "id": 8,
+      "name": "npc_dota_hero_juggernaut",
+      "localized_name": "Juggernaut",
+      "primary_attr": "all",
+      "attack_type": "Melee",
+      "roles": []
+    },
+    {
+      "id": 106,
+      "name": "npc_dota_hero_ember_spirit",
+      "localized_name": "Ember Spirit",
+      "primary_attr": "all",
+      "attack_type": "Melee",
+      "roles": []
+    },
+    {
+      "id": 5,
+      "name": "npc_dota_hero_crystal_maiden",
+      "localized_name": "Crystal Maiden",
+      "primary_attr": "all",
+      "attack_type": "Melee",
+      "roles": []
+    },
+    {
+      "id": 29,
+      "name": "npc_dota_hero_tidehunter",
+      "localized_name": "Tidehunter",
+      "primary_attr": "all",
+      "attack_type": "Melee",
+      "roles": []
+    },
+    {
+      "id": 26,
+      "name": "npc_dota_hero_lion",
+      "localized_name": "Lion",
+      "primary_attr": "all",
+      "attack_type": "Melee",
+      "roles": []
+    },
+    {
+      "id": 87,
+      "name": "npc_dota_hero_disruptor",
+      "localized_name": "Disruptor",
+      "primary_attr": "all",
+      "attack_type": "Melee",
+      "roles": []
+    },
+    {
+      "id": 36,
+      "name": "npc_dota_hero_necrolyte",
+      "localized_name": "Necrophos",
+      "primary_attr": "all",
+      "attack_type": "Melee",
+      "roles": []
+    },
+    {
+      "id": 17,
+      "name": "npc_dota_hero_storm_spirit",
+      "localized_name": "Storm Spirit",
+      "primary_attr": "all",
+      "attack_type": "Melee",
+      "roles": []
+    },
+    {
+      "id": 44,
+      "name": "npc_dota_hero_phantom_assassin",
+      "localized_name": "Phantom Assassin",
+      "primary_attr": "all",
+      "attack_type": "Melee",
+      "roles": []
+    },
+    {
+      "id": 14,
+      "name": "npc_dota_hero_pudge",
+      "localized_name": "Pudge",
+      "primary_attr": "all",
+      "attack_type": "Melee",
+      "roles": []
+    },
+    {
+      "id": 30,
+      "name": "npc_dota_hero_witch_doctor",
+      "localized_name": "Witch Doctor",
+      "primary_attr": "all",
+      "attack_type": "Melee",
+      "roles": []
+    },
+    {
+      "id": 41,
+      "name": "npc_dota_hero_faceless_void",
+      "localized_name": "Faceless Void",
+      "primary_attr": "all",
+      "attack_type": "Melee",
+      "roles": []
+    },
+    {
+      "id": 13,
+      "name": "npc_dota_hero_puck",
+      "localized_name": "Puck",
+      "primary_attr": "all",
+      "attack_type": "Melee",
+      "roles": []
+    },
+    {
+      "id": 86,
+      "name": "npc_dota_hero_rubick",
+      "localized_name": "Rubick",
+      "primary_attr": "all",
+      "attack_type": "Melee",
+      "roles": []
+    },
+    {
+      "id": 69,
+      "name": "npc_dota_hero_doom_bringer",
+      "localized_name": "Doom",
+      "primary_attr": "all",
+      "attack_type": "Melee",
+      "roles": []
+    },
+    {
+      "id": 2,
+      "name": "npc_dota_hero_axe",
+      "localized_name": "Axe",
+      "primary_attr": "all",
+      "attack_type": "Melee",
+      "roles": []
+    },
+    {
+      "id": 22,
+      "name": "npc_dota_hero_zuus",
+      "localized_name": "Zeus",
+      "primary_attr": "all",
+      "attack_type": "Melee",
+      "roles": []
+    },
+    {
+      "id": 52,
+      "name": "npc_dota_hero_leshrac",
+      "localized_name": "Leshrac",
+      "primary_attr": "all",
+      "attack_type": "Melee",
+      "roles": []
+    },
+    {
+      "id": 101,
+      "name": "npc_dota_hero_skywrath_mage",
+      "localized_name": "Skywrath Mage",
+      "primary_attr": "all",
+      "attack_type": "Melee",
+      "roles": []
+    },
+    {
+      "id": 75,
+      "name": "npc_dota_hero_silencer",
+      "localized_name": "Silencer",
+      "primary_attr": "all",
+      "attack_type": "Melee",
+      "roles": []
+    }
+  ],
+  "stats": {
+    "8": {
+      "heroId": 8,
+      "sampleMatches": 1000,
+      "oldest": 1789500000,
+      "newest": 1793000000,
+      "items": [
+        {
+          "itemId": 225,
+          "name": "nullifier",
+          "label": "Nullifier",
+          "cost": 4350,
+          "games": 1000,
+          "wins": 500,
+          "withGames": 300,
+          "withWins": 180
+        },
+        {
+          "itemId": 160,
+          "name": "skadi",
+          "label": "Eye of Skadi",
+          "cost": 5900,
+          "games": 1000,
+          "wins": 500,
+          "withGames": 300,
+          "withWins": 180
+        },
+        {
+          "itemId": 135,
+          "name": "monkey_king_bar",
+          "label": "Monkey King Bar",
+          "cost": 4800,
+          "games": 1000,
+          "wins": 500,
+          "withGames": 300,
+          "withWins": 180
+        }
+      ],
+      "pairs": [
+        {
+          "itemId": 225,
+          "otherHeroId": 36,
+          "relation": "enemy",
+          "games": 200,
+          "wins": 100,
+          "withGames": 80,
+          "withWins": 64
+        },
+        {
+          "itemId": 160,
+          "otherHeroId": 36,
+          "relation": "enemy",
+          "games": 200,
+          "wins": 100,
+          "withGames": 80,
+          "withWins": 57
+        },
+        {
+          "itemId": 135,
+          "otherHeroId": 44,
+          "relation": "enemy",
+          "games": 200,
+          "wins": 100,
+          "withGames": 80,
+          "withWins": 60
+        },
+        {
+          "itemId": 225,
+          "otherHeroId": 5,
+          "relation": "ally",
+          "games": 100,
+          "wins": 60,
+          "withGames": 50,
+          "withWins": 50
+        },
+        {
+          "itemId": 225,
+          "otherHeroId": 29,
+          "relation": "ally",
+          "games": 100,
+          "wins": 60,
+          "withGames": 50,
+          "withWins": 50
+        },
+        {
+          "itemId": 225,
+          "otherHeroId": 26,
+          "relation": "ally",
+          "games": 100,
+          "wins": 60,
+          "withGames": 50,
+          "withWins": 50
+        },
+        {
+          "itemId": 225,
+          "otherHeroId": 87,
+          "relation": "ally",
+          "games": 100,
+          "wins": 60,
+          "withGames": 50,
+          "withWins": 50
+        },
+        {
+          "itemId": 160,
+          "otherHeroId": 14,
+          "relation": "enemy",
+          "games": 200,
+          "wins": 100,
+          "withGames": 80,
+          "withWins": 59
+        },
+        {
+          "itemId": 160,
+          "otherHeroId": 30,
+          "relation": "enemy",
+          "games": 200,
+          "wins": 100,
+          "withGames": 80,
+          "withWins": 58
+        }
+      ],
+      "source": "OpenDota Explorer",
+      "fetchedAt": "2026-11-01T08:00:00Z",
+      "stale": false,
+      "demonstration": true,
+      "standardBuilds": [
+        {
+          "items": [
+            {
+              "itemId": 50,
+              "name": "phase_boots",
+              "label": "Phase Boots",
+              "cost": 1450
+            },
+            {
+              "itemId": 145,
+              "name": "bfury",
+              "label": "Battle Fury",
+              "cost": 3900
+            },
+            {
+              "itemId": 147,
+              "name": "manta",
+              "label": "Manta Style",
+              "cost": 4650
+            },
+            {
+              "itemId": 116,
+              "name": "black_king_bar",
+              "label": "Black King Bar",
+              "cost": 4050
+            },
+            {
+              "itemId": 208,
+              "name": "abyssal_blade",
+              "label": "Abyssal Blade",
+              "cost": 6250
+            },
+            {
+              "itemId": 139,
+              "name": "butterfly",
+              "label": "Butterfly",
+              "cost": 5450
+            }
+          ],
+          "matches": 75,
+          "wins": 42
+        },
+        {
+          "items": [
+            {
+              "itemId": 50,
+              "name": "phase_boots",
+              "label": "Phase Boots",
+              "cost": 1450
+            },
+            {
+              "itemId": 145,
+              "name": "bfury",
+              "label": "Battle Fury",
+              "cost": 3900
+            },
+            {
+              "itemId": 147,
+              "name": "manta",
+              "label": "Manta Style",
+              "cost": 4650
+            },
+            {
+              "itemId": 116,
+              "name": "black_king_bar",
+              "label": "Black King Bar",
+              "cost": 4050
+            },
+            {
+              "itemId": 160,
+              "name": "skadi",
+              "label": "Eye of Skadi",
+              "cost": 5900
+            },
+            {
+              "itemId": 139,
+              "name": "butterfly",
+              "label": "Butterfly",
+              "cost": 5450
+            }
+          ],
+          "matches": 45,
+          "wins": 25
+        },
+        {
+          "items": [
+            {
+              "itemId": 50,
+              "name": "phase_boots",
+              "label": "Phase Boots",
+              "cost": 1450
+            },
+            {
+              "itemId": 145,
+              "name": "bfury",
+              "label": "Battle Fury",
+              "cost": 3900
+            },
+            {
+              "itemId": 147,
+              "name": "manta",
+              "label": "Manta Style",
+              "cost": 4650
+            },
+            {
+              "itemId": 116,
+              "name": "black_king_bar",
+              "label": "Black King Bar",
+              "cost": 4050
+            },
+            {
+              "itemId": 135,
+              "name": "monkey_king_bar",
+              "label": "Monkey King Bar",
+              "cost": 4800
+            },
+            {
+              "itemId": 208,
+              "name": "abyssal_blade",
+              "label": "Abyssal Blade",
+              "cost": 6250
+            }
+          ],
+          "matches": 24,
+          "wins": 12
+        }
+      ]
+    },
+    "106": {
+      "heroId": 106,
+      "sampleMatches": 12,
+      "oldest": 1789500000,
+      "newest": 1793000000,
+      "items": [
+        {
+          "itemId": 225,
+          "name": "nullifier",
+          "label": "Nullifier",
+          "cost": 4350,
+          "games": 12,
+          "wins": 6,
+          "withGames": 3,
+          "withWins": 2
+        }
+      ],
+      "pairs": [],
+      "source": "OpenDota Explorer",
+      "fetchedAt": "2026-11-01T08:00:00Z",
+      "stale": false,
+      "demonstration": true,
+      "standardBuilds": [
+        {
+          "items": [
+            {
+              "itemId": 50,
+              "name": "phase_boots",
+              "label": "Phase Boots",
+              "cost": 1450
+            },
+            {
+              "itemId": 166,
+              "name": "maelstrom",
+              "label": "Maelstrom",
+              "cost": 2950
+            },
+            {
+              "itemId": 116,
+              "name": "black_king_bar",
+              "label": "Black King Bar",
+              "cost": 4050
+            },
+            {
+              "itemId": 119,
+              "name": "shivas_guard",
+              "label": "Shiva's Guard",
+              "cost": 4500
+            },
+            {
+              "itemId": 141,
+              "name": "greater_crit",
+              "label": "Daedalus",
+              "cost": 5200
+            },
+            {
+              "itemId": 108,
+              "name": "ultimate_scepter",
+              "label": "Aghanim's Scepter",
+              "cost": 4200
+            }
+          ],
+          "matches": 6,
+          "wins": 3
+        }
+      ]
+    },
+    "2": {
+      "heroId": 2,
+      "sampleMatches": 1000,
+      "oldest": 1789500000,
+      "newest": 1793000000,
+      "items": [
+        {
+          "itemId": 90,
+          "name": "pipe",
+          "label": "Pipe of Insight",
+          "cost": 3725,
+          "games": 1000,
+          "wins": 500,
+          "withGames": 300,
+          "withWins": 180
+        },
+        {
+          "itemId": 226,
+          "name": "lotus_orb",
+          "label": "Lotus Orb",
+          "cost": 3850,
+          "games": 1000,
+          "wins": 500,
+          "withGames": 300,
+          "withWins": 180
+        }
+      ],
+      "pairs": [
+        {
+          "itemId": 90,
+          "otherHeroId": 22,
+          "relation": "enemy",
+          "games": 200,
+          "wins": 100,
+          "withGames": 80,
+          "withWins": 60
+        },
+        {
+          "itemId": 90,
+          "otherHeroId": 52,
+          "relation": "enemy",
+          "games": 200,
+          "wins": 100,
+          "withGames": 80,
+          "withWins": 60
+        },
+        {
+          "itemId": 90,
+          "otherHeroId": 101,
+          "relation": "enemy",
+          "games": 200,
+          "wins": 100,
+          "withGames": 80,
+          "withWins": 60
+        },
+        {
+          "itemId": 226,
+          "otherHeroId": 26,
+          "relation": "enemy",
+          "games": 200,
+          "wins": 100,
+          "withGames": 80,
+          "withWins": 60
+        },
+        {
+          "itemId": 226,
+          "otherHeroId": 14,
+          "relation": "enemy",
+          "games": 200,
+          "wins": 100,
+          "withGames": 80,
+          "withWins": 60
+        },
+        {
+          "itemId": 226,
+          "otherHeroId": 75,
+          "relation": "enemy",
+          "games": 200,
+          "wins": 100,
+          "withGames": 80,
+          "withWins": 60
+        }
+      ],
+      "source": "OpenDota Explorer",
+      "fetchedAt": "2026-11-01T08:00:00Z",
+      "stale": false,
+      "demonstration": true,
+      "standardBuilds": [
+        {
+          "items": [
+            {
+              "itemId": 50,
+              "name": "phase_boots",
+              "label": "Phase Boots",
+              "cost": 1450
+            },
+            {
+              "itemId": 1,
+              "name": "blink",
+              "label": "Blink Dagger",
+              "cost": 2250
+            },
+            {
+              "itemId": 127,
+              "name": "blade_mail",
+              "label": "Blade Mail",
+              "cost": 2400
+            },
+            {
+              "itemId": 116,
+              "name": "black_king_bar",
+              "label": "Black King Bar",
+              "cost": 4050
+            },
+            {
+              "itemId": 119,
+              "name": "shivas_guard",
+              "label": "Shiva's Guard",
+              "cost": 4500
+            },
+            {
+              "itemId": 114,
+              "name": "heart",
+              "label": "Heart of Tarrasque",
+              "cost": 5300
+            }
+          ],
+          "matches": 75,
+          "wins": 42
+        }
+      ]
+    }
+  },
+  "drafts": [
+    {
+      "id": "necro",
+      "title": "Necrophos and evasive carry",
+      "heroId": 8,
+      "allies": [5, 29, 26, 87],
+      "enemies": [36, 17, 44, 14, 30]
+    },
+    {
+      "id": "evasion",
+      "title": "Enemy draft changes",
+      "heroId": 8,
+      "allies": [5, 29, 26, 87],
+      "enemies": [44, 41, 13, 86, 69]
+    },
+    {
+      "id": "sparse",
+      "title": "Insufficient purchase evidence",
+      "heroId": 106,
+      "allies": [5, 29, 26, 87],
+      "enemies": [36, 17, 44, 14, 30]
+    },
+    {
+      "id": "offlane-pipe",
+      "title": "Offlaner versus several magic threats",
+      "heroId": 2,
+      "allies": [8, 5, 26, 87],
+      "enemies": [22, 52, 101, 14, 30]
+    },
+    {
+      "id": "offlane-lotus",
+      "title": "Offlaner versus targeted spells",
+      "heroId": 2,
+      "allies": [8, 5, 29, 87],
+      "enemies": [26, 14, 75, 44, 69]
+    }
+  ]
+}

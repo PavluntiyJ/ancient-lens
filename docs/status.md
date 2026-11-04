@@ -20,6 +20,15 @@ or unverified, and what is planned.
   desktop safety. Further native verification requires a separate machine or VM and a
   reviewed fix; do not bypass the guard on the user desktop.
 
+- **Item recommendations:** first version uses historical purchases in OpenDota's league
+  sample, across roles/ranks and potentially patches. Sparse matchups retain the standard
+  build without situational additions.
+  Standard builds are observed five/six-item sets ranked by frequency, in an observed purchase order, across all
+  roles. It has no live inventory or economic/timing model. The completed-item ID filter
+  needs maintenance for new items. Linux native launches are blocked; synthetic native checks
+  run only when Windows native verification is available. Windows native verification is
+  pending for this local change.
+
 - **Native CI coverage:** Windows runs the native UI scenarios before packaging
   and preserves reusable executables and failure diagnostics. Linux shares the
   diagnostic capture but still needs a local desktop run; its ordinary checks

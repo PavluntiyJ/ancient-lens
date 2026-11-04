@@ -140,6 +140,68 @@ impl Api {
     pub fn info(&self) -> Value {
         json!({"source":if self.broker.is_some(){"STRATZ"}else{"OpenDota"},"hasToken":false,"persistent":false,"automatic":true,"serviceConfigured":self.broker.is_some(),"status":if self.broker.is_some(){"Service configured; access is checked when loading a match."}else{"Using public OpenDota. Connect STRATZ for draft statistics and faster player history."}})
     }
+    /// One cached league sample per own hero; changing the draft reranks locally.
+    pub async fn item_stats(&self, hero: u64) -> Result<Value> {
+        let sql = crate::item_stats::query(hero)?;
+        let _slot = self
+            .slots
+            .try_acquire()
+            .map_err(|_| "Wait for loading to finish")?;
+        let key = format!("{}-{hero}", crate::item_stats::VERSION);
+        let lock = self.lock(&key).await;
+        let _guard = lock.lock().await;
+        let path = self.directory.join(format!("{key}.json"));
+        let at = chrono::Utc::now().timestamp_millis();
+        let cached = read_cache(&path).filter(|v| {
+            crate::item_stats::validate(&v["data"], hero).is_ok()
+                && v["at"]
+                    .as_i64()
+                    .is_some_and(|t| t > 0 && t <= at && at - t < 7 * 86_400_000)
+        });
+        let public = |stored: &Value, stale: bool| {
+            let mut data = stored["data"].clone();
+            data["source"] = json!("OpenDota Explorer");
+            data["fetchedAt"] = json!(chrono::DateTime::from_timestamp_millis(
+                stored["at"].as_i64().unwrap()
+            )
+            .unwrap()
+            .to_rfc3339());
+            data["stale"] = json!(stale);
+            data["demonstration"] = json!(std::env::var_os("ANCIENT_TEST_DATA").is_some());
+            data
+        };
+        if let Some(v) = cached
+            .as_ref()
+            .filter(|v| at - v["at"].as_i64().unwrap() < crate::item_stats::TTL)
+        {
+            return Ok(public(v, false));
+        }
+        // Isolated native scenarios use invented cache files and never call live providers.
+        if std::env::var_os("ANCIENT_TEST_DATA").is_some() {
+            return cached
+                .as_ref()
+                .map(|v| public(v, true))
+                .ok_or("No isolated item statistics fixture".into());
+        }
+        let mut url = reqwest::Url::parse("https://api.opendota.com/api/explorer").unwrap();
+        url.query_pairs_mut().append_pair("sql", &sql);
+        let endpoint = format!("explorer?{}", url.query().unwrap());
+        let result = self
+            .request(&endpoint)
+            .await
+            .and_then(|v| crate::item_stats::parse(&v, hero));
+        match result {
+            Ok(data) => {
+                let stored = json!({"at":chrono::Utc::now().timestamp_millis(),"data":data});
+                let _ = atomic_json(&path, &stored);
+                Ok(public(&stored, false))
+            }
+            Err(error) => match cached {
+                Some(v) => Ok(public(&v, true)),
+                None => Err(error),
+            },
+        }
+    }
     async fn lock(&self, key: &str) -> Arc<Mutex<()>> {
         let mut locks = self.locks.lock().await;
         locks.retain(|_, v| Arc::strong_count(v) > 1);
@@ -573,6 +635,15 @@ impl Api {
             }
         }
         .filter(|v| v["accountId"] == request.id && v["source"] == source);
+        // Isolated OpenDota demos must not accidentally turn invented IDs into live requests.
+        if std::env::var_os("ANCIENT_TEST_DATA").is_some() && self.broker_url.is_none() {
+            return cached
+                .map(|mut value| {
+                    value["demonstration"] = json!(true);
+                    value
+                })
+                .ok_or("No isolated profile history fixture".into());
+        }
         // Recorded matches join the history locally, so reopening the profile needs no fetch.
         if let Some(v) = cached.as_ref().filter(|v| {
             load == HistoryLoad::Recent
@@ -890,9 +961,17 @@ fn prune_cache(directory: &std::path::Path, max_age: Duration) {
         let Some(stem) = name.strip_suffix(".json") else {
             continue;
         };
-        let disposable = ["native-v1-", "stratz-totals-", "resource-", "averages-"]
-            .iter()
-            .any(|prefix| stem.starts_with(prefix))
+        let disposable = [
+            "native-v1-",
+            "stratz-totals-",
+            "resource-",
+            "averages-",
+            "items-v1-",
+            "items-v2-",
+            "items-v3-",
+        ]
+        .iter()
+        .any(|prefix| stem.starts_with(prefix))
             || (!stem.is_empty() && stem.bytes().all(|b| b.is_ascii_digit()));
         let old = entry
             .metadata()
@@ -1301,6 +1380,33 @@ mod partial_tests {
         std::fs::write(&path, b"{").unwrap();
         assert!(read_json(&path, 64).is_err());
     }
+    #[tokio::test]
+    async fn items_cache_older_than_a_week_is_refused_for_isolated_demos() {
+        let dir = tempfile::tempdir().unwrap();
+        let at = chrono::Utc::now().timestamp_millis() - 9 * 86_400_000;
+        let empty = serde_json::json!({
+            "heroId": 1,
+            "sampleMatches": 0,
+            "oldest": null,
+            "newest": null,
+            "standardBuilds": [],
+            "items": [],
+            "pairs": [],
+        });
+        crate::store::atomic_json(
+            &dir.path().join("items-v3-1.json"),
+            &serde_json::json!({"at": at, "data": empty}),
+        )
+        .unwrap();
+        std::env::set_var("ANCIENT_TEST_DATA", "1");
+        let api = Api::new(dir.path().into(), None).unwrap();
+        let result = api.item_stats(1).await;
+        std::env::remove_var("ANCIENT_TEST_DATA");
+        assert!(
+            matches!(result, Err(error) if error.contains("No isolated item statistics fixture"))
+        );
+    }
+
     #[test]
     fn old_disposable_cache_entries_are_pruned_and_history_kept() {
         let dir = tempfile::tempdir().unwrap();

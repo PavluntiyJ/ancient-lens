@@ -1,17 +1,18 @@
-import { Activity, BookOpen, LayoutDashboard, Settings, Swords, UserRound, Users } from 'lucide-react';
+import { Activity, Backpack, BookOpen, LayoutDashboard, Settings, Swords, UserRound, Users } from 'lucide-react';
 
 export const pages = [
   { id: 'home', name: 'Match and draft', icon: LayoutDashboard },
   { id: 'draft', name: 'Manual draft', icon: Swords },
   { id: 'roster', name: 'Manual roster', icon: Users },
   { id: 'profile', name: 'My profile', icon: UserRound },
+  { id: 'items', name: 'Item build', icon: Backpack },
   { id: 'notes', name: 'Notes', icon: BookOpen },
   { id: 'live', name: 'GSI diagnostics', icon: Activity },
   { id: 'settings', name: 'Settings', icon: Settings },
 ] as const;
 export type Page = (typeof pages)[number]['id'];
 
-const headerPages: Page[] = ['home', 'profile', 'notes', 'settings'];
+const headerPages: Page[] = ['home', 'profile', 'items', 'notes', 'settings'];
 // The tools have no header icon: they open from the screen that needs them, and the icon of
 // that screen stays lit while they are open.
 const parentPage: Partial<Record<Page, Page>> = { draft: 'home', roster: 'home', live: 'settings' };
