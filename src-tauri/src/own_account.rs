@@ -8,7 +8,7 @@ mod linux;
 #[cfg(windows)]
 mod windows;
 #[cfg(target_os = "linux")]
-pub(crate) use linux::launch_account;
+pub(crate) use linux::{launch_account, steam_login};
 use serde::{Deserialize, Serialize};
 #[cfg(windows)]
 pub(crate) use windows::processes;

@@ -34,16 +34,18 @@ pub trait Host {
     fn start_steam(&self, steam: &Path, game: bool) -> Result<()>;
 }
 
+/// `memory` is the consent to read the game process (**Allow Dota memory reading**).
 #[cfg(target_os = "linux")]
-pub fn host() -> impl Host {
-    linux::Native
+pub fn host(memory: bool) -> impl Host {
+    linux::Native { memory }
 }
+/// Windows reads neither the game's environment nor its command line, with or without consent.
 #[cfg(windows)]
-pub fn host() -> impl Host {
+pub fn host(_memory: bool) -> impl Host {
     windows::Native
 }
 #[cfg(not(any(target_os = "linux", windows)))]
-pub fn host() -> impl Host {
+pub fn host(_memory: bool) -> impl Host {
     Unsupported
 }
 #[cfg(not(any(target_os = "linux", windows)))]

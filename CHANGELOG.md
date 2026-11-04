@@ -27,6 +27,8 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ### Fixed
 
+- With memory reading off, **Connect Dota 2** on Linux no longer reads the running game's
+  environment and command line. It finds the account in Steam's files, as My profile does.
 - Clicking **Add note** or **Edit note** in a player card above the game gives the window the
   keyboard. Before, the note field showed a cursor while the keys still went to Dota.
 - Unknown results stay unknown. A meeting without a known result no longer counts as a loss
