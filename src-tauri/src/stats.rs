@@ -105,8 +105,17 @@ pub(crate) fn country(v: &Value) -> Option<String> {
         .filter(|code| code.len() == 2 && code.bytes().all(|b| b.is_ascii_alphabetic()))
         .map(str::to_ascii_uppercase)
 }
+/// The professional name STRATZ links to the account (`proSteamAccount.name`), or `None`
+/// when it links none. STRATZ keeps that list; nothing here guesses a player from a nickname.
+pub(crate) fn pro_name(account: &Value) -> Option<String> {
+    account["proSteamAccount"]["name"]
+        .as_str()
+        .map(str::trim)
+        .filter(|name| !name.is_empty() && name.chars().count() <= 64)
+        .map(str::to_string)
+}
 pub fn query(ids: &[String]) -> String {
-    format!("query {{ players(steamAccountIds:[{}]) {{ steamAccountId steamAccount {{ name avatar countryCode seasonRank seasonLeaderboardRank isAnonymous }} matches(request:{{take:100,skip:0,playerList:SINGLE}}) {{ id endDateTime durationSeconds didRadiantWin gameMode lobbyType players {{ steamAccountId heroId isRadiant kills deaths assists goldPerMinute experiencePerMinute role position }} }} }} }}", ids.join(","))
+    format!("query {{ players(steamAccountIds:[{}]) {{ steamAccountId steamAccount {{ name avatar countryCode seasonRank seasonLeaderboardRank isAnonymous proSteamAccount {{ name }} }} matches(request:{{take:100,skip:0,playerList:SINGLE}}) {{ id endDateTime durationSeconds didRadiantWin gameMode lobbyType players {{ steamAccountId heroId isRadiant kills deaths assists goldPerMinute experiencePerMinute role position }} }} }} }}", ids.join(","))
 }
 pub fn from_stratz(
     row: &Value,
@@ -177,6 +186,9 @@ pub fn from_stratz(
     if let Some(country) = crate::stats::country(&row["steamAccount"]["countryCode"]) {
         profile["profile"]["loccountrycode"] = json!(country);
     }
+    if let Some(name) = pro_name(&row["steamAccount"]) {
+        profile["profile"]["pro_name"] = json!(name);
+    }
     // The newest visible game in the selected modes, regardless of the period: tells "no games
     // in this period" from "no visible games at all" (private profile) without contradicting
     // the filtered counts (a Turbo game today is not a normal-mode game).
@@ -226,6 +238,28 @@ mod tests {
             json!({"countryCode":""}),
             json!({"countryCode":"D3"}),
             json!({"countryCode":"DEU"}),
+        ] {
+            assert!(summary(missing).is_null());
+        }
+    }
+    #[test]
+    fn pro_name_is_only_what_stratz_links() {
+        assert!(query(&["1".into()]).contains("proSteamAccount { name }"));
+        let summary = |account: Value| {
+            let row = json!({"steamAccountId":1,"steamAccount":account,"matches":[]});
+            from_stratz(&row, "1", 14, &Filter::default(), 1000000).unwrap()["profile"]["profile"]
+                ["pro_name"]
+                .clone()
+        };
+        assert_eq!(
+            summary(json!({"name":"Persona","proSteamAccount":{"name":" Fixture Pro "}})),
+            "Fixture Pro"
+        );
+        for missing in [
+            json!({"name":"Persona"}),
+            json!({"proSteamAccount":null}),
+            json!({"proSteamAccount":{"name":"  "}}),
+            json!({"proSteamAccount":{"name":"x".repeat(65)}}),
         ] {
             assert!(summary(missing).is_null());
         }

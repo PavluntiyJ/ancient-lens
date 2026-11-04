@@ -45,6 +45,13 @@ Your own row is marked. Each player has one role icon before the name: a lane se
 draft, or a dimmer guess. The player's hover card explains which. Avatars get the in-game slot
 colour when the slot order is known, with the country flag in the corner.
 
+**Professional players.** When STRATZ links an account to a professional player, the row
+shows that name in light blue with a check, and the name used in Dota below it; the hover card
+and the profile header show the same check. The name comes only from STRATZ's list of
+professional accounts, matched by account ID, never guessed from a nickname, and it needs the
+[statistics service](stats-service.md). No check means STRATZ links no professional name,
+not that the player is not one.
+
 **With me** counts earlier matches with or against that player in your loaded history, with
 your win rate over matches whose result is known. Hover or focus the count for both heroes,
 K/D/A and the result from your point of view; click a match to open it on Dotabuff. The current

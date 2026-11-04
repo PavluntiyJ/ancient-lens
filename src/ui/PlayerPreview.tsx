@@ -3,7 +3,7 @@ import type { Meetings } from '../shared/meetings';
 import { country } from '../shared/country';
 import type { RoleGuess } from '../shared/role-guess';
 import { mainPosition, matchPosition, rankedRoles } from '../shared/roles';
-import { Avatar, CountryFlag, Portrait, RankMedal } from './MatchScreen';
+import { Avatar, CountryFlag, Portrait, ProBadge, RankMedal } from './MatchScreen';
 import { RoleIcon } from './Roles';
 import { NoteEditor } from './NoteEditor';
 import { PlayerLinks } from './PlayerLinks';
@@ -93,6 +93,7 @@ export function PlayerPreview({
   const run = streak(matches);
   const place = country(summary?.profile.profile?.loccountrycode);
   const steamName = summary?.profile.profile?.personaname;
+  const proName = summary?.profile.profile?.pro_name || undefined;
   // Only the service can say a profile is private; a failed history load is not that.
   const hidden = summary?.isPublic === false;
   const unavailable = !hidden && !!summary?.historyUnavailable;
@@ -110,8 +111,9 @@ export function PlayerPreview({
             <CountryFlag code={summary?.profile.profile?.loccountrycode} source={summary?.source} />
           </Avatar>
           <div className="preview-who">
-            <b>
-              {name}
+            <b className={proName ? 'pro' : undefined}>
+              {proName || name}
+              {proName && <ProBadge name={proName} />}
               {smurf && <span className="smurf-badge">SMURF</span>}
             </b>
             <small>

@@ -3,7 +3,7 @@ import { RefreshCw } from 'lucide-react';
 import type { LocalState, PlayerHistory, SteamIdentity } from '../../shared/domain';
 import { dayBands, nearestPoint } from '../../shared/mmr-chart';
 import { formatImp, impTier } from '../../shared/performance';
-import { Avatar, CountryFlag } from '../MatchScreen';
+import { Avatar, CountryFlag, ProBadge } from '../MatchScreen';
 import { OwnRating } from '../OwnRating';
 import { PlayerLinks } from '../PlayerLinks';
 import { hide as hideTip, show as showTip } from '../Tooltip';
@@ -309,6 +309,7 @@ export function ProfileHeader({
     identity?.name ||
     data?.profile.profile?.personaname ||
     (local.accountId ? `Player ${local.accountId}` : 'My profile');
+  const proName = data?.profile.profile?.pro_name || undefined;
   const updated = identity
     ? identity.stale
       ? 'Saved Steam profile · refresh unavailable'
@@ -330,6 +331,12 @@ export function ProfileHeader({
             {accountMenu?.(name) ?? (
               <span className="profile-name-text" title={name}>
                 {name}
+              </span>
+            )}
+            {proName && (
+              <span className="profile-pro-name">
+                {proName !== name && proName}
+                <ProBadge name={proName} />
               </span>
             )}
           </h2>
