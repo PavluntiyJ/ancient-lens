@@ -93,6 +93,9 @@ pub struct Api {
     player_slots: Semaphore,
     /// Steam identity fetches wait here instead of taking player-history slots.
     steam_slots: Semaphore,
+    /// An isolated run (`ANCIENT_TEST_DATA`): fixtures only, never a live provider. Read once
+    /// at construction so tests can build an isolated API without the process environment.
+    isolated: bool,
     broker: Option<mpsc::Sender<Pending>>,
     totals: Option<mpsc::Sender<Pending>>,
     broker_url: Option<String>,
@@ -105,6 +108,10 @@ struct Pending {
 }
 impl Api {
     pub fn new(directory: PathBuf, broker_url: Option<String>) -> Result<Arc<Self>> {
+        let isolated = std::env::var_os("ANCIENT_TEST_DATA").is_some();
+        Self::build(directory, broker_url, isolated)
+    }
+    fn build(directory: PathBuf, broker_url: Option<String>, isolated: bool) -> Result<Arc<Self>> {
         let client = client();
         let broker = if let Some(url) = broker_url.clone() {
             let parsed = reqwest::Url::parse(&url).map_err(|_| "Invalid statistics service URL")?;
@@ -143,6 +150,7 @@ impl Api {
             summary_slots: Semaphore::new(20),
             player_slots: Semaphore::new(3),
             steam_slots: Semaphore::new(2),
+            isolated,
             broker,
             totals,
             broker_url,
@@ -239,7 +247,7 @@ impl Api {
         let path = self.directory.join(format!("{key}.json"));
         let cached = read_cache(&path).filter(|value| crate::steam_profile::validate(value, &id));
         // Isolated demos serve only synthetic fixtures, explicitly labelled.
-        if std::env::var_os("ANCIENT_TEST_DATA").is_some() {
+        if self.isolated {
             return cached
                 .map(|mut value| {
                     value["demonstration"] = json!(true);
@@ -305,7 +313,7 @@ impl Api {
             .unwrap()
             .to_rfc3339());
             data["stale"] = json!(stale);
-            data["demonstration"] = json!(std::env::var_os("ANCIENT_TEST_DATA").is_some());
+            data["demonstration"] = json!(self.isolated);
             data
         };
         if let Some(v) = cached
@@ -315,7 +323,7 @@ impl Api {
             return Ok(public(v, false));
         }
         // Isolated native scenarios use invented cache files and never call live providers.
-        if std::env::var_os("ANCIENT_TEST_DATA").is_some() {
+        if self.isolated {
             return cached
                 .as_ref()
                 .map(|v| public(v, true))
@@ -779,7 +787,7 @@ impl Api {
         }
         .filter(|v| v["accountId"] == request.id && v["source"] == source);
         // Isolated OpenDota demos must not accidentally turn invented IDs into live requests.
-        if std::env::var_os("ANCIENT_TEST_DATA").is_some() && self.broker_url.is_none() {
+        if self.isolated && self.broker_url.is_none() {
             return cached
                 .map(|mut value| {
                     value["demonstration"] = json!(true);
@@ -1545,9 +1553,8 @@ mod partial_tests {
         // An uncached account never reports the player-history slots as busy: it reaches
         // Steam's own gate, which is paused here so no request leaves the test.
         api.steam_pause(60, "steam paused for the test").await;
-        // (Not compared with the pause text: another test briefly sets ANCIENT_TEST_DATA.)
         let error = api.steam_profile("456", false).await.unwrap_err();
-        assert_ne!(error, "Wait for loading to finish");
+        assert_eq!(error, "steam paused for the test");
         assert_eq!(api.player_slots.available_permits(), 0);
     }
 
@@ -1576,6 +1583,28 @@ mod partial_tests {
     }
 
     #[tokio::test]
+    async fn isolated_steam_identity_serves_only_labelled_fixtures() {
+        let dir = tempfile::tempdir().unwrap();
+        let api = Api::build(dir.path().into(), None, true).unwrap();
+        // No fixture: an error, never a live Steam request.
+        assert_eq!(
+            api.steam_profile("123", true).await.unwrap_err(),
+            "No isolated Steam identity fixture"
+        );
+        crate::store::atomic_json(
+            &dir.path().join("steam-profile-v1-123.json"),
+            &json!({"accountId":"123","name":"Invented","source":"Steam Community",
+                "avatar":"https://avatars.steamstatic.com/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_full.jpg",
+                "fetchedAt":"2020-01-01T00:00:00Z","stale":false}),
+        )
+        .unwrap();
+        // Even an old fixture and an explicit refresh stay offline, labelled as a demonstration.
+        let value = api.steam_profile("123", true).await.unwrap();
+        assert_eq!(value["name"], "Invented");
+        assert_eq!(value["demonstration"], true);
+    }
+
+    #[tokio::test]
     async fn items_cache_older_than_a_week_is_refused_for_isolated_demos() {
         let dir = tempfile::tempdir().unwrap();
         let at = chrono::Utc::now().timestamp_millis() - 9 * 86_400_000;
@@ -1593,10 +1622,8 @@ mod partial_tests {
             &serde_json::json!({"at": at, "data": empty}),
         )
         .unwrap();
-        std::env::set_var("ANCIENT_TEST_DATA", "1");
-        let api = Api::new(dir.path().into(), None).unwrap();
+        let api = Api::build(dir.path().into(), None, true).unwrap();
         let result = api.item_stats(1).await;
-        std::env::remove_var("ANCIENT_TEST_DATA");
         assert!(
             matches!(result, Err(error) if error.contains("No isolated item statistics fixture"))
         );
