@@ -15,6 +15,12 @@ or unverified, and what is planned.
 
 ## Known limitations
 
+- **Local profile update:** ordinary Linux checks cover independent Steam identity,
+  saved-MMR medals and account scoping. The changed layout and account menu need manual
+  native review; Windows native verification is pending. Steam Community's unversioned
+  public XML can fail or change, in which case the app keeps a labelled saved/provider
+  identity. MMR-based medals are estimates, not freshly observed rank or leaderboard data.
+
 - **Linux native automation:** temporarily blocked locally after host Alt+Tab failed again
   following a private-bus nested KWin run. Prior passing UI scenarios do not establish
   desktop safety. Further native verification requires a separate machine or VM and a

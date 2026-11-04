@@ -8,6 +8,10 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 - **More** and **Columns** in the profile open their menus again. They had been placed below
   the window, so a click only added a scrollbar and nudged the page.
+- Profile names wrap above the update status and open a saved-account menu. Browsing an
+  alternate profile leaves automatic account detection and each account's MMR separate.
+- A saved calibrated MMR keeps its derived medal visible after Dota closes. MMR is blue;
+  the GPM table heading is gold with a coin icon.
 - My profile refreshes names and avatars directly from Steam Community, including its
   Fastly avatar host; Steam identity updates have their own timestamp and cache fallback.
 - Linux native tests, captures and demos are temporarily blocked after repeated host

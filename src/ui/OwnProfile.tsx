@@ -1,7 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { Pencil } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  accountId,
   matchWon,
   type Hero,
   type LocalState,
@@ -15,7 +13,7 @@ import { sortProfileHistory } from '../shared/profile-history';
 import { ratingByMatch } from '../shared/rating-history';
 import { matchPosition } from '../shared/roles';
 import { api, errorMessage, Notice } from './App';
-import { ProfileMenu } from './ProfileMenu';
+import { ProfileAccounts } from './profile/ProfileAccounts';
 import { useStatsFilter } from './preferences';
 import { FilterBar, PositionCards } from './profile/ProfileFilters';
 import { MmrChart, ProfileHeader, ScoreCard, type ChartMatch } from './profile/ProfileHeader';
@@ -34,8 +32,70 @@ const end = (match: Match) => match.start_time + match.duration;
  * details of one match. Numbers are coloured against STRATZ bracket averages.
  */
 export function OwnProfile({ local, update }: { local: LocalState; update(state: LocalState): void }) {
-  const [query, setQuery] = useState(local.accountId);
-  const [editing, setEditing] = useState(false);
+  const [selected, setSelected] = useState<string>();
+  const id = selected ?? local.accountId;
+  const [other, setOther] = useState<LocalState>();
+  const [accountError, setAccountError] = useState('');
+  useEffect(() => {
+    let keep = true;
+    setAccountError('');
+    if (id !== local.accountId && id && api.getAccountState) {
+      void api
+        .getAccountState(id)
+        .then((value) => {
+          if (keep && value.accountId === id) setOther(value);
+        })
+        .catch((error) => {
+          if (keep) setAccountError(errorMessage(error));
+        });
+    }
+    return () => {
+      keep = false;
+    };
+  }, [id, local.accountId, local.journalRevision]);
+  const scoped =
+    id === local.accountId
+      ? local
+      : other?.accountId === id
+        ? other
+        : {
+            ...local,
+            accountId: id,
+            mmr: [],
+            ratingSnapshot: null,
+            recordedMatches: 0,
+          };
+  return (
+    <>
+      {accountError && <Notice error>{accountError}</Notice>}
+      <OwnProfileContent
+        local={scoped}
+        update={update}
+        activeAccountId={local.accountId}
+        accounts={local.profileAccounts ?? []}
+        choose={(id) => setSelected(id === local.accountId ? undefined : id)}
+      />
+    </>
+  );
+}
+
+function OwnProfileContent({
+  local,
+  update,
+  activeAccountId,
+  accounts,
+  choose,
+}: {
+  local: LocalState;
+  update(state: LocalState): void;
+  activeAccountId: string;
+  accounts: string[];
+  choose(id: string): void;
+}) {
+  const [identity, setIdentity] = useState<SteamIdentity>();
+  const identityGeneration = useRef(0);
+  const [identityBusy, setIdentityBusy] = useState(false);
+  const [identityError, setIdentityError] = useState('');
   const [history, setHistory] = useState<PlayerHistory | null>(null);
   const [heroes, setHeroes] = useState<Hero[]>([]);
   const [busy, setBusy] = useState(false);
@@ -47,10 +107,6 @@ export function OwnProfile({ local, update }: { local: LocalState; update(state:
   const generation = useRef(0);
   const mounted = useRef(true);
   const loading = useRef(false);
-  const [identity, setIdentity] = useState<SteamIdentity>();
-  const identityGeneration = useRef(0);
-  const [identityBusy, setIdentityBusy] = useState(false);
-  const [identityError, setIdentityError] = useState('');
 
   async function refreshIdentity(refresh = false) {
     if (!local.accountId || !api.getSteamProfile) return;
@@ -67,7 +123,6 @@ export function OwnProfile({ local, update }: { local: LocalState; update(state:
       if (mounted.current && token === identityGeneration.current) setIdentityBusy(false);
     }
   }
-
   useEffect(() => {
     setIdentity(undefined);
     setIdentityBusy(false);
@@ -77,7 +132,6 @@ export function OwnProfile({ local, update }: { local: LocalState; update(state:
       identityGeneration.current++;
     };
   }, [local.accountId]);
-
   async function load(offset = 0) {
     if (!local.accountId || loading.current) return;
     loading.current = true;
@@ -101,7 +155,6 @@ export function OwnProfile({ local, update }: { local: LocalState; update(state:
     mounted.current = true;
     const token = ++generation.current;
     loading.current = true;
-    setQuery(local.accountId);
     setHistory(null);
     setError('');
     setSelectedId(undefined);
@@ -166,16 +219,6 @@ export function OwnProfile({ local, update }: { local: LocalState; update(state:
       })
       .catch(() => {});
   }, [journal]);
-  async function connect(event: FormEvent) {
-    event.preventDefault();
-    setError('');
-    try {
-      update(await api.setAccount(accountId(query)));
-      setEditing(false);
-    } catch (e) {
-      setError(errorMessage(e));
-    }
-  }
 
   const data = history?.accountId === local.accountId ? history : null;
   const loaded = useMemo(() => data?.matches ?? [], [data]);
@@ -236,18 +279,22 @@ export function OwnProfile({ local, update }: { local: LocalState; update(state:
           void load();
           void refreshIdentity(true);
         }}
-        actions={
-          local.accountId && !local.ownAccount?.accountId ? (
-            <button
-              className="icon-button"
-              aria-label="Change ID"
-              title="Change ID"
-              onClick={() => setEditing((value) => !value)}
-            >
-              <Pencil size={14} />
-            </button>
-          ) : undefined
-        }
+        accountMenu={(name) => (
+          <ProfileAccounts
+            name={name}
+            selected={local.accountId}
+            active={activeAccountId}
+            accounts={accounts}
+            choose={choose}
+            add={async (id) => {
+              // Never fall back to a full account switch; adding an alternate
+              // account must leave the active account untouched.
+              if (!api.addProfileAccount) throw new Error('Adding profiles is unavailable in this version');
+              update(await api.addProfileAccount(id));
+              choose(id);
+            }}
+          />
+        )}
         chart={
           <MmrChart
             points={chartMatches}
@@ -278,20 +325,6 @@ export function OwnProfile({ local, update }: { local: LocalState; update(state:
       />
       {(data?.demonstration || identity?.demonstration) && (
         <p className="item-demo-label">Synthetic demonstration · invented profile and statistics</p>
-      )}
-      {(!local.accountId || editing) && (
-        <form className="search-panel" onSubmit={(event) => void connect(event)}>
-          <label htmlFor="own-account">My Dota ID / SteamID64</label>
-          <input
-            id="own-account"
-            aria-label="My Dota ID"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            required
-            maxLength={160}
-          />
-          <button className="primary">Connect profile</button>
-        </form>
       )}
       {error && <Notice error>{error}</Notice>}
       {/* Saved matches speak for themselves; a provider note matters only when nothing shows. */}
