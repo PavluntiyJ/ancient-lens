@@ -74,10 +74,11 @@ after a game update, see [the native reader guide](../dev/native-reader.md#after
 ## Your profile
 
 **My profile** finds your account without a token; there is no manual entry. Windows uses
-the active Steam account from the registry, with or without memory reading. Linux reads the
-Steam login from the environment of the running Dota process, so it needs **Allow Dota
-memory reading**. Without it, Linux waits for your own GSI events: the main menu sends no
-account, so the profile appears once you are in a match.
+the active Steam account from the registry. Linux uses the account Steam signs in to, from
+Steam's own `registry.vdf` and `loginusers.vdf`; neither needs memory reading, and both work
+only while Steam runs. In a match, your own GSI event names the account. With memory reading
+allowed, Linux also checks the Steam login that started Dota, so the rating is read for the
+right account.
 
 ## Memory reading
 
@@ -105,9 +106,9 @@ calls game functions. An unfamiliar layout gives an unsupported status instead
 of guessed values. The anti-cheat response is unknown. Decide whether to enable
 this feature before playing. The app does not relax system memory-access policy.
 
-When disabled, Windows still identifies your account through Steam registry
-information. Both keep GSI data. How the readers work, what they validate and on which
-game builds they were checked: [native reader guide](../dev/native-reader.md).
+When disabled, both systems still identify your account from Steam: Windows from the
+registry, Linux from Steam's own files. Both keep GSI data. How the readers work, what
+they validate and on which game builds they were checked: [native reader guide](../dev/native-reader.md).
 
 ## Windows, hotkeys, and tray
 
@@ -246,5 +247,5 @@ No analytics, telemetry, or Ancient Lens cloud account is used.
 | Empty draft recommendations      | Press **Connect STRATZ** ([details](stats-service.md)); OpenDota alone does not power these panels.                                              |
 | Rate limit or stale statistics   | Wait for the cooldown and retry. Provider coverage can differ; unavailable history does not prove a private profile.                             |
 | No Linux MMR measurement         | Enable **Allow Dota memory reading** and start Dota from Steam. Without Steam's launch environment, the rating waits for your first in-game GSI. |
-| No automatic profile             | Windows: log in to Steam. Linux: allow memory reading, or wait for your first match, when your own GSI event names the account.                  |
+| No automatic profile             | Start Steam and sign in. On Linux, Steam's files may name two accounts that disagree; then the account appears in your first match.              |
 | Profile totals look incomplete   | Check period/mode/Turbo filters and the incomplete-sample label; use **Load older matches**.                                                     |

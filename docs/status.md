@@ -35,10 +35,9 @@ or unverified, and what is planned.
   ordinary CI checks for the interface changes, but the new layout and interactions still
   need a Linux desktop run of `npm run test:native` and visual review. This is a verification
   gap, not an intentionally Windows-only feature.
-- **Own account on Linux without memory reading:** Windows reads the Steam account from the
-  registry; Linux finds it in the Dota process environment, which is only opened with
-  **Allow Dota memory reading**. With reading off, Linux knows the account from the first
-  match's GSI, not in the main menu.
+- **Own account on Linux:** Steam's files say which account Steam signs in to, not whether
+  it is signed in now. While Steam runs at its login screen, Linux keeps naming the last
+  automatic login; Windows reads the signed-in user and names none.
 - **Memory readers** are validated on specific game builds (see the
   [maintenance guide](dev/native-reader.md#verified-builds)). A game update can make them
   report `unsupported` until discovery is checked again. The anti-cheat response to external

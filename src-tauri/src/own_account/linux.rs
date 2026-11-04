@@ -1,5 +1,6 @@
 use super::{confidence, fresh_self, layout_linux::Layout, measured, Observation, Sample, HOLD};
 use crate::roster::linux::{module_file, modules, Memory, Process};
+use crate::steam_setup::vdf;
 use std::{path::PathBuf, time::SystemTime};
 
 type Result<T> = std::result::Result<T, &'static str>;
@@ -28,6 +29,86 @@ pub(crate) fn launch_account(pid: i32) -> Option<String> {
         .join("config/localconfig.vdf")
         .is_file()
         .then_some(id)
+}
+
+/// Steam's own folders of a native, Flatpak and Snap installation, below the home folder.
+const STEAM_HOMES: [&str; 3] = [
+    ".steam",
+    ".var/app/com.valvesoftware.Steam/.steam",
+    "snap/steam/common/.steam",
+];
+
+/// The account signed in to the running Steam client, from Steam's own files, as the Windows
+/// registry gives it: neither Dota nor Steam is opened, so this needs no consent. Nothing while
+/// Steam is closed, and nothing when two installations name different accounts.
+pub(crate) fn steam_login() -> Option<String> {
+    if crate::steam_setup::linux::pids("steam").is_empty() {
+        return None;
+    }
+    let home = dirs::home_dir()?;
+    let mut found: Option<String> = None;
+    for dir in STEAM_HOMES.map(|dir| home.join(dir)) {
+        let Ok(registry) = std::fs::read_to_string(dir.join("registry.vdf")) else {
+            continue;
+        };
+        let root = dir.join("root");
+        let Some(id) = std::fs::read_to_string(root.join("config/loginusers.vdf"))
+            .ok()
+            .and_then(|users| signed_in(&registry, &users))
+            .filter(|id| {
+                root.join("userdata")
+                    .join(id)
+                    .join("config/localconfig.vdf")
+                    .is_file()
+            })
+        else {
+            continue;
+        };
+        if found.as_ref().is_some_and(|other| *other != id) {
+            return None;
+        }
+        found = Some(id);
+    }
+    found
+}
+
+/// The account Steam signs in to: the login of `AutoLoginUser` in registry.vdf, the user marked
+/// `MostRecent` in loginusers.vdf, or the only user there. Answers that disagree, or an
+/// automatic login that loginusers.vdf does not know, name nobody.
+fn signed_in(registry: &str, users: &str) -> Option<String> {
+    let login = vdf::parse(registry).ok().and_then(|root| {
+        vdf::path(
+            &root,
+            &[
+                "Registry",
+                "HKCU",
+                "Software",
+                "Valve",
+                "Steam",
+                "AutoLoginUser",
+            ],
+        )?
+        .text()
+        .filter(|login| !login.is_empty())
+        .map(String::from)
+    });
+    let automatic = match login {
+        Some(login) => Some(login_account(users, &login)?),
+        None => None,
+    };
+    match (automatic, vdf::most_recent_account(users)) {
+        (Some(a), Some(b)) => (a == b).then_some(a),
+        (Some(id), None) | (None, Some(id)) => Some(id),
+        (None, None) => {
+            let root = vdf::parse(users).ok()?;
+            match vdf::child(&root, "users")?.entries()? {
+                [only] if only.key.parse::<u64>().is_ok_and(|v| v > STEAM_BASE) => {
+                    crate::store::account_id(&only.key).ok()
+                }
+                _ => None,
+            }
+        }
+    }
 }
 
 /// Account ID of the single `users` entry whose AccountName is `login`.
@@ -265,22 +346,36 @@ impl Reader {
     /// `memory` is the user's consent: without it the game process, including its
     /// environment, is never opened.
     pub fn poll(&mut self, live: &serde_json::Value, memory: bool) -> Observation {
+        self.poll_with(live, memory, steam_login)
+    }
+    /// `poll` with the Steam login given, so tests do not read this machine's Steam.
+    fn poll_with(
+        &mut self,
+        live: &serde_json::Value,
+        memory: bool,
+        steam: impl FnOnce() -> Option<String>,
+    ) -> Observation {
+        // Without the game process: the player GSI reports in a match, else Steam's login.
+        let idle = |status: &str| match fresh_self(live) {
+            Some(id) => Observation::unavailable(Some(id), status, "gsi"),
+            None => Observation::unavailable(steam(), status, "steam"),
+        };
         if !memory {
             self.forget();
             // An unobserved process may have been replaced; bind again after consent.
             self.binding = None;
-            return Observation::unavailable(fresh_self(live), "reader-off", "gsi");
+            return idle("reader-off");
         }
         let process = match Process::find() {
             Ok(p) => p,
             Err("not-running") => {
                 self.forget();
                 self.binding = None;
-                return Observation::unavailable(fresh_self(live), "waiting-game", "gsi");
+                return idle("waiting-game");
             }
             Err(status) => {
                 self.forget();
-                return Observation::unavailable(fresh_self(live), status, "gsi");
+                return idle(status);
             }
         };
         let pid = process.pid;
@@ -490,13 +585,37 @@ mod tests {
             |_| read_sample(&m, BASE, &layout, NOW),
         );
         // With consent off, `poll` returns before looking for the process at all.
-        let out = reader.poll(&json!(null), false);
+        let out = reader.poll_with(&json!(null), false, || None);
         assert_eq!(out.status, "reader-off");
         assert_eq!(out.account_id, None);
         assert!(reader.binding.is_none());
         assert_eq!(
-            reader.poll(&player_gsi("456"), false).account_id.as_deref(),
+            reader
+                .poll_with(&player_gsi("456"), false, || None)
+                .account_id
+                .as_deref(),
             Some("456")
+        );
+    }
+
+    #[test]
+    fn memory_off_names_the_steam_login_and_a_match_names_its_player() {
+        let mut reader = Reader::default();
+        let menu = reader.poll_with(&json!(null), false, || Some("789".into()));
+        assert_eq!(
+            (
+                menu.status.as_str(),
+                menu.source.as_str(),
+                menu.account_id.as_deref()
+            ),
+            ("reader-off", "steam", Some("789"))
+        );
+        assert!(reader.binding.is_none());
+        // In a match the game's own player is the account, whatever Steam's files say.
+        let game = reader.poll_with(&player_gsi("456"), false, || panic!("GSI answered"));
+        assert_eq!(
+            (game.source.as_str(), game.account_id.as_deref()),
+            ("gsi", Some("456"))
         );
     }
 
@@ -678,5 +797,51 @@ mod tests {
             ),
             None
         );
+    }
+
+    #[test]
+    fn steam_files_name_the_signed_in_account_only_when_they_agree() {
+        let registry = |login: &str| {
+            format!(
+                r#""Registry"
+{{
+	"HKLM" {{ "Software" {{ "Valve" {{ "Steam" {{ "SteamPID" "2961" }} }} }} }}
+	"HKCU"
+	{{
+		"Software" {{ "Valve" {{ "Steam" {{ "AutoLoginUser" "{login}" "language" "english" }} }} }}
+	}}
+}}"#
+            )
+        };
+        let users = r#""users"
+{
+	"76561198000000001" { "AccountName" "First" "timestamp" "1790000000" }
+	"76561198000000002" { "AccountName" "second" "timestamp" "1790000100" }
+}"#;
+        // The automatic login names the account; login names ignore case.
+        assert_eq!(
+            signed_in(&registry("FIRST"), users).as_deref(),
+            Some("39734273")
+        );
+        assert_eq!(
+            signed_in(&registry("second"), users).as_deref(),
+            Some("39734274")
+        );
+        // Without one, a single MostRecent user, or the only user, is the account.
+        let recent = users.replace(
+            r#""AccountName" "second""#,
+            r#""AccountName" "second" "MostRecent" "1""#,
+        );
+        assert_eq!(
+            signed_in(&registry(""), &recent).as_deref(),
+            Some("39734274")
+        );
+        assert_eq!(signed_in(&registry(""), users), None);
+        let only = r#""users" { "76561198000000001" { "AccountName" "First" } }"#;
+        assert_eq!(signed_in("", only).as_deref(), Some("39734273"));
+        // Files that disagree name nobody, and an unknown login falls back to nothing.
+        assert_eq!(signed_in(&registry("first"), &recent), None);
+        assert_eq!(signed_in(&registry("third"), users), None);
+        assert_eq!(signed_in(&registry("first"), "\"users\" {"), None);
     }
 }
