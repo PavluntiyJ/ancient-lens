@@ -13,6 +13,10 @@ updates:
     groups:
       npm-minor-patch:
         update-types: ['minor', 'patch']
+    ignore:
+      # The type definitions follow the Node major the project builds with (22 in CI).
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
   - package-ecosystem: cargo
     directory: /src-tauri
     schedule:
@@ -23,6 +27,11 @@ updates:
     groups:
       cargo-minor-patch:
         update-types: ['minor', 'patch']
+    ignore:
+      # zbus 6 drops the blocking API the shortcut portal uses, and the Tauri single-instance
+      # plugin still pulls zbus 5; move together once Tauri's plugins use zbus 6.
+      - dependency-name: zbus
+        update-types: ['version-update:semver-major']
   - package-ecosystem: github-actions
     directory: /
     schedule:
