@@ -65,6 +65,7 @@ export function ProviderSettings({ changed }: { changed(): void }) {
       <section className="panel provider-settings">
         <h2>{info.serviceConfigured ? 'STRATZ connection' : 'Connect STRATZ'}</h2>
         <p className="muted">{info.status}</p>
+        {info.serviceNotice && <Notice error>{info.serviceNotice}</Notice>}
         <p className="fine-print">
           {info.serviceConfigured
             ? 'Player statistics, personal history, and recommendations load from STRATZ.'

@@ -54,6 +54,8 @@ export function gameConnection(
 /** `provider` is undefined while it loads. */
 export function stratzConnection(provider?: ProviderInfo): ConnectionStatus {
   if (!provider) return { tone: 'off', label: 'Checking…', detail: '', action: 'Open' };
+  if (provider.serviceNotice)
+    return { tone: 'setup', label: 'Restart service', detail: provider.serviceNotice, action: 'Open' };
   if (provider.serviceConfigured || (!provider.automatic && provider.source === 'STRATZ'))
     return {
       tone: 'on',

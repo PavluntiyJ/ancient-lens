@@ -4,6 +4,13 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ## Unreleased
 
+### Fixed
+
+- After an update, a statistics service still running from the previous version no longer
+  leaves new fields such as professional names empty. On Linux the app restarts the
+  `ancient-lens-stats` user service with the new binary; a service it did not start is left
+  running, and Settings shows **Restart service** with both versions.
+
 ## 0.8.0 — November 5, 2026
 
 This release adds the **Item build** page and a saved-account menu in My profile, finds the

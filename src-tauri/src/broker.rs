@@ -544,7 +544,10 @@ pub fn router(broker: Arc<Broker>) -> Router {
     Router::new()
         .route(
             "/health",
-            get(|| async { Json(json!({"status":"ready","protocol":1})) }),
+            get(|| async {
+                // The version lets the app notice a service left running from an older build.
+                Json(json!({"status":"ready","protocol":1,"version":env!("CARGO_PKG_VERSION")}))
+            }),
         )
         .route("/v1/summaries", post(summaries))
         .route("/v1/totals", post(totals))
