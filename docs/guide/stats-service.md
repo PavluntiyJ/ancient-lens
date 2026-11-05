@@ -57,8 +57,9 @@ older than itself, it handles it as follows:
 - **Linux, active `ancient-lens-stats` unit:** the app restarts the unit, so it runs the
   new `stats-service`, and waits up to five seconds for it. systemd does not restart a
   service when its binary is replaced, so without this an updated app or a fresh source
-  build kept using the old process. If the unit still reports an older version, for
-  example because it points at a different binary, Settings says so.
+  build kept using the old process. A stopped unit that the app starts is checked the
+  same way. If the unit still reports an older version, for example because it points at
+  a different binary, Settings says so.
 - **Windows, and the service Ancient Lens starts itself:** the app stops its child when it
   quits and starts the new one at the next launch, so nothing is needed.
 - **A service started some other way** (the launcher below, a terminal, a process left

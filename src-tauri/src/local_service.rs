@@ -223,28 +223,36 @@ async fn health(url: &str) -> Option<Health> {
     })
 }
 
-async fn wait_ready(timeout: Duration) -> bool {
-    wait_for(timeout, |_| true).await
+/// The first ready answer of the local service, whatever its version.
+async fn wait_ready(timeout: Duration) -> Option<Health> {
+    wait_for(LOCAL_URL, timeout, |_| true).await
 }
 
 /// Until the service answers with a version at least the app's; a restarted unit's old
 /// process may still answer for a moment.
 #[cfg(target_os = "linux")]
 async fn wait_current(timeout: Duration) -> bool {
-    wait_for(timeout, |health| !health.stale()).await
+    wait_for(LOCAL_URL, timeout, |health| !health.stale())
+        .await
+        .is_some()
 }
 
-async fn wait_for(timeout: Duration, accept: impl Fn(&Health) -> bool) -> bool {
+/// The first health of the service at `url` that `accept` takes, or `None` on timeout.
+async fn wait_for(
+    url: &str,
+    timeout: Duration,
+    accept: impl Fn(&Health) -> bool,
+) -> Option<Health> {
     tokio::time::timeout(timeout, async {
-        while !health(LOCAL_URL)
-            .await
-            .is_some_and(|health| accept(&health))
-        {
+        loop {
+            if let Some(health) = health(url).await.filter(|health| accept(health)) {
+                return health;
+            }
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
     })
     .await
-    .is_ok()
+    .ok()
 }
 
 /// A running service older than the app: the unit restarts it with the new binary, any other
@@ -291,8 +299,12 @@ pub async fn resolve(explicit: Option<String>, isolated: bool) -> Option<String>
     }
     #[cfg(target_os = "linux")]
     if unit_installed() {
+        // The unit may still point at an older build: what it started gets the same version
+        // check as a service found running.
         if systemctl("start").await {
-            wait_ready(Duration::from_secs(5)).await;
+            if let Some(health) = wait_ready(Duration::from_secs(5)).await {
+                refresh(&health).await;
+            }
         }
         // Preserve configured-provider identity on startup failure: actual
         // requests report unavailability, rather than asking for a new token.
@@ -365,7 +377,7 @@ async fn connect_at(endpoint: &str, token: &str) -> Result<Outcome> {
         }
         #[cfg(target_os = "linux")]
         Route::Unit => {
-            if !(systemctl("restart").await && wait_ready(CONNECT_TIMEOUT).await) {
+            if !(systemctl("restart").await && wait_ready(CONNECT_TIMEOUT).await.is_some()) {
                 return Err("The token was saved, but the ancient-lens-stats user service did not start. Check it with systemctl --user status ancient-lens-stats.".into());
             }
             if let Some(health) = health(LOCAL_URL).await {
@@ -376,7 +388,7 @@ async fn connect_at(endpoint: &str, token: &str) -> Result<Outcome> {
         Route::Child(path) => {
             stop();
             spawn(&path, &token)?;
-            if !wait_ready(CONNECT_TIMEOUT).await {
+            if wait_ready(CONNECT_TIMEOUT).await.is_none() {
                 stop();
                 return Err("The token was saved, but the statistics service did not answer. Restart Ancient Lens; if it persists, make sure nothing else uses port 8787.".into());
             }
@@ -618,6 +630,29 @@ mod tests {
             assert_eq!(health(&url).await, Some(Health { version }), "{body}");
             server.abort();
         }
+    }
+
+    /// A just-started unit is checked with the health it answered with, so an old one is
+    /// found stale at once instead of on the next launch.
+    #[tokio::test]
+    async fn waiting_returns_the_health_of_the_ready_service() {
+        let (url, server) =
+            fake_health(r#"{"status":"ready","protocol":1,"version":"0.7.3"}"#).await;
+        let found = wait_for(&url, Duration::from_secs(2), |_| true).await;
+        assert_eq!(
+            found,
+            Some(Health {
+                version: Some((0, 7, 3))
+            })
+        );
+        assert!(found.unwrap().stale());
+        let started = std::time::Instant::now();
+        assert_eq!(
+            wait_for(&url, Duration::from_millis(300), |health| !health.stale()).await,
+            None
+        );
+        assert!(started.elapsed() < Duration::from_secs(2));
+        server.abort();
     }
 
     #[test]
