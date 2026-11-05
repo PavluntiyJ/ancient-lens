@@ -4,6 +4,12 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ## Unreleased
 
+### Fixed
+
+- If Ancient Lens fails to start after it has started its own statistics service (for
+  example because another program holds the GSI port), it now stops that service instead of
+  leaving it running.
+
 ## 0.8.1 — November 5, 2026
 
 A patch release: after updating, Ancient Lens no longer keeps using a statistics service left

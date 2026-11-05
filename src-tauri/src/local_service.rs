@@ -32,6 +32,16 @@ pub fn stop() {
     }
 }
 
+/// Stops the child this app started when dropped. Desktop startup holds one, because a
+/// startup error after discovery returns before the exit handler that calls `stop` exists.
+pub struct StopOnDrop;
+
+impl Drop for StopOnDrop {
+    fn drop(&mut self) {
+        stop();
+    }
+}
+
 /// True while the child this app started is still running.
 fn owned() -> bool {
     STARTED_SERVICE
@@ -80,9 +90,7 @@ fn spawn(path: &Path, token: &str) -> Result<()> {
                 path.display(),
                 child.id()
             );
-            if let Ok(mut slot) = STARTED_SERVICE.lock() {
-                *slot = Some(child);
-            }
+            adopt(child);
             Ok(())
         }
         Err(error) => {
@@ -92,6 +100,13 @@ fn spawn(path: &Path, token: &str) -> Result<()> {
             );
             Err("The statistics service could not be started.".into())
         }
+    }
+}
+
+/// Keep `child` as the service this app owns, so `stop` ends it with the app.
+fn adopt(child: std::process::Child) {
+    if let Ok(mut slot) = STARTED_SERVICE.lock() {
+        *slot = Some(child);
     }
 }
 
@@ -422,11 +437,46 @@ mod tests {
         assert_eq!(resolve(None, true).await, None);
     }
 
+    /// Tests that start or stop the owned child share one slot, so they take turns.
+    static OWNED_SLOT: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    fn owned_slot() -> std::sync::MutexGuard<'static, ()> {
+        OWNED_SLOT
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
     #[test]
     fn stopping_a_service_this_app_did_not_start_is_safe() {
+        let _slot = owned_slot();
         stop();
         stop();
         assert!(!owned());
+    }
+
+    /// A startup error drops the guard before the exit handler exists; the child this app
+    /// started must not outlive it.
+    #[test]
+    fn the_startup_guard_stops_the_child_this_app_started() {
+        let _slot = owned_slot();
+        let mut command = if cfg!(windows) {
+            let mut command = Command::new("ping");
+            command.args(["-n", "30", "127.0.0.1"]);
+            command
+        } else {
+            let mut command = Command::new("sleep");
+            command.arg("30");
+            command
+        };
+        command
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        adopt(command.spawn().unwrap());
+        assert!(owned());
+        drop(StopOnDrop);
+        assert!(!owned());
+        assert!(STARTED_SERVICE.lock().unwrap().is_none());
     }
 
     #[test]
