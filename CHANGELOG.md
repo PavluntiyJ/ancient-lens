@@ -9,6 +9,9 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 - If Ancient Lens fails to start after it has started its own statistics service (for
   example because another program holds the GSI port), it now stops that service instead of
   leaving it running.
+- On Linux, a stopped `ancient-lens-stats` user service that the app starts is now checked
+  for an older version too, so an outdated unit is restarted or reported in Settings at
+  once instead of on the next launch.
 
 ## 0.8.1 — November 5, 2026
 
