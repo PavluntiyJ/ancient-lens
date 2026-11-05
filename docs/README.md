@@ -47,3 +47,8 @@ Close the ordinary application first. The capture script uses native IPC and its
 temporary data directory; hero portraits may require network access. On Linux, running it in
 a nested `kwin_wayland --virtual` session (see [verification](dev/verification.md)) keeps the
 desktop from interfering.
+
+A capture of one element waits until it stops moving, scrolls it into view and stops with an
+error if it does not fit the window, rather than writing a clipped image. On Linux the image
+is cut from a window capture at the element's own box. The Linux memory-reading section says
+"…on Linux", so a Linux capture of `memory-consent.png` shows that wording.
