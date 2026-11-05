@@ -450,6 +450,8 @@ export type ProviderInfo = {
   connectable?: boolean;
   /** Result of the last connect or disconnect, for the player. */
   message?: string;
+  /** The running statistics service is older than the app and was not restarted by it. */
+  serviceNotice?: string;
 };
 export function summarizeHeroes(matches: Match[]) {
   const rows = new Map<number, { hero_id: number; games: number; win: number }>();

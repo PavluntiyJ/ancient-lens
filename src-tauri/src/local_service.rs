@@ -16,6 +16,8 @@ const START_TIMEOUT: Duration = Duration::from_secs(2);
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 /// The service this app started, so it can end with the app instead of outliving it.
 static STARTED_SERVICE: std::sync::Mutex<Option<std::process::Child>> = std::sync::Mutex::new(None);
+/// Set when the service in use is older than the app and could not be restarted here.
+static STALE_NOTICE: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
 /// No console window for a background service, even when the app was started from a shell.
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
@@ -116,7 +118,75 @@ async fn systemctl(action: &str) -> bool {
         .is_ok_and(|result| result.is_ok_and(|status| status.success()))
 }
 
+/// `systemctl --user is-active`: whether the running service belongs to the unit, so the app
+/// restarts only a process systemd manages and never one started some other way.
+#[cfg(target_os = "linux")]
+async fn unit_active() -> bool {
+    let mut command = tokio::process::Command::new("systemctl");
+    command
+        .args([
+            "--user",
+            "is-active",
+            "--quiet",
+            "ancient-lens-stats.service",
+        ])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .kill_on_drop(true);
+    tokio::time::timeout(Duration::from_secs(2), command.status())
+        .await
+        .is_ok_and(|result| result.is_ok_and(|status| status.success()))
+}
+
+/// A ready service and the version it reports; `None` when the field is missing or not a
+/// plain version, as from services built before 0.8.1.
+#[derive(Debug, PartialEq)]
+struct Health {
+    version: Option<(u64, u64, u64)>,
+}
+
+impl Health {
+    /// Older than this app, or too old to say: new fields of the app would stay empty.
+    fn stale(&self) -> bool {
+        let app = crate::releases::version(env!("CARGO_PKG_VERSION"));
+        self.version.is_none_or(|version| Some(version) < app)
+    }
+}
+
+/// The player-facing note for a service that is older than the app and still in use.
+fn stale_message(health: &Health) -> String {
+    let running = health
+        .version
+        .map(crate::releases::format)
+        .map_or("an older version".into(), |version| {
+            format!("version {version}")
+        });
+    format!(
+        "The statistics service on this computer runs {running}, older than Ancient Lens {}. Ancient Lens did not start it, so it was left running; restart it to load new fields such as professional names.",
+        env!("CARGO_PKG_VERSION")
+    )
+}
+
+/// Why the service in use is older than the app, if it is.
+pub fn stale_notice() -> Option<String> {
+    STALE_NOTICE.lock().ok()?.clone()
+}
+
+fn set_stale_notice(notice: Option<String>) {
+    if let Some(notice) = &notice {
+        eprintln!("Statistics service: {notice}");
+    }
+    if let Ok(mut slot) = STALE_NOTICE.lock() {
+        *slot = notice;
+    }
+}
+
 async fn ready(url: &str) -> bool {
+    health(url).await.is_some()
+}
+
+async fn health(url: &str) -> Option<Health> {
     // Windows retries a refused loopback connection for about two seconds, and discovery
     // runs before the window opens; a running service accepts at once.
     let Ok(client) = reqwest::Client::builder()
@@ -126,28 +196,64 @@ async fn ready(url: &str) -> bool {
         .no_proxy()
         .build()
     else {
-        return false;
+        return None;
     };
-    let Ok(response) = client.get(format!("{url}/health")).send().await else {
-        return false;
-    };
+    let response = client.get(format!("{url}/health")).send().await.ok()?;
     if !response.status().is_success() {
-        return false;
+        return None;
     }
-    let Ok(data) = crate::api::read_response(response).await else {
-        return false;
-    };
-    data["status"] == "ready" && data["protocol"] == 1
+    let data = crate::api::read_response(response).await.ok()?;
+    (data["status"] == "ready" && data["protocol"] == 1).then(|| Health {
+        version: data["version"].as_str().and_then(crate::releases::version),
+    })
 }
 
 async fn wait_ready(timeout: Duration) -> bool {
+    wait_for(timeout, |_| true).await
+}
+
+/// Until the service answers with a version at least the app's; a restarted unit's old
+/// process may still answer for a moment.
+#[cfg(target_os = "linux")]
+async fn wait_current(timeout: Duration) -> bool {
+    wait_for(timeout, |health| !health.stale()).await
+}
+
+async fn wait_for(timeout: Duration, accept: impl Fn(&Health) -> bool) -> bool {
     tokio::time::timeout(timeout, async {
-        while !ready(LOCAL_URL).await {
+        while !health(LOCAL_URL)
+            .await
+            .is_some_and(|health| accept(&health))
+        {
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
     })
     .await
     .is_ok()
+}
+
+/// A running service older than the app: the unit restarts it with the new binary, any other
+/// process is left alone and reported. True when the service in use is current afterwards.
+async fn refresh(health: &Health) -> bool {
+    if !health.stale() {
+        set_stale_notice(None);
+        return true;
+    }
+    #[cfg(target_os = "linux")]
+    if unit_installed() && unit_active().await {
+        eprintln!("Statistics service: restarting the older ancient-lens-stats unit");
+        if systemctl("restart").await && wait_current(Duration::from_secs(5)).await {
+            set_stale_notice(None);
+            return true;
+        }
+        set_stale_notice(Some(format!(
+            "The ancient-lens-stats user service is older than Ancient Lens {} and still runs the old version after a restart. Rebuild or reinstall stats-service and check it with systemctl --user status ancient-lens-stats.",
+            env!("CARGO_PKG_VERSION")
+        )));
+        return false;
+    }
+    set_stale_notice(Some(stale_message(health)));
+    false
 }
 
 pub async fn resolve(explicit: Option<String>, isolated: bool) -> Option<String> {
@@ -163,8 +269,10 @@ pub async fn resolve(explicit: Option<String>, isolated: bool) -> Option<String>
         return None;
     }
     // A service the user already started, on any system. Without one this costs at most
-    // the 100 ms connect timeout (Windows), or nothing where a refusal is immediate.
-    if ready(LOCAL_URL).await {
+    // the 100 ms connect timeout (Windows), or nothing where a refusal is immediate. One
+    // left from an older build is restarted when the unit owns it, otherwise reported.
+    if let Some(health) = health(LOCAL_URL).await {
+        refresh(&health).await;
         return Some(LOCAL_URL.into());
     }
     #[cfg(target_os = "linux")]
@@ -235,11 +343,19 @@ async fn connect_at(endpoint: &str, token: &str) -> Result<Outcome> {
     crate::stratz_token::probe(endpoint, &token).await?;
     crate::stratz_token::save(&token).await?;
     let message = match route {
-        Route::External => "Token saved. A statistics service started outside Ancient Lens is already running and keeps its own token; restart it to use the new one.".into(),
+        Route::External => {
+            if let Some(health) = health(LOCAL_URL).await {
+                refresh(&health).await;
+            }
+            "Token saved. A statistics service started outside Ancient Lens is already running and keeps its own token; restart it to use the new one.".into()
+        }
         #[cfg(target_os = "linux")]
         Route::Unit => {
             if !(systemctl("restart").await && wait_ready(CONNECT_TIMEOUT).await) {
                 return Err("The token was saved, but the ancient-lens-stats user service did not start. Check it with systemctl --user status ancient-lens-stats.".into());
+            }
+            if let Some(health) = health(LOCAL_URL).await {
+                refresh(&health).await;
             }
             "STRATZ connected.".into()
         }
@@ -250,6 +366,7 @@ async fn connect_at(endpoint: &str, token: &str) -> Result<Outcome> {
                 stop();
                 return Err("The token was saved, but the statistics service did not answer. Restart Ancient Lens; if it persists, make sure nothing else uses port 8787.".into());
             }
+            set_stale_notice(None);
             "STRATZ connected.".into()
         }
     };
@@ -274,7 +391,9 @@ pub async fn disconnect() -> Result<Outcome> {
         })
         .await;
     }
-    if ready(LOCAL_URL).await {
+    set_stale_notice(None);
+    if let Some(health) = health(LOCAL_URL).await {
+        refresh(&health).await;
         return Ok(Outcome {
             message: "Token removed. A statistics service started outside Ancient Lens is still running; stop it to use OpenDota.".into(),
             service: Some(LOCAL_URL.into()),
@@ -393,6 +512,11 @@ mod tests {
     async fn discovery_requires_the_service_protocol() {
         for (status, body, expected) in [
             (200, r#"{"status":"ready","protocol":1}"#, true),
+            (
+                200,
+                r#"{"status":"ready","protocol":1,"version":"0.8.1"}"#,
+                true,
+            ),
             (200, r#"{"status":"ready","protocol":2}"#, false),
             (200, r#"{"status":"starting","protocol":1}"#, false),
             (200, "not json", false),
@@ -412,6 +536,101 @@ mod tests {
             assert_eq!(ready(&url).await, expected);
             server.abort();
         }
+    }
+
+    /// Serve `body` as `/health` on a free port and return its URL.
+    async fn fake_health(body: &'static str) -> (String, tokio::task::JoinHandle<()>) {
+        let router =
+            axum::Router::new().route("/health", axum::routing::get(move || async move { body }));
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let server = tokio::spawn(async move {
+            axum::serve(listener, router).await.unwrap();
+        });
+        (url, server)
+    }
+
+    #[tokio::test]
+    async fn health_reads_the_service_version() {
+        for (body, version) in [
+            (r#"{"status":"ready","protocol":1}"#, None),
+            (
+                r#"{"status":"ready","protocol":1,"version":"0.8.1"}"#,
+                Some((0, 8, 1)),
+            ),
+            (
+                r#"{"status":"ready","protocol":1,"version":"v1.2.3"}"#,
+                Some((1, 2, 3)),
+            ),
+            (r#"{"status":"ready","protocol":1,"version":"dev"}"#, None),
+            (r#"{"status":"ready","protocol":1,"version":7}"#, None),
+        ] {
+            let (url, server) = fake_health(body).await;
+            assert_eq!(health(&url).await, Some(Health { version }), "{body}");
+            server.abort();
+        }
+    }
+
+    #[test]
+    fn only_a_service_older_than_the_app_is_stale() {
+        let app = crate::releases::version(env!("CARGO_PKG_VERSION")).unwrap();
+        let (major, minor, patch) = app;
+        assert!(Health { version: None }.stale());
+        assert!(!Health { version: Some(app) }.stale());
+        assert!(!Health {
+            version: Some((major, minor, patch + 1))
+        }
+        .stale());
+        assert!(!Health {
+            version: Some((major + 1, 0, 0))
+        }
+        .stale());
+        if patch > 0 {
+            assert!(Health {
+                version: Some((major, minor, patch - 1))
+            }
+            .stale());
+        }
+        assert!(Health {
+            version: Some((0, 7, 3))
+        }
+        .stale());
+    }
+
+    #[test]
+    fn the_stale_message_names_both_versions_or_says_older() {
+        let message = stale_message(&Health {
+            version: Some((0, 7, 3)),
+        });
+        assert!(message.contains("version 0.7.3"), "{message}");
+        assert!(message.contains(env!("CARGO_PKG_VERSION")), "{message}");
+        assert!(message.contains("restart it"), "{message}");
+        let message = stale_message(&Health { version: None });
+        assert!(message.contains("an older version"), "{message}");
+    }
+
+    /// The service built from this source reports this app's version, so it is never stale.
+    #[tokio::test]
+    async fn the_service_reports_the_app_version() {
+        let broker = crate::broker::Broker::new("test-secret".into(), 1).unwrap();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let server = tokio::spawn(async move {
+            axum::serve(
+                listener,
+                crate::broker::router(broker)
+                    .into_make_service_with_connect_info::<std::net::SocketAddr>(),
+            )
+            .await
+            .unwrap();
+        });
+        let found = health(&url).await.unwrap();
+        assert_eq!(
+            found.version,
+            crate::releases::version(env!("CARGO_PKG_VERSION"))
+        );
+        assert!(!found.stale());
+        server.abort();
     }
 
     #[tokio::test]

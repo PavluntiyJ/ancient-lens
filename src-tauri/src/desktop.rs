@@ -80,6 +80,9 @@ impl Desktop {
     fn provider(&self, message: Option<String>) -> Value {
         let mut info = self.api().info();
         info["connectable"] = json!(!self.explicit_service);
+        if let Some(notice) = crate::local_service::stale_notice() {
+            info["serviceNotice"] = json!(notice);
+        }
         if let Some(message) = message {
             info["message"] = json!(message);
         }

@@ -49,6 +49,27 @@ On Linux an installed `ancient-lens-stats` user unit
 ([Fedora guide](fedora.md#personal-stratz-service)) is restarted after Connect and
 reads the new token from the keyring itself.
 
+### After an update
+
+`/health` reports the service version. When the app starts and finds a running service
+older than itself, it handles it as follows:
+
+- **Linux, active `ancient-lens-stats` unit:** the app restarts the unit, so it runs the
+  new `stats-service`, and waits up to five seconds for it. systemd does not restart a
+  service when its binary is replaced, so without this an updated app or a fresh source
+  build kept using the old process. If the unit still reports an older version, for
+  example because it points at a different binary, Settings says so.
+- **Windows, and the service Ancient Lens starts itself:** the app stops its child when it
+  quits and starts the new one at the next launch, so nothing is needed.
+- **A service started some other way** (the launcher below, a terminal, a process left
+  from an earlier run) is never stopped by the app. **Settings → Connections → STRATZ**
+  shows **Restart service** with both versions; stop it and start the new one, or restart
+  Ancient Lens after stopping it so the app starts its own.
+- **`ANCIENT_STATS_URL`** and isolated test runs are not checked or restarted.
+
+A service from before 0.8.1 reports no version and counts as older. A newer service is
+used as it is.
+
 **What the window sees.** With Connect, the token passes through the app window
 once: you paste it into a password field, the Connect call hands it to the Rust
 side, and the field is cleared at once. The page keeps no copy; the token is not
@@ -174,9 +195,11 @@ Proxy configuration and public hosting are not included in this repository.
 players of each match), `/v1/draft`, `/v1/averages` (hero averages by position and
 match duration for one rank bracket), `/v1/parties` (recent teammates and STRATZ
 parties of a roster), and `/v1/match` (one match by ID, used to complete matches
-recorded by the match journal). The desktop app and the service
-are built from the same source: after updating, restart the service as well, or
-new fields such as match lineups stay empty.
+recorded by the match journal). The response of `/health` also carries `version`, the
+service's package version; protocol stays 1. The desktop app and the service are built
+from the same source, so the app restarts an older unit or reports an older service
+([after an update](#after-an-update)); otherwise new fields such as professional names
+stay empty.
 Example summary request (synthetic IDs; replace with public accounts you intend
 to inspect):
 

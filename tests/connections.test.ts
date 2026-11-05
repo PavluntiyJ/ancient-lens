@@ -60,6 +60,20 @@ describe('Settings connection overview', () => {
     expect(stratzConnection({ source: 'STRATZ', hasToken: true, persistent: true })).toMatchObject({ tone: 'on' });
   });
 
+  it('asks to restart a statistics service older than the app', () => {
+    const notice = 'The statistics service on this computer runs version 0.7.3, older than Ancient Lens 0.8.1.';
+    expect(
+      stratzConnection({
+        source: 'STRATZ',
+        hasToken: false,
+        persistent: false,
+        automatic: true,
+        serviceConfigured: true,
+        serviceNotice: notice,
+      }),
+    ).toMatchObject({ tone: 'setup', label: 'Restart service', detail: notice });
+  });
+
   it('keeps memory reading opt-in and flags a reader that cannot work', () => {
     expect(readerConnection(undefined, {})).toMatchObject({ tone: 'off', label: 'Off' });
     expect(readerConnection('off', { rosterStatus: 'ready' })).toMatchObject({ tone: 'off' });
