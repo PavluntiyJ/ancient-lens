@@ -329,7 +329,9 @@ function OwnProfileContent({
           />
         }
       />
-      {(data?.demonstration || identity?.demonstration) && (
+      {/* Statistics decide: a fixture service's history is unlabelled, and so is the synthetic
+          Steam identity screenshots and demos add to it. Cached isolated history is labelled. */}
+      {data?.demonstration && (
         <p className="item-demo-label">Synthetic demonstration · invented profile and statistics</p>
       )}
       {error && <Notice error>{error}</Notice>}

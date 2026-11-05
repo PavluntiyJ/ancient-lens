@@ -118,7 +118,10 @@ verifies the returned SteamID64 and returns only name/avatar identity. It uses a
 15-minute `steam-profile-v1-*` cache; an explicit refresh bypasses freshness, and failures
 fall back to the saved copy, labelled `stale`. `quick-xml` (already transitive) is a direct
 dependency to parse XML/CDATA without hand-written extraction. Isolated runs never request
-live Steam identities.
+live Steam identities: they serve only a `steam-profile-v1-<id>.json` fixture from the cache
+folder, marked `demonstration`. Only such a fixture may leave `avatar` empty, which draws the
+page's placeholder; `docs:screenshots` and `demo` write one so the header reads "Steam updated
+just now" without any request to Steam or its image servers.
 
 `state:add-profile` remembers an ID without switching the active account.
 `state:profile-account` returns a read-only account-scoped state for browsing. The profile

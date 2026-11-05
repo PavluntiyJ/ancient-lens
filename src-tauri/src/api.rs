@@ -289,16 +289,18 @@ impl Api {
         let lock = self.lock(&key).await;
         let _guard = lock.lock().await;
         let path = self.directory.join(format!("{key}.json"));
-        let cached = read_cache(&path).filter(|value| crate::steam_profile::validate(value, &id));
-        // Isolated demos serve only synthetic fixtures, explicitly labelled.
+        // Isolated demos serve only synthetic fixtures, explicitly labelled; their avatar may
+        // be left empty so screenshots load nothing from Steam.
         if self.isolated {
-            return cached
+            return read_cache(&path)
+                .filter(|value| crate::steam_profile::validate_fixture(value, &id))
                 .map(|mut value| {
                     value["demonstration"] = json!(true);
                     value
                 })
                 .ok_or("No isolated Steam identity fixture".into());
         }
+        let cached = read_cache(&path).filter(|value| crate::steam_profile::validate(value, &id));
         if let Some(value) = cached
             .as_ref()
             .filter(|value| !refresh && fresh(value, crate::steam_profile::TTL))
@@ -1727,6 +1729,26 @@ mod partial_tests {
         let value = api.steam_profile("123", true).await.unwrap();
         assert_eq!(value["name"], "Invented");
         assert_eq!(value["demonstration"], true);
+        // Screenshots leave the avatar empty, so nothing loads from the Steam CDN.
+        crate::store::atomic_json(
+            &dir.path().join("steam-profile-v1-124.json"),
+            &json!({"accountId":"124","name":"Placeholder","source":"Steam Community",
+                "avatar":"","fetchedAt":"2020-01-01T00:00:00Z","stale":false}),
+        )
+        .unwrap();
+        let value = api.steam_profile("124", false).await.unwrap();
+        assert_eq!(
+            (value["name"].as_str(), value["avatar"].as_str()),
+            (Some("Placeholder"), Some(""))
+        );
+        // A fixture avatar outside the Steam hosts is still refused.
+        crate::store::atomic_json(
+            &dir.path().join("steam-profile-v1-125.json"),
+            &json!({"accountId":"125","name":"Elsewhere","source":"Steam Community",
+                "avatar":"https://example.com/a.jpg","fetchedAt":"2020-01-01T00:00:00Z","stale":false}),
+        )
+        .unwrap();
+        assert!(api.steam_profile("125", false).await.is_err());
     }
 
     #[tokio::test]
