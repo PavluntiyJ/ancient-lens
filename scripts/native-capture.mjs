@@ -6,6 +6,7 @@ import { createServer } from 'node:http';
 import { access, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { captureNativeFailure } from './native-diagnostics.mjs';
+import { cropPng } from './png-crop.mjs';
 
 /** W3C WebDriver element reference key; Windows emulates it so scripts can pass elements around. */
 export const ELEMENT = 'element-6066-11e4-a52e-4f735466cecf';
@@ -214,13 +215,17 @@ export async function nativeDriver(directory, extraEnv = {}) {
         windowCount: async () => (await request(`/session/${session}/window/handles`)).length,
         resize: (width, height) => request(`/session/${session}/window/rect`, { width, height }),
         async screenshot(selector) {
-          let route = `/session/${session}/screenshot`;
-          if (selector) {
-            const element = await execute('return document.querySelector(arguments[0])', [selector]);
-            if (!element) throw new Error(`Screenshot element missing: ${selector}`);
-            route = `/session/${session}/element/${element[ELEMENT]}/screenshot`;
-          }
-          return Buffer.from(await request(route), 'base64');
+          const window = Buffer.from(await request(`/session/${session}/screenshot`), 'base64');
+          if (!selector) return window;
+          // WebKitWebDriver's element screenshot grows to every descendant, even rows hidden
+          // in a scrolled list, and clips to the window without saying so. Crop the window
+          // to the element's own box instead, as Playwright does on Windows.
+          const box = await execute(
+            'const element=document.querySelector(arguments[0]);if(!element)return null;const r=element.getBoundingClientRect(),k=devicePixelRatio;return {x:r.left*k,y:r.top*k,width:r.width*k,height:r.height*k}',
+            [selector],
+          );
+          if (!box) throw new Error(`Screenshot element missing: ${selector}`);
+          return cropPng(window, box);
         },
         // WebKitWebDriver hangs on pointer actions while the window lacks keyboard focus.
         realPointer: () => execute('return document.hasFocus()'),
@@ -294,7 +299,52 @@ export async function nativeCapture(directory, extraEnv) {
     );
     const text = await execute('return document.body.innerText');
     if (/[\u0400-\u04ff]/u.test(text)) throw new Error('Non-English UI text found in documentation screenshot');
-    await writeFile(path, await driver.screenshot(selector));
+    const box = selector ? await placeInView(selector) : undefined;
+    const image = await driver.screenshot(selector);
+    if (box) {
+      // PNG header: width and height as big-endian integers at bytes 16 and 20.
+      const [width, height] = [image.readUInt32BE(16), image.readUInt32BE(20)];
+      const [expectedWidth, expectedHeight] = [box.width * box.ratio, box.height * box.ratio];
+      if (Math.abs(width - expectedWidth) > 2 || Math.abs(height - expectedHeight) > 2)
+        throw new Error(
+          `Screenshot of ${selector} is ${width}×${height}, expected ${Math.round(expectedWidth)}×${Math.round(expectedHeight)}`,
+        );
+    }
+    await writeFile(path, image);
+  };
+  /**
+   * Waits until the element stops moving (sections above it may still be loading), scrolls
+   * it into view and checks that it fits: WebKitWebDriver's element screenshot does not
+   * scroll and silently clips to the visible part of the window.
+   */
+  const placeInView = async (selector) => {
+    const measure = () =>
+      execute(
+        'const element=document.querySelector(arguments[0]);if(!element)return null;element.scrollIntoView({block:"nearest",inline:"nearest"});const r=element.getBoundingClientRect();return {top:r.top,left:r.left,width:r.width,height:r.height,viewWidth:innerWidth,viewHeight:innerHeight,ratio:devicePixelRatio}',
+        [selector],
+      );
+    let previous = '';
+    let steady = 0;
+    let box;
+    await waitFor(async () => {
+      box = await measure();
+      if (!box) throw new Error(`Screenshot element missing: ${selector}`);
+      const current = JSON.stringify(box);
+      steady = current === previous ? steady + 1 : 0;
+      previous = current;
+      return steady >= 3;
+    }, `Screenshot element ${selector} kept moving`);
+    // Sub-pixel layout may overhang the window by a fraction of a pixel.
+    const outside =
+      box.top < -1 ||
+      box.left < -1 ||
+      box.top + box.height > box.viewHeight + 1 ||
+      box.left + box.width > box.viewWidth + 1;
+    if (outside)
+      throw new Error(
+        `Screenshot element ${selector} (${Math.round(box.width)}×${Math.round(box.height)}) does not fit the ${box.viewWidth}×${box.viewHeight} window`,
+      );
+    return box;
   };
   const { call, close, resize, useWindow, captureFailure } = driver;
   return { execute, call, click, capture, close, resize, useWindow, captureFailure };
