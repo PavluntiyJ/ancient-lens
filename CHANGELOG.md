@@ -4,6 +4,11 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ## Unreleased
 
+## 0.8.1 — November 5, 2026
+
+A patch release: after updating, Ancient Lens no longer keeps using a statistics service left
+running from the previous version. Existing settings, notes and rating history are kept.
+
 ### Fixed
 
 - After an update, a statistics service still running from the previous version no longer
