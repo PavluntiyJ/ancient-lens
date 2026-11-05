@@ -233,27 +233,26 @@ async fn wait_for(timeout: Duration, accept: impl Fn(&Health) -> bool) -> bool {
 }
 
 /// A running service older than the app: the unit restarts it with the new binary, any other
-/// process is left alone and reported. True when the service in use is current afterwards.
-async fn refresh(health: &Health) -> bool {
+/// process is left alone and reported in Settings.
+async fn refresh(health: &Health) {
     if !health.stale() {
         set_stale_notice(None);
-        return true;
+        return;
     }
     #[cfg(target_os = "linux")]
     if unit_installed() && unit_active().await {
         eprintln!("Statistics service: restarting the older ancient-lens-stats unit");
         if systemctl("restart").await && wait_current(Duration::from_secs(5)).await {
             set_stale_notice(None);
-            return true;
+            return;
         }
         set_stale_notice(Some(format!(
             "The ancient-lens-stats user service is older than Ancient Lens {} and still runs the old version after a restart. Rebuild or reinstall stats-service and check it with systemctl --user status ancient-lens-stats.",
             env!("CARGO_PKG_VERSION")
         )));
-        return false;
+        return;
     }
     set_stale_notice(Some(stale_message(health)));
-    false
 }
 
 pub async fn resolve(explicit: Option<String>, isolated: bool) -> Option<String> {
