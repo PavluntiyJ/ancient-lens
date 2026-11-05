@@ -161,7 +161,8 @@ The personal launcher uses these conservative defaults.
 
 Player requests are batched in groups of at most five, with two concurrent
 upstream requests. The server limits request bodies to 4 KiB, upstream responses
-to 4 MiB, and client requests to 30/IP/minute. It caches raw public profiles in
+to 4 MiB, and client requests to 30/IP/minute. Requests that carry a browser `Origin`
+header are refused, so a web page cannot use the service or its quota. It caches raw public profiles in
 memory for 120 seconds. Client summaries are cached for five minutes. A saved
 match history is reused for ten minutes (the profile's Refresh asks at once),
 and hero averages for a week. On an

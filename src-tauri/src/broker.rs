@@ -561,8 +561,21 @@ pub fn router(broker: Arc<Broker>) -> Router {
             StatusCode::REQUEST_TIMEOUT,
             Duration::from_secs(60),
         ))
+        .layer(axum::middleware::from_fn(reject_browsers))
         .layer(axum::middleware::from_fn(log_request))
         .with_state(broker)
+}
+/// Browsers send `Origin` with every POST; the app, the launchers and a reverse proxy's
+/// clients reach the service without a page. A page that gets here anyway, for example by
+/// DNS rebinding to loopback, is refused before it spends the upstream budget.
+async fn reject_browsers(
+    request: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    if request.headers().contains_key(axum::http::header::ORIGIN) {
+        return axum::response::IntoResponse::into_response(StatusCode::FORBIDDEN);
+    }
+    next.run(request).await
 }
 /// Route, status and latency only; request bodies carry account IDs and stay unlogged.
 async fn log_request(
@@ -1051,6 +1064,64 @@ mod tests {
         assert!(broker.parties(request(&["1001"])).await.is_err());
         assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 1);
         task.abort();
+    }
+    #[tokio::test]
+    async fn requests_from_a_web_page_are_refused_before_upstream() {
+        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let seen = calls.clone();
+        let upstream = Router::new().route(
+            "/",
+            post(move || {
+                seen.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                async { Json(json!({"data":{"players":[{"steamAccountId":1,"matches":[]}]}})) }
+            }),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let upstream = tokio::spawn(async move { axum::serve(listener, upstream).await.unwrap() });
+        let mut broker = Broker::new("test-secret".into(), 10).unwrap();
+        Arc::get_mut(&mut broker).unwrap().endpoint = format!("http://{addr}/");
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let server = tokio::spawn(async move {
+            axum::serve(
+                listener,
+                router(broker).into_make_service_with_connect_info::<SocketAddr>(),
+            )
+            .await
+            .unwrap();
+        });
+        let client = reqwest::Client::builder().no_proxy().build().unwrap();
+        let body = json!({"ids":["1"],"days":14});
+        // A rebound host name makes the page same-origin; it still sends its Origin.
+        let page = client
+            .post(format!("{url}/v1/summaries"))
+            .header("host", "rebound.invalid:8787")
+            .header("origin", "http://rebound.invalid:8787")
+            .json(&body)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(page.status(), StatusCode::FORBIDDEN);
+        let health = client
+            .get(format!("{url}/health"))
+            .header("origin", "http://rebound.invalid:8787")
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(health.status(), StatusCode::FORBIDDEN);
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 0);
+        // The app's own client sends no Origin and is served as before.
+        let app = client
+            .post(format!("{url}/v1/summaries"))
+            .json(&body)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(app.status(), StatusCode::OK);
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+        server.abort();
+        upstream.abort();
     }
     #[tokio::test]
     async fn server_keeps_token_and_maps_reordered_profiles() {

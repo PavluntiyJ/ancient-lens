@@ -12,6 +12,8 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 - On Linux, a stopped `ancient-lens-stats` user service that the app starts is now checked
   for an older version too, so an outdated unit is restarted or reported in Settings at
   once instead of on the next launch.
+- The statistics service refuses requests from web pages (any request with a browser
+  `Origin` header), so a site cannot reach it on loopback and use up its STRATZ budget.
 
 ## 0.8.1 — November 5, 2026
 
