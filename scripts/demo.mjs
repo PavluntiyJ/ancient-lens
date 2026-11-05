@@ -346,6 +346,19 @@ const notes = [
   ),
 ];
 
+// A fresh synthetic Steam identity for My profile. The empty avatar draws the page's placeholder,
+// so nothing is requested from Steam or its image servers.
+await writeFile(
+  join(directory, 'cache', `steam-profile-v1-${own}.json`),
+  JSON.stringify({
+    accountId: own,
+    name: self.name,
+    avatar: '',
+    source: 'Steam Community',
+    fetchedAt: new Date().toISOString(),
+    stale: false,
+  }),
+);
 await writeFile(
   join(directory, 'state.json'),
   JSON.stringify({

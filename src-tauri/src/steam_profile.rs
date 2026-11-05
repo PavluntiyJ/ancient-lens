@@ -36,12 +36,24 @@ fn avatar_url(value: &str) -> bool {
 }
 
 pub fn validate(value: &Value, id: &str) -> bool {
+    value["avatar"].as_str().is_some_and(avatar_url) && identity(value, id)
+}
+
+/// A synthetic identity for isolated screenshots and demos. The avatar may also be empty:
+/// the page then draws its own placeholder, so a capture loads nothing from Steam.
+pub fn validate_fixture(value: &Value, id: &str) -> bool {
+    value["avatar"]
+        .as_str()
+        .is_some_and(|avatar| avatar.is_empty() || avatar_url(avatar))
+        && identity(value, id)
+}
+
+fn identity(value: &Value, id: &str) -> bool {
     value["accountId"] == id
         && value["source"] == "Steam Community"
         && value["name"]
             .as_str()
             .is_some_and(|name| !name.trim().is_empty() && name.len() <= 200)
-        && value["avatar"].as_str().is_some_and(avatar_url)
         && value["fetchedAt"]
             .as_str()
             .is_some_and(|at| chrono::DateTime::parse_from_rfc3339(at).is_ok())
@@ -76,6 +88,19 @@ mod tests {
         assert_eq!(value["name"], "New name <3 & friends");
         assert_eq!(value["accountId"], "123");
         assert!(value.get("rank_tier").is_none());
+    }
+    #[test]
+    fn only_isolated_fixtures_may_leave_the_avatar_empty() {
+        let mut value = parse(&xml(), "123").unwrap();
+        assert!(validate(&value, "123") && validate_fixture(&value, "123"));
+        value["avatar"] = json!("");
+        assert!(!validate(&value, "123"));
+        assert!(validate_fixture(&value, "123"));
+        value["avatar"] = json!("http://localhost/avatar.png");
+        assert!(!validate_fixture(&value, "123"));
+        value["avatar"] = json!("");
+        value["name"] = json!(" ");
+        assert!(!validate_fixture(&value, "123"));
     }
     #[test]
     fn rejects_other_accounts_missing_identity_and_untrusted_avatars() {
