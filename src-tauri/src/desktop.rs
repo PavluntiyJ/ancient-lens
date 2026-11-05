@@ -1021,6 +1021,9 @@ const WINDOW_STATE: tauri_plugin_window_state::StateFlags =
         .union(tauri_plugin_window_state::StateFlags::POSITION)
         .union(tauri_plugin_window_state::StateFlags::MAXIMIZED);
 pub fn run() {
+    // Setup may start the statistics service; an error after that returns before `app.run`
+    // installs its exit handler, so this stops the child on every way out of here.
+    let _service = crate::local_service::StopOnDrop;
     let isolated = std::env::var_os("ANCIENT_TEST_DATA").is_some();
     let mut builder = tauri::Builder::default()
         // Starting the app again brings both windows back, the match window in front.
