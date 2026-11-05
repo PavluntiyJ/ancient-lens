@@ -39,7 +39,8 @@ const DETAILS: [&str; 10] = [
 /// Records completed by an older version lack fields added since (rank, lineup); they are
 /// fetched again right away, and a record is at this version once a fetch kept its players.
 /// Version 2 was also given to records whose fetch failed, so they are caught up as 3.
-const DETAILS_VERSION: u64 = 3;
+/// Version 3 kept a lineup fetched before STRATZ computed IMP without it for good.
+const DETAILS_VERSION: u64 = 4;
 /// Fetches beyond the schedule for such a record when one fails, ten minutes apart.
 const CATCH_UP: usize = 3;
 const CATCH_UP_DELAY: i64 = 600;
@@ -432,7 +433,22 @@ pub fn add_details(row: &mut Value, details: &Value) -> bool {
         }
     }
     if let Some(players) = details["players"].as_array().filter(|p| p.len() == 10) {
-        fill(row, "lineup", &json!(lineup(players, &own)));
+        let fresh = lineup(players, &own);
+        match row["lineup"].as_array_mut() {
+            // A lineup kept before STRATZ computed IMP gains it, like any missing value,
+            // from a later fetch; what the lineup already has stays.
+            Some(kept) => {
+                for entry in kept.iter_mut().filter(|p| !p["hero_id"].is_null()) {
+                    let same = fresh.iter().find(|p| {
+                        p["radiant"] == entry["radiant"] && p["hero_id"] == entry["hero_id"]
+                    });
+                    for (key, value) in same.and_then(Value::as_object).into_iter().flatten() {
+                        fill(entry, key, value);
+                    }
+                }
+            }
+            None => row["lineup"] = json!(fresh),
+        }
     }
     if !row["lineup"].is_null() {
         row["detailsVersion"] = json!(DETAILS_VERSION);
@@ -896,6 +912,37 @@ mod tests {
         assert!(other.get("details").is_none());
     }
     #[test]
+    fn a_later_fetch_adds_imp_to_a_kept_lineup() {
+        use crate::match_details::{from_opendota, tests as fixture};
+        // The first fetch comes before STRATZ computes IMP; the lineup is kept without it.
+        let mut row = fixture::record();
+        let mut details = from_opendota(42, &fixture::opendota()).unwrap();
+        assert!(add_details(&mut row, &details));
+        let lineup = row["lineup"].as_array().unwrap();
+        assert!(lineup.iter().all(|p| p.get("imp").is_none()));
+        let kept = lineup[3]["gold_per_min"].clone();
+        // A later fetch has IMP for every player: the lineup gains it, kept values stay.
+        for (i, p) in details["players"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .enumerate()
+        {
+            p["imp"] = json!(i as i64 - 4);
+            p["gold_per_min"] = json!(1);
+        }
+        assert!(add_details(&mut row, &details));
+        let lineup = row["lineup"].as_array().unwrap();
+        assert_eq!(lineup.len(), 10);
+        assert!(lineup.iter().all(|p| p["imp"].is_i64()));
+        assert_eq!(lineup[0]["imp"], -4);
+        assert_eq!(lineup[3]["gold_per_min"], kept);
+        assert_eq!(
+            row["imp"],
+            lineup.iter().find(|p| p["own"] == true).unwrap()["imp"]
+        );
+    }
+    #[test]
     fn matches_are_fetched_on_a_backoff_until_complete() {
         let mut row = record(&post_game(), AT).unwrap();
         let end = 1792785600;
@@ -938,6 +985,13 @@ mod tests {
         assert!(
             !details_due(&old, end + 30 * 86400, true),
             "catch-up attempts are bounded"
+        );
+        let mut v3 = row.clone();
+        v3["detailsVersion"] = json!(3);
+        v3["detailsAttempts"] = json!(2);
+        assert!(
+            details_due(&v3, end + 30 * 86400, true),
+            "a lineup kept without IMP is fetched again"
         );
         let mut retry = old.clone();
         retry["detailsAttempts"] = json!(DETAIL_DELAYS.len() + 1);

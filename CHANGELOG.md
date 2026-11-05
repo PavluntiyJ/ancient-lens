@@ -14,6 +14,9 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
   once instead of on the next launch.
 - The statistics service refuses requests from web pages (any request with a browser
   `Origin` header), so a site cannot reach it on loopback and use up its STRATZ budget.
+- The profile's IMP tooltip and match details rank all ten players by IMP again. A match
+  first fetched before STRATZ computed IMP kept the other players without it; such matches
+  are fetched once more, and later fetches fill what the first one lacked.
 
 ## 0.8.1 — November 5, 2026
 
