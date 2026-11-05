@@ -30,11 +30,6 @@ or unverified, and what is planned.
   and preserves reusable executables and failure diagnostics. Linux shares the
   diagnostic capture but still needs a local desktop run; its ordinary checks
   and distributions run in CI. See [verification](dev/verification.md#ci).
-- **0.7 match interface on Linux:** the roomier table, player hover card and simplified note
-  controls were inspected on Windows with synthetic native fixtures. Linux has passed the
-  ordinary CI checks for the interface changes, but the new layout and interactions still
-  need a Linux desktop run of `npm run test:native` and visual review. This is a verification
-  gap, not an intentionally Windows-only feature.
 - **Own account on Linux:** Steam's files say which account Steam signs in to, not whether
   it is signed in now. While Steam runs at its login screen, Linux keeps naming the last
   automatic login; Windows reads the signed-in user and names none.

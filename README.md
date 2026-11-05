@@ -19,7 +19,7 @@
   <a href="docs/README.md"><b>Documentation</b></a>
 </p>
 
-> **Early prototype, 0.8.0.** Unsigned prereleases for Windows and Linux are on the
+> **Early prototype, 0.8.1.** Unsigned prereleases for Windows and Linux are on the
 > [releases page](https://github.com/PavluntiyJ/ancient-lens/releases); you can also
 > [build from source](docs/guide/install.md). Not affiliated with Valve.
 
@@ -37,8 +37,9 @@
 In 0.8.0, an **Item build** page suggests items for your hero against the enemy draft, the
 profile name opens a menu of saved accounts, professional players show the name STRATZ links to
 them, and on Linux My profile finds your account without memory reading. Typing in a note or
-any text field above the game now reaches the field instead of Dota. See the
-[changelog](CHANGELOG.md#080--november-5-2026).
+any text field above the game now reaches the field instead of Dota. 0.8.1 restarts a statistics
+service left running from an older version, so these new fields appear right after an update.
+See the [changelog](CHANGELOG.md#081--november-5-2026).
 
 Screenshots use invented players. A tour of every panel and shortcut:
 [the match screen and profile](docs/guide/match-and-profile.md).
@@ -69,7 +70,7 @@ Details and troubleshooting: [setup and data](docs/guide/setup.md), and the
 | Public profiles, notes, manual draft, MMR journal, automatic account detection    | Nothing: works out of the box           | Yes                             | Yes                                      |
 | Steam profile refresh, saved-MMR medal and saved-account menu                     | Public Steam profile / local readings   | Yes                             | Yes                                      |
 | Historical item options for your hero against the known draft                    | Public OpenDota league sample           | Yes                             | Yes                                      |
-| 0.7 match layout, player hover card and note controls                            | Public statistics and your local history | Native fixtures checked          | Desktop check pending; CI checks only    |
+| 0.7 match layout, player hover card and note controls                            | Public statistics and your local history | Native fixtures checked          | Native fixtures checked                  |
 | Ten-player roster and picks while spectating                                      | Dota GSI setup (Quick start above)      | Yes                             | Yes                                      |
 | Matchups, position recommendations, meta and counter picks                        | Your STRATZ token and the local service | Yes                             | Yes                                      |
 | Ten-player roster, picks and bans in **your own** match; exact MMR and confidence | Optional memory reader, off by default  | Yes                             | Yes                                      |
