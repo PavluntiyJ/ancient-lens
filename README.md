@@ -19,7 +19,7 @@
   <a href="docs/README.md"><b>Documentation</b></a>
 </p>
 
-> **Early prototype, 0.8.1.** Unsigned prereleases for Windows and Linux are on the
+> **Early prototype, 0.9.0.** Unsigned prereleases for Windows and Linux are on the
 > [releases page](https://github.com/PavluntiyJ/ancient-lens/releases); you can also
 > [build from source](docs/guide/install.md). Not affiliated with Valve.
 
@@ -34,12 +34,12 @@
 - **Player cards and notes:** hover a player for recent matches, earlier games with or
   against you, your notes from earlier matches, and links to Dotabuff, OpenDota, STRATZ and Steam.
 
-In 0.8.0, an **Item build** page suggests items for your hero against the enemy draft, the
-profile name opens a menu of saved accounts, professional players show the name STRATZ links to
-them, and on Linux My profile finds your account without memory reading. Typing in a note or
-any text field above the game now reaches the field instead of Dota. 0.8.1 restarts a statistics
-service left running from an older version, so these new fields appear right after an update.
-See the [changelog](CHANGELOG.md#081--november-5-2026).
+In 0.9.0, a player can have several notes: a note written in a match card is added on top of
+the earlier ones and keeps that match, the player's hero and side. The **Notes** page shows each
+player's notes with their matches, how often you met them, and search and filters; existing
+notes are kept and linked to their recorded match. The profile ranks all ten players by IMP
+again, and hero names and portraits show at once after a restart. See the
+[changelog](CHANGELOG.md#090--november-6-2026).
 
 Screenshots use invented players. A tour of every panel and shortcut:
 [the match screen and profile](docs/guide/match-and-profile.md).
