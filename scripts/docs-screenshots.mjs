@@ -231,13 +231,29 @@ await writeFile(
     version: 1,
     accountId: own,
     token: 'b'.repeat(64),
+    // Two notes about Kestrel: one from the match on screen, one from an earlier match
+    // together that the own history knows, so the card shows heroes, sides and a result.
     notes: [
       {
         accountId: '1',
         name: names[0],
         text: 'Calls objectives and shares the next smoke timing.',
-        tag: 'neutral',
-        updatedAt: new Date(now * 1000).toISOString(),
+        updatedAt: new Date((now - 300) * 1000).toISOString(),
+        entries: [
+          {
+            id: randomUUID(),
+            text: 'Calls objectives and shares the next smoke timing.',
+            at: new Date((now - 300) * 1000).toISOString(),
+            matchId: 8123456789,
+            heroId: radiant[0],
+          },
+          {
+            id: randomUUID(),
+            text: 'Good teammate, but tilts after a lost lane.',
+            at: new Date((history[0].start_time + history[0].duration + 240) * 1000).toISOString(),
+            matchId: history[0].match_id,
+          },
+        ],
       },
     ],
     mmr,

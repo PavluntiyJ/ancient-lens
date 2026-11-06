@@ -4,6 +4,11 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ## Unreleased
 
+## 0.9.0 — November 6, 2026
+
+Several notes per player, each tied to its match, and a new Notes page. Existing notes are
+converted on the first start and keep their text; settings and rating history are kept.
+
 ### Changed
 
 - A player can have several notes. **Add note** in a match card adds a new note on top of the
