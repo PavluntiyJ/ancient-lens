@@ -659,7 +659,7 @@ async fn desktop_call(
             let _ = app.emit("provider:update", Value::Null);
             Ok(state.provider(Some(outcome.message)))
         }
-        "heroes:get" => state.api().resource("heroes", 3_600_000).await,
+        "heroes:get" => state.api().heroes().await,
         "items:get" => {
             let hero = args["heroId"].as_u64().ok_or("Invalid own hero")?;
             state.api().item_stats(hero).await

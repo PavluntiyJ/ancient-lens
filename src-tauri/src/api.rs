@@ -529,6 +529,28 @@ impl Api {
         );
         Ok(data)
     }
+    /// The hero catalogue. A saved copy answers at once even when outdated, so names and
+    /// portraits never wait for the provider at startup; an outdated copy is refreshed in
+    /// the background, since the catalogue changes only when a hero is added.
+    pub async fn heroes(self: Arc<Self>) -> Result<Value> {
+        let hash = format!("{:x}", Sha256::digest(b"heroes"));
+        let saved = read_cache(&self.directory.join(format!("resource-{hash}.json"))).filter(|v| {
+            v["endpoint"] == "heroes" && validate_resource("heroes", &v["data"]).is_ok()
+        });
+        let Some(saved) = saved else {
+            return self.resource("heroes", HEROES_TTL).await;
+        };
+        let now = chrono::Utc::now().timestamp_millis();
+        if !saved["at"]
+            .as_i64()
+            .is_some_and(|t| now - t < HEROES_TTL && t <= now)
+        {
+            tokio::spawn(async move {
+                let _ = self.resource("heroes", HEROES_TTL).await;
+            });
+        }
+        Ok(saved["data"].clone())
+    }
     pub async fn summary(&self, input: &str, days: u32, filter: Filter) -> Result<Value> {
         let _slot = self
             .summary_slots
@@ -1205,6 +1227,7 @@ fn fresh(v: &Value, ttl: i64) -> bool {
         })
 }
 const PATCHES: &str = "constants/patch";
+const HEROES_TTL: i64 = 3_600_000;
 fn validate_resource(endpoint: &str, v: &Value) -> Result<()> {
     let valid = if endpoint == PATCHES {
         v.as_array().is_some_and(|rows| {
@@ -1641,6 +1664,55 @@ mod partial_tests {
         let data = api.item_stats(1).await.unwrap();
         assert_eq!(data["stale"], false);
         assert_eq!(data["sampleMatches"], 0);
+    }
+
+    #[tokio::test]
+    async fn an_outdated_hero_catalogue_answers_at_once_and_refreshes_behind() {
+        use axum::{routing::get, Json, Router};
+        let router = Router::new().fallback(get(|| async {
+            tokio::time::sleep(Duration::from_millis(300)).await;
+            Json(json!([{"id":2,"localized_name":"Axe","roles":["Initiator"]}]))
+        }));
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir
+            .path()
+            .join(format!("resource-{:x}.json", Sha256::digest(b"heroes")));
+        let old = json!([{"id":2,"localized_name":"Old Axe","roles":[]}]);
+        let at = chrono::Utc::now().timestamp_millis() - 2 * HEROES_TTL;
+        crate::store::atomic_json(&path, &json!({"endpoint":"heroes","at":at,"data":old})).unwrap();
+        let api = Api::build(
+            dir.path().into(),
+            None,
+            false,
+            &format!("http://{addr}"),
+            STEAM,
+        )
+        .unwrap();
+        // The saved copy comes back before the slow provider answers.
+        let served = tokio::time::timeout(Duration::from_millis(200), api.clone().heroes())
+            .await
+            .expect("an outdated copy does not wait for the provider")
+            .unwrap();
+        assert_eq!(served, old);
+        // The refresh replaces the copy behind the scenes.
+        let mut refreshed = Value::Null;
+        for _ in 0..50 {
+            tokio::time::sleep(Duration::from_millis(100)).await;
+            refreshed = read_cache(&path).unwrap()["data"].clone();
+            if refreshed != old {
+                break;
+            }
+        }
+        assert_eq!(refreshed[0]["localized_name"], "Axe");
+        // Without any saved copy, the catalogue is fetched.
+        std::fs::remove_file(&path).unwrap();
+        assert_eq!(
+            api.clone().heroes().await.unwrap()[0]["localized_name"],
+            "Axe"
+        );
     }
 
     #[tokio::test]

@@ -17,6 +17,9 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 - The profile's IMP tooltip and match details rank all ten players by IMP again. A match
   first fetched before STRATZ computed IMP kept the other players without it; such matches
   are fetched once more, and later fetches fill what the first one lacked.
+- After a restart the profile shows hero names and portraits at once instead of "Hero #N"
+  while the hero list loads: a saved hero list older than an hour is used right away and
+  refreshed in the background.
 
 ## 0.8.1 — November 5, 2026
 
