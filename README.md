@@ -32,7 +32,7 @@
 - **Profile and MMR:** your rank with confidence, an MMR chart, position breakdown and a
   filterable match history, kept even when your match data is private.
 - **Player cards and notes:** hover a player for recent matches, earlier games with or
-  against you, an editable note, and links to Dotabuff, OpenDota, STRATZ and Steam.
+  against you, your notes from earlier matches, and links to Dotabuff, OpenDota, STRATZ and Steam.
 
 In 0.8.0, an **Item build** page suggests items for your hero against the enemy draft, the
 profile name opens a menu of saved accounts, professional players show the name STRATZ links to
@@ -65,19 +65,19 @@ Details and troubleshooting: [setup and data](docs/guide/setup.md), and the
 
 ## What works on each platform
 
-| What you get                                                                      | Needs                                   | Windows                         | Linux                                    |
-| --------------------------------------------------------------------------------- | --------------------------------------- | ------------------------------- | ---------------------------------------- |
-| Public profiles, notes, manual draft, MMR journal, automatic account detection    | Nothing: works out of the box           | Yes                             | Yes                                      |
-| Steam profile refresh, saved-MMR medal and saved-account menu                     | Public Steam profile / local readings   | Yes                             | Yes                                      |
-| Historical item options for your hero against the known draft                    | Public OpenDota league sample           | Yes                             | Yes                                      |
-| 0.7 match layout, player hover card and note controls                            | Public statistics and your local history | Native fixtures checked          | Native fixtures checked                  |
-| Ten-player roster and picks while spectating                                      | Dota GSI setup (Quick start above)      | Yes                             | Yes                                      |
-| Matchups, position recommendations, meta and counter picks                        | Your STRATZ token and the local service | Yes                             | Yes                                      |
-| Ten-player roster, picks and bans in **your own** match; exact MMR and confidence | Optional memory reader, off by default  | Yes                             | Yes                                      |
-| Match and profile windows above the game that leave it the keyboard (and sound)   | Borderless or windowed game             | Yes, sound not yet checked live | X11 only; on Wayland the desktop decides |
-| Windows minimize when you switch to another app, stay up when you click the game  | Nothing; can be turned off              | Yes                             | X11, not yet run on a desktop; not on Wayland |
-| The window keys work only over Dota and Ancient Lens                              | Nothing; can be turned off              | Yes                             | X11 key-grab fallback only, not yet run on a desktop; not with the desktop portal or on Wayland |
-| Native UI verification and failure diagnostics                                  | Isolated synthetic fixtures             | CI before packaging             | Local desktop check; no native CI job    |
+| What you get                                                                      | Needs                                    | Windows                         | Linux                                                                                           |
+| --------------------------------------------------------------------------------- | ---------------------------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Public profiles, notes, manual draft, MMR journal, automatic account detection    | Nothing: works out of the box            | Yes                             | Yes                                                                                             |
+| Steam profile refresh, saved-MMR medal and saved-account menu                     | Public Steam profile / local readings    | Yes                             | Yes                                                                                             |
+| Historical item options for your hero against the known draft                     | Public OpenDota league sample            | Yes                             | Yes                                                                                             |
+| 0.7 match layout, player hover card and note controls                             | Public statistics and your local history | Native fixtures checked         | Native fixtures checked                                                                         |
+| Ten-player roster and picks while spectating                                      | Dota GSI setup (Quick start above)       | Yes                             | Yes                                                                                             |
+| Matchups, position recommendations, meta and counter picks                        | Your STRATZ token and the local service  | Yes                             | Yes                                                                                             |
+| Ten-player roster, picks and bans in **your own** match; exact MMR and confidence | Optional memory reader, off by default   | Yes                             | Yes                                                                                             |
+| Match and profile windows above the game that leave it the keyboard (and sound)   | Borderless or windowed game              | Yes, sound not yet checked live | X11 only; on Wayland the desktop decides                                                        |
+| Windows minimize when you switch to another app, stay up when you click the game  | Nothing; can be turned off               | Yes                             | X11, not yet run on a desktop; not on Wayland                                                   |
+| The window keys work only over Dota and Ancient Lens                              | Nothing; can be turned off               | Yes                             | X11 key-grab fallback only, not yet run on a desktop; not with the desktop portal or on Wayland |
+| Native UI verification and failure diagnostics                                    | Isolated synthetic fixtures              | CI before packaging             | Local desktop check; no native CI job                                                           |
 
 In your own match Dota's GSI sends only your own player, on both systems. With the reader
 off, an empty enemy roster there is expected, not a failed installation. **Connect STRATZ**

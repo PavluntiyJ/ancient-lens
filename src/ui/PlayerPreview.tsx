@@ -5,7 +5,7 @@ import type { RoleGuess } from '../shared/role-guess';
 import { mainPosition, matchPosition, rankedRoles } from '../shared/roles';
 import { Avatar, CountryFlag, Portrait, ProBadge, RankMedal } from './MatchScreen';
 import { RoleIcon } from './Roles';
-import { NoteEditor } from './NoteEditor';
+import { NoteEditor, type NoteContext } from './NoteEditor';
 import { PlayerLinks } from './PlayerLinks';
 
 /** Earlier matches together listed, newest first. */
@@ -60,6 +60,9 @@ export function PlayerPreview({
   error,
   met,
   heroes,
+  history,
+  context,
+  openNotes,
   onOpen,
   onMatch,
   now = Date.now(),
@@ -82,6 +85,11 @@ export function PlayerPreview({
   error?: string;
   met: Meetings | null;
   heroes: Hero[];
+  /** The own saved history, for the match of each note. */
+  history?: Match[];
+  /** The live match, kept with a note written here. */
+  context?: NoteContext;
+  openNotes?(accountId: string): void;
   onOpen?(): void;
   onMatch?(matchId: number): void;
   now?: number;
@@ -216,7 +224,16 @@ export function PlayerPreview({
         {accountId ? (
           <>
             <div className="preview-block preview-note" onClick={keep}>
-              <NoteEditor accountId={accountId} name={noteName} note={note} self={self} />
+              <NoteEditor
+                accountId={accountId}
+                name={noteName}
+                note={note}
+                self={self}
+                heroes={heroes}
+                history={history}
+                context={context}
+                openNotes={openNotes}
+              />
             </div>
             <div className="preview-block preview-actions" onClick={keep}>
               <PlayerLinks id={accountId} labelled />

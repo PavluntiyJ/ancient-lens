@@ -122,6 +122,12 @@ export function App() {
     setPage(next);
     setError('');
   };
+  // The player a match card asked to show on the Notes page; a new object each time.
+  const [notesFocus, setNotesFocus] = useState<{ id: string }>();
+  const openNotes = (id: string) => {
+    setNotesFocus({ id });
+    open('notes');
+  };
   const openSettings = (id?: SettingsSection) => {
     setSettingsSection(id ? { id } : undefined);
     open('settings');
@@ -275,6 +281,7 @@ export function App() {
                 setup={openSettings}
                 openTool={open}
                 connectStratz={() => setStratzOpen('manual')}
+                openNotes={openNotes}
               />
             </MatchViewport>
             <div hidden={page !== 'items'}>
@@ -287,7 +294,7 @@ export function App() {
               <Roster active={page === 'roster'} notes={local.notes} />
             </div>
             <Suspense fallback={null}>
-              {page === 'notes' && <Notes local={local} update={updateLocal} initialId={local.accountId} />}
+              {page === 'notes' && <Notes local={local} update={updateLocal} focus={notesFocus} />}
               {page === 'live' && (
                 <Diagnostics
                   live={live}

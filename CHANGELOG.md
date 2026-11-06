@@ -4,6 +4,17 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ## Unreleased
 
+### Changed
+
+- A player can have several notes. **Add note** in a match card adds a new note on top of the
+  earlier ones and saves it with the match, the player's hero and side; the card lists every
+  note with its match. Existing notes become the first note of their player, linked to the
+  recorded match they were written during or shortly after.
+- The **Notes** page shows the players with notes beside the selected player's notes: how
+  often you met them, with you and against you, each note with its match and result, and
+  **Add another note**. Notes can be searched by name, ID, text, match ID or hero, filtered by
+  side, and edited or deleted one by one.
+
 ### Fixed
 
 - If Ancient Lens fails to start after it has started its own statistics service (for

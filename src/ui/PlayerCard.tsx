@@ -15,7 +15,7 @@ import { api, errorMessage } from './App';
 import { Avatar, CountryFlag, Portrait, RankMedal } from './MatchScreen';
 import { MatchLinks, PlayerLinks } from './PlayerLinks';
 import { RoleIcon } from './Roles';
-import { NoteEditor } from './NoteEditor';
+import { NoteEditor, type NoteContext } from './NoteEditor';
 
 type Person = { id: string; name?: string };
 type Totals = { games: number; wins: number };
@@ -100,6 +100,9 @@ export function PlayerCard({
   totals,
   noteOf,
   ownId,
+  ownHistory,
+  contextOf,
+  openNotes,
   close,
 }: {
   start: Person;
@@ -109,6 +112,11 @@ export function PlayerCard({
   noteOf(id: string): Note | undefined;
   /** The player's own account, which gets no note. */
   ownId?: string;
+  /** The own saved history, for the match of each note. */
+  ownHistory?: Match[];
+  /** The live match for a player in it, kept with a note written here. */
+  contextOf?(id: string): NoteContext | undefined;
+  openNotes?(accountId: string): void;
   close(): void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -223,6 +231,10 @@ export function PlayerCard({
           name={person.name || history?.profile.profile?.personaname || ''}
           note={note}
           self={!!ownId && person.id === ownId}
+          heroes={heroes}
+          history={ownHistory}
+          context={contextOf?.(person.id)}
+          openNotes={openNotes}
         />
         {error && history !== undefined && (
           <p className="error-text" role="alert">

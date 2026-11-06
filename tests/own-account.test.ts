@@ -51,7 +51,7 @@ describe('account state delivery', () => {
     expect(newerLocalState(b, { ...a, revision: 0 })).toBe(b);
   });
   it('merges a live-only rating update without dropping stored data', () => {
-    const note = { accountId: '9', name: 'n', text: 't', tag: 'neutral', updatedAt: '' } as const;
+    const note = { accountId: '9', name: 'n', text: 't', updatedAt: '', entries: [{ id: 'e', text: 't', at: '' }] };
     const base: LocalState = {
       revision: 5,
       accountId: '123',

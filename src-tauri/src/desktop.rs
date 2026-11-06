@@ -587,7 +587,9 @@ async fn desktop_call(
         "state:account"
         | "state:add-profile"
         | "state:remove-profile"
-        | "note:save"
+        | "note:add"
+        | "note:edit"
+        | "note:delete-entry"
         | "note:delete"
         | "mmr:add"
         | "mmr:delete" => {

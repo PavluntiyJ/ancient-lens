@@ -162,22 +162,33 @@ that match (STRATZ history):
 
 Hover anywhere in the player cell (avatar, role or name) to open a card beside the row. It
 shows the player's rank and all-time matches, country and Steam name, the selected period,
-streak and main role, your note, and links to Dotabuff, OpenDota, STRATZ and Steam. The card
+streak and main role, your notes, and links to Dotabuff, OpenDota, STRATZ and Steam. The card
 lists the newest eight matches in the loaded period and up to ten earlier matches with or
 against you, with both heroes, K/D/A and your result. Earlier meetings come from your own
 history, so they can appear even for a private profile. Missing values stay unknown.
 
 Move the pointer onto the card to use it. Click a match there to open it on STRATZ, or the
-card outside the note and links to open the full player card with history, teammates and
+card outside the notes and links to open the full player card with history, teammates and
 opponents. The SMURF label is a public-statistics heuristic, not proof.
 
 ![Player hover card with a note, site links, recent matches and earlier meetings](../images/player-card.png)
 
-Searchable notes are saved locally by Dota ID; **Notes** in the header lists and edits them.
-Click anywhere in the note block to add, edit or delete a note. The marker and card show its
-date. Notes now have one kind: older Observation, Good teammate and Watch out notes keep
-their text and display the same way. Your own account takes no note; an older one about
-yourself still shows and can be deleted under **Notes**. The optional chime and its volume are in
+Notes are saved locally by Dota ID, and a player can have many. In a match card, **Add note
+for this match** puts a new note on top of the earlier ones and keeps that match, the player's
+hero and side; the card lists every note newest first, with the hero and the result of its
+match once that match is in your saved history. **Open in Notes** shows the player on the
+Notes page. The row marker's tooltip shows the newest note and how many there are.
+
+**Notes** in the header lists the players with notes, with a search over names, Dota IDs,
+note text, match IDs and heroes, and filters for players met as an ally, met as an enemy, or
+with notes not tied to a match. The player's page shows how often they were in your saved
+matches, with you and against you, and every note with its match. **Add another note** can
+attach the note to your last saved match together or to no match; each note can be edited
+or deleted on its own. To start notes about a player who is not listed, type their Dota ID or
+SteamID64 in the search. Notes saved by an earlier version became the first note of their player,
+linked to the recorded match they were written during or up to 15 minutes after. Your own
+account takes no note; an older one about yourself still shows and can be deleted under
+**Notes**. The optional chime and its volume are in
 [Settings → Interface → Sound](setup.md#note-sound).
 
 ## Personal profile

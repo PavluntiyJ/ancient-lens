@@ -17,14 +17,29 @@ export function accountId(input: string): string {
   return id.toString();
 }
 
-export const noteSchema = z.object({
-  accountId: z.string().transform(accountId),
-  name: z.string().trim().max(80),
-  text: z.string().trim().min(1, 'Write a note.').max(2000),
-  tag: z.enum(['neutral', 'teammate', 'avoid']),
-});
-export type NoteInput = z.input<typeof noteSchema>;
-export type Note = z.output<typeof noteSchema> & { updatedAt: string };
+/** One note about a player. A note written from a match card keeps that match, the
+ * player's hero in it and their side, so it can be shown once the match is known. */
+export type NoteEntry = {
+  id: string;
+  text: string;
+  at: string;
+  editedAt?: string;
+  matchId?: number;
+  heroId?: number;
+  ally?: boolean;
+};
+/** Every note about one player, newest first; `text` and `updatedAt` repeat the newest. */
+export type Note = { accountId: string; name: string; entries: NoteEntry[]; text: string; updatedAt: string };
+/** A new note: added on top of the player's earlier ones, never in their place. */
+export type NoteInput = {
+  accountId: string;
+  /** Name kept with the player's notes; empty keeps the saved one. */
+  name: string;
+  text: string;
+  matchId?: number;
+  heroId?: number;
+  ally?: boolean;
+};
 export const mmrInputSchema = z.object({ value: z.number().int().min(0).max(20000) });
 export type MmrEntry = {
   id: string;
@@ -583,7 +598,10 @@ export type DesktopApi = {
   disconnectStratz?(): Promise<ProviderInfo>;
   /** Open the STRATZ page that issues API tokens in the browser. */
   openStratzTokens?(): Promise<string>;
-  saveNote(note: NoteInput): Promise<LocalState>;
+  addNote(note: NoteInput): Promise<LocalState>;
+  editNote(accountId: string, entryId: string, text: string): Promise<LocalState>;
+  deleteNoteEntry(accountId: string, entryId: string): Promise<LocalState>;
+  /** Every note about the player. */
   deleteNote(id: string): Promise<LocalState>;
   addMmr(value: number, expectedAccountId?: string): Promise<LocalState>;
   deleteMmr(id: string): Promise<LocalState>;
