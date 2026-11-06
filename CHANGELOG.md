@@ -4,6 +4,13 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ## Unreleased
 
+### Changed
+
+- A recorded match that STRATZ knows but never parsed, so it has no IMP an hour after the
+  game, is now sent to STRATZ once to be parsed, and the app checks it again an hour, six
+  hours and a day later. This also applies to matches up to 14 days old that were left
+  without IMP; older replays are usually gone. It needs the updated statistics service.
+
 ## 0.9.0 — November 6, 2026
 
 Several notes per player, each tied to its match, and a new Notes page. Existing notes are

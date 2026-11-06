@@ -1375,8 +1375,12 @@ async fn release_check(handle: tauri::AppHandle, fixture: Option<std::path::Path
 }
 /// Completes recorded matches from their match data: STRATZ (with IMP and position) when a
 /// service is configured, otherwise or failing that OpenDota. A record is retried on the
-/// journal schedule until it is complete or out of attempts.
+/// journal schedule until it is complete or out of attempts. A match STRATZ never parsed is
+/// asked to be parsed once, one match per minute; an older service without the route is left
+/// alone until the app restarts, and a failed request waits ten minutes.
 async fn match_details(handle: tauri::AppHandle) {
+    let mut parse_unsupported = false;
+    let mut parse_paused_until: Option<std::time::Instant> = None;
     loop {
         tokio::time::sleep(std::time::Duration::from_secs(60)).await;
         let state = handle.state::<Desktop>();
@@ -1413,6 +1417,42 @@ async fn match_details(handle: tauri::AppHandle) {
                 }
                 Ok(false) => {}
                 Err(error) => eprintln!("Match details {id}: {error}"),
+            }
+        }
+        if !stratz
+            || parse_unsupported
+            || parse_paused_until.is_some_and(|until| std::time::Instant::now() < until)
+        {
+            continue;
+        }
+        let due = state.store.lock().await.parse_due(now, 1);
+        let Some((account, id)) = due.first().and_then(|record| {
+            Some((
+                record["accountId"].as_str()?.to_owned(),
+                record["match_id"].as_u64()?,
+            ))
+        }) else {
+            continue;
+        };
+        match state.api().stratz_parse(id).await {
+            Ok(Some(requested)) => {
+                parse_paused_until = None;
+                if !requested {
+                    eprintln!("Match parse {id}: STRATZ declined");
+                }
+                let mut store = state.store.lock().await;
+                if let Err(error) = store.parse_requested(&account, id, &crate::store::now()) {
+                    eprintln!("Match parse {id}: {error}");
+                }
+            }
+            Ok(None) => {
+                eprintln!("Match parse: the statistics service is too old");
+                parse_unsupported = true;
+            }
+            Err(error) => {
+                eprintln!("Match parse {id}: {error}");
+                parse_paused_until =
+                    Some(std::time::Instant::now() + std::time::Duration::from_secs(600));
             }
         }
     }

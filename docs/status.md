@@ -73,7 +73,9 @@ or unverified, and what is planned.
 - **Profile filters:** party size and season need data the app does not load. Older history
   loads with a button, not by numbered pages.
 - **Performance points:** the profile shows STRATZ IMP per match; there is no own
-  performance score yet.
+  performance score yet. A match STRATZ never parsed has no IMP: the app asks STRATZ once to
+  parse such a recorded match, which works only while Valve keeps the replay (the app tries
+  matches up to 14 days old).
 
 ## Planned
 

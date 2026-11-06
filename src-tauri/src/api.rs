@@ -971,6 +971,34 @@ impl Api {
         net_log("match via STRATZ", started, &result);
         result
     }
+    /// Asks the STRATZ service to have a match parsed: STRATZ's answer, or `None` from an
+    /// older service that lacks the route.
+    pub async fn stratz_parse(&self, id: u64) -> Result<Option<bool>> {
+        let url = self.broker_url.as_ref().ok_or("No STRATZ service")?;
+        let started = Instant::now();
+        let result: Result<Option<bool>> = async {
+            let response = self
+                .client
+                .post(format!("{}/v1/parse", url.trim_end_matches('/')))
+                .timeout(Duration::from_secs(55))
+                .json(&json!({"id":id.to_string()}))
+                .send()
+                .await
+                .map_err(|_| "STRATZ: could not request parsing")?;
+            if response.status() == reqwest::StatusCode::NOT_FOUND {
+                return Ok(None);
+            }
+            let value = read_response(response).await?;
+            let answer = value["requested"]
+                .as_bool()
+                .ok_or("STRATZ: invalid parse response")?;
+            Ok(Some(answer))
+        }
+        .await;
+        let logged = result.clone().map(|answer| json!(answer));
+        net_log("parse via STRATZ", started, &logged);
+        result
+    }
     /// Recent teammates and parties of a roster from the STRATZ service. Null without a
     /// service or with an older one that lacks the route: parties are then unknown.
     pub async fn parties(&self, ids: &[String]) -> Result<Value> {
@@ -1406,9 +1434,16 @@ mod partial_tests {
     }
     /// A fake statistics service answering `/v1/parties` with `body`, or 404 without it.
     async fn parties_service(body: Option<Value>) -> (String, tokio::task::JoinHandle<()>) {
+        fake_service("/v1/parties", body).await
+    }
+    /// A fake statistics service answering `path` with `body`, or 404 without it.
+    async fn fake_service(
+        path: &'static str,
+        body: Option<Value>,
+    ) -> (String, tokio::task::JoinHandle<()>) {
         use axum::{http::StatusCode, routing::post, Json, Router};
         let router = Router::new().route(
-            "/v1/parties",
+            path,
             post(move || {
                 let body = body.clone();
                 async move { body.map(Json).ok_or(StatusCode::NOT_FOUND) }
@@ -1453,6 +1488,23 @@ mod partial_tests {
         let api = Api::new(dir.path().into(), Some(url)).unwrap();
         assert!(api.parties(&["1".into(), "2".into()]).await.is_err());
         task.abort();
+    }
+    #[tokio::test]
+    async fn a_parse_request_reports_the_answer_or_an_older_service() {
+        let dir = tempfile::tempdir().unwrap();
+        for (body, expected) in [
+            (Some(json!({"requested":true})), Ok(Some(true))),
+            (Some(json!({"requested":false})), Ok(Some(false))),
+            (None, Ok(None)),
+            (Some(json!({"requested":"yes"})), Err(())),
+        ] {
+            let (url, task) = fake_service("/v1/parse", body).await;
+            let api = Api::new(dir.path().into(), Some(url)).unwrap();
+            assert_eq!(api.stratz_parse(42).await.map_err(|_| ()), expected);
+            task.abort();
+        }
+        let api = Api::new(dir.path().into(), None).unwrap();
+        assert!(api.stratz_parse(42).await.is_err(), "no service");
     }
     /// A history page with ten named players, as the STRATZ service returns it.
     fn history_page() -> Value {

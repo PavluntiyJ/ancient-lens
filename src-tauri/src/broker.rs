@@ -64,7 +64,10 @@ pub struct Broker {
     draft_cache: Mutex<HashMap<String, (Instant, String, Value)>>,
     averages_cache: Mutex<HashMap<String, (Instant, String, Value)>>,
     totals_cache: Mutex<HashMap<String, (Instant, Value)>>,
+    parse_requests: Mutex<HashMap<u64, (Instant, bool)>>,
 }
+/// A match is asked to be parsed at most once in this time; the answer is repeated meanwhile.
+const PARSE_REPEAT: Duration = Duration::from_secs(86400);
 impl Broker {
     pub async fn history(&self, mut request: crate::history::Request) -> Result<Value> {
         request.validate()?;
@@ -129,6 +132,31 @@ impl Broker {
         cache.insert(key, (Instant::now(), value.clone()));
         Ok(value)
     }
+    /// Asks STRATZ to download the replay of a match again and parse it, for a match it knows
+    /// but never computed IMP for. `requested` is STRATZ's answer, not a promise of IMP.
+    pub async fn parse(&self, request: MatchRequest) -> Result<Value> {
+        let id = crate::match_details::match_id(&request.id)?;
+        {
+            let mut requested = self.parse_requests.lock().await;
+            requested.retain(|_, (at, _)| at.elapsed() < PARSE_REPEAT);
+            if let Some((_, answer)) = requested.get(&id) {
+                return Ok(json!({"requested":answer}));
+            }
+        }
+        let _permit = self.upstream.acquire().await.map_err(|_| "busy")?;
+        let payload = self
+            .graphql(format!("mutation {{ retryMatchDownload(matchId:{id}) }}"))
+            .await?;
+        let answer = payload["data"]["retryMatchDownload"]
+            .as_bool()
+            .ok_or("upstream invalid parse response")?;
+        let mut requested = self.parse_requests.lock().await;
+        if requested.len() >= 5000 {
+            requested.clear();
+        }
+        requested.insert(id, (Instant::now(), answer));
+        Ok(json!({"requested":answer}))
+    }
     /// Recent teammates and STRATZ parties of a roster, one upstream request per roster.
     pub async fn parties(&self, mut request: crate::parties::Request) -> Result<Value> {
         request.validate()?;
@@ -176,6 +204,7 @@ impl Broker {
             draft_cache: Mutex::new(HashMap::new()),
             averages_cache: Mutex::new(HashMap::new()),
             totals_cache: Mutex::new(HashMap::new()),
+            parse_requests: Mutex::new(HashMap::new()),
         }))
     }
     async fn permit(&self, ip: IpAddr) -> bool {
@@ -556,6 +585,7 @@ pub fn router(broker: Arc<Broker>) -> Router {
         .route("/v1/history", post(history))
         .route("/v1/match", post(match_details))
         .route("/v1/parties", post(parties))
+        .route("/v1/parse", post(parse))
         .layer(DefaultBodyLimit::max(4096))
         .layer(tower_http::timeout::TimeoutLayer::with_status_code(
             StatusCode::REQUEST_TIMEOUT,
@@ -636,6 +666,16 @@ async fn match_details(
         .await
         .map(Json)
         .map_err(service_error)
+}
+async fn parse(
+    State(broker): State<Arc<Broker>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    Json(request): Json<MatchRequest>,
+) -> std::result::Result<Json<Value>, (StatusCode, Json<Value>)> {
+    if !broker.permit(addr.ip()).await {
+        return Err(service_error("quota".into()));
+    }
+    broker.parse(request).await.map(Json).map_err(service_error)
 }
 async fn parties(
     State(broker): State<Arc<Broker>>,
@@ -1024,6 +1064,49 @@ mod tests {
         // A match the upstream does not return is unavailable, not a client error.
         let error = broker.match_details(request("43")).await.unwrap_err();
         assert!(error.starts_with("upstream"), "{error}");
+        task.abort();
+    }
+    #[tokio::test]
+    async fn a_parse_request_reaches_stratz_once_per_match() {
+        let queries = Arc::new(Mutex::new(Vec::<String>::new()));
+        let seen = queries.clone();
+        let upstream = Router::new().route(
+            "/",
+            post(move |Json(body): Json<Value>| {
+                let seen = seen.clone();
+                async move {
+                    let query = body["query"].as_str().unwrap().to_owned();
+                    seen.lock().await.push(query.clone());
+                    if query == "mutation { retryMatchDownload(matchId:42) }" {
+                        Json(json!({"data":{"retryMatchDownload":true}}))
+                    } else {
+                        Json(json!({"errors":[{"message":"not found"}],"data":null}))
+                    }
+                }
+            }),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let task = tokio::spawn(async move {
+            axum::serve(listener, upstream).await.unwrap();
+        });
+        let mut broker = Broker::new("test-secret".into(), 10).unwrap();
+        Arc::get_mut(&mut broker).unwrap().endpoint = format!("http://{addr}/");
+        let request = |id: &str| MatchRequest { id: id.into() };
+        let answer = broker.parse(request("42")).await.unwrap();
+        assert_eq!(answer, json!({"requested":true}));
+        // A repeat within a day is answered without asking STRATZ again.
+        assert_eq!(broker.parse(request("42")).await.unwrap(), answer);
+        assert_eq!(queries.lock().await.len(), 1);
+        for id in ["0", "x", "1234567890123", "42) { token }"] {
+            assert!(broker.parse(request(id)).await.is_err());
+        }
+        assert_eq!(queries.lock().await.len(), 1);
+        let error = broker.parse(request("43")).await.unwrap_err();
+        assert!(error.starts_with("upstream"), "{error}");
+        // A failed request is not remembered, so it can be tried again.
+        assert!(broker.parse(request("43")).await.is_err());
+        assert_eq!(queries.lock().await.len(), 3);
         task.abort();
     }
     #[tokio::test]

@@ -196,8 +196,10 @@ Proxy configuration and public hosting are not included in this repository.
 `POST /v1/summaries`, `/v1/totals`, `/v1/history` (25-match pages with all ten
 players of each match), `/v1/draft`, `/v1/averages` (hero averages by position and
 match duration for one rank bracket), `/v1/parties` (recent teammates and STRATZ
-parties of a roster), and `/v1/match` (one match by ID, used to complete matches
-recorded by the match journal). The response of `/health` also carries `version`, the
+parties of a roster), `/v1/match` (one match by ID, used to complete matches
+recorded by the match journal) and `/v1/parse` (asks STRATZ to download the replay of
+one match by ID again and parse it; the same match is asked at most once a day). The
+response of `/health` also carries `version`, the
 service's package version; protocol stays 1. The desktop app and the service are built
 from the same source, so the app restarts an older unit or reports an older service
 ([after an update](#after-an-update)); otherwise new fields such as professional names

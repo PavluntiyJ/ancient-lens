@@ -501,6 +501,29 @@ impl Store {
             .cloned()
             .collect()
     }
+    /// Recorded matches STRATZ should be asked to parse, newest first.
+    pub fn parse_due(&self, now: i64, limit: usize) -> Vec<Value> {
+        self.matches
+            .iter()
+            .rev()
+            .filter(|m| crate::journal::parse_due(m, now))
+            .take(limit)
+            .cloned()
+            .collect()
+    }
+    /// Keeps that STRATZ was asked to parse a recorded match and schedules fetching it again.
+    pub fn parse_requested(&mut self, account: &str, match_id: u64, at: &str) -> Result<()> {
+        let mut matches = self.matches.clone();
+        let Some(row) = matches
+            .iter_mut()
+            .find(|m| m["accountId"] == account && m["match_id"] == match_id)
+        else {
+            return Ok(());
+        };
+        crate::journal::parse_requested(row, at);
+        crate::journal::validate(row)?;
+        self.save_matches(matches)
+    }
     /// Counts an attempt to fetch a recorded match and adds what the fetched matches know.
     /// Returns whether the record gained data.
     pub fn save_details(
@@ -1843,6 +1866,43 @@ mod tests {
         );
         assert!(reopened.details_due(end + 86400 * 3, false, 2).is_empty());
         assert!(!s.save_details("8", 42, &[], at).unwrap());
+    }
+    #[test]
+    fn a_parse_request_is_kept_across_restarts() {
+        use crate::match_details::{from_stratz, tests as fixture};
+        // A match STRATZ knows but never parsed: statistics, no IMP for anyone.
+        let players: Vec<Value> = (0..10u64)
+            .map(|i| json!({"steamAccountId":if i == 8 {7} else {100 + i},"heroId":if i == 8 {75} else {i + 1},
+                "isRadiant":i < 5,"kills":8,"deaths":2,"assists":3,"imp":null}))
+            .collect();
+        let unparsed = json!({"id":42,"gameMode":"ALL_PICK_RANKED","lobbyType":"RANKED","rank":72,"players":players});
+        let dir = tempfile::tempdir().unwrap();
+        let mut s = Store::open(dir.path().into()).unwrap();
+        let at = "2026-10-23T20:00:00.000Z";
+        let mut row = fixture::record();
+        for (key, value) in [
+            ("start_time", json!(1792783800)),
+            ("duration", json!(1800)),
+            ("radiant_win", json!(false)),
+            ("source", json!("game")),
+            ("recordedAt", json!(at)),
+        ] {
+            row[key] = value;
+        }
+        assert!(s.record_match(row).unwrap());
+        let end = 1792785600;
+        let details = from_stratz(42, &unparsed).unwrap();
+        s.save_details("7", 42, &[details], at).unwrap();
+        assert!(s.recorded("7")[0]["imp"].is_null());
+        assert_eq!(s.parse_due(end + 3600, 1).len(), 1);
+        s.parse_requested("7", 42, at).unwrap();
+        let reopened = Store::open(dir.path().into()).unwrap();
+        assert!(reopened.parse_due(end + 3600, 1).is_empty());
+        assert_eq!(reopened.recorded("7")[0]["parseRequestedAt"], at);
+        assert!(
+            s.parse_requested("8", 42, at).is_ok(),
+            "an unknown record is skipped"
+        );
     }
     #[test]
     fn an_unreadable_journal_is_set_aside_not_overwritten() {

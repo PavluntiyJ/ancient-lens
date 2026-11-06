@@ -48,6 +48,14 @@ const CATCH_UP_DELAY: i64 = 600;
 /// the others from the previous attempt. Providers index a match within minutes, STRATZ
 /// computes IMP later; after the last attempt a record stays as it is.
 const DETAIL_DELAYS: [i64; 5] = [120, 600, 3600, 6 * 3600, 24 * 3600];
+/// A match STRATZ knows without IMP for an hour after its end is usually one it never parsed.
+/// STRATZ is then asked once to download the replay again, which works only while Valve keeps
+/// the replay, so older matches are left alone.
+const PARSE_AFTER: i64 = 3600;
+const PARSE_MAX_AGE: i64 = 14 * 86400;
+/// After the request the record is fetched again on the tail of the schedule, counted from
+/// the request: an hour, six hours and a day later.
+const PARSE_FOLLOW_UP: usize = 2;
 /// A rating change read later than this after a match is not attributed to it.
 const MMR_WINDOW_SECONDS: i64 = 6 * 3600;
 /// Larger changes are treated as a misread rather than one match (same bound as the profile).
@@ -277,7 +285,7 @@ pub fn validate(row: &Value) -> Result<()> {
         .iter()
         .any(|key| !(row[*key].is_null() || row[*key].is_u64()))
         || !(row["imp"].is_null() || row["imp"].is_i64())
-        || ["position", "role", "detailsAt"]
+        || ["position", "role", "detailsAt", "parseRequestedAt"]
             .iter()
             .any(|key| !(row[*key].is_null() || row[*key].as_str().is_some_and(|v| v.len() <= 40)))
         || !(row["details"].is_null()
@@ -331,6 +339,21 @@ pub fn details_due(row: &Value, now: i64, stratz: bool) -> bool {
         seconds(&row["detailsAt"]).unwrap_or(0)
     };
     details_missing(row, stratz) && now >= since + delay
+}
+/// Whether to ask STRATZ to parse the match of a record now (`now` in Unix seconds).
+pub fn parse_due(row: &Value, now: i64) -> bool {
+    let known = row["details"]
+        .as_array()
+        .is_some_and(|sources| sources.iter().any(|s| s == "STRATZ"));
+    known
+        && !row["imp"].is_i64()
+        && row["parseRequestedAt"].is_null()
+        && (PARSE_AFTER..=PARSE_MAX_AGE).contains(&(now - end(row)))
+}
+pub fn parse_requested(row: &mut Value, at: &str) {
+    row["parseRequestedAt"] = json!(at);
+    row["detailsAttempts"] = json!(PARSE_FOLLOW_UP);
+    row["detailsAt"] = json!(at);
 }
 pub fn details_attempted(row: &mut Value, at: &str) {
     row["detailsAttempts"] = json!(row["detailsAttempts"].as_u64().unwrap_or(0) + 1);
@@ -571,6 +594,7 @@ pub fn merge(mut history: Value, records: &[Value]) -> Value {
                     "detailsAttempts",
                     "detailsAt",
                     "detailsVersion",
+                    "parseRequestedAt",
                 ] {
                     row.remove(key);
                 }
@@ -1015,6 +1039,49 @@ mod tests {
             !details_due(&row, end + 30 * 86400, true),
             "attempts are bounded"
         );
+    }
+    #[test]
+    fn a_match_stratz_never_parsed_is_requested_once_and_fetched_again() {
+        let mut row = record(&post_game(), AT).unwrap();
+        let end = 1792785600;
+        row["details"] = json!(["STRATZ"]);
+        row["detailsAttempts"] = json!(DETAIL_DELAYS.len());
+        row["detailsVersion"] = json!(DETAILS_VERSION);
+        assert!(
+            !parse_due(&row, end + PARSE_AFTER - 1),
+            "IMP usually comes first"
+        );
+        assert!(parse_due(&row, end + PARSE_AFTER));
+        assert!(parse_due(&row, end + PARSE_MAX_AGE), "older matches too");
+        assert!(
+            !parse_due(&row, end + PARSE_MAX_AGE + 1),
+            "Valve no longer keeps the replay"
+        );
+        let mut unknown = row.clone();
+        unknown["details"] = json!(["OpenDota"]);
+        assert!(
+            !parse_due(&unknown, end + PARSE_AFTER),
+            "STRATZ lacks the match"
+        );
+        let mut parsed = row.clone();
+        parsed["imp"] = json!(3);
+        assert!(!parse_due(&parsed, end + PARSE_AFTER));
+
+        // The request restarts the tail of the schedule: an hour, six hours and a day later.
+        let at = "2026-10-30T20:00:00.000Z";
+        let requested = seconds(&json!(at)).unwrap();
+        assert!(!details_due(&row, requested, true), "attempts were used up");
+        parse_requested(&mut row, at);
+        validate(&row).unwrap();
+        assert!(!parse_due(&row, requested + 86400), "once per match");
+        assert_eq!(
+            DETAIL_DELAYS[PARSE_FOLLOW_UP..],
+            [3600, 6 * 3600, 24 * 3600]
+        );
+        assert!(!details_due(&row, requested + 3599, true));
+        assert!(details_due(&row, requested + 3600, true));
+        let out = merge(json!({"accountId":"123","matches":[]}), &[row]);
+        assert!(out["matches"][0].get("parseRequestedAt").is_none());
     }
     #[test]
     fn merged_records_carry_details_but_not_their_schedule() {
