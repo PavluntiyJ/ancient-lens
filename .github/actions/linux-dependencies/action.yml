@@ -1,0 +1,43 @@
+name: Linux system dependencies
+description: >-
+  Installs the Tauri build dependencies with apt. The downloaded packages are cached, because
+  the runner's mirror sometimes takes minutes for a single large package (26 minutes for the
+  whole step on 2026-11-06); a cache hit installs without downloading anything.
+inputs:
+  extra:
+    description: Further packages, separated by spaces
+    default: ''
+runs:
+  using: composite
+  steps:
+    - name: Package versions
+      id: packages
+      shell: bash
+      env:
+        EXTRA: ${{ inputs.extra }}
+      run: |
+        packages="libwebkit2gtk-4.1-dev build-essential libssl-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev $EXTRA"
+        sudo apt-get update
+        # The exact files apt would download name every version, so the key changes only when
+        # one of them does; an older cache still restores the packages that did not change.
+        # shellcheck disable=SC2086
+        uris=$(apt-get install --print-uris -qq $packages | cut -d"'" -f2 | sort)
+        echo "packages=$packages" >> "$GITHUB_OUTPUT"
+        echo "key=$(sha256sum <<<"$packages $uris" | cut -c1-16)" >> "$GITHUB_OUTPUT"
+        mkdir -p "$HOME/apt-archives/partial"
+    - uses: actions/cache@v6
+      with:
+        path: ~/apt-archives
+        key: apt-${{ runner.os }}-${{ runner.arch }}-${{ steps.packages.outputs.key }}
+        restore-keys: apt-${{ runner.os }}-${{ runner.arch }}-
+    - name: Install
+      shell: bash
+      env:
+        PACKAGES: ${{ steps.packages.outputs.packages }}
+      run: |
+        # shellcheck disable=SC2086
+        sudo apt-get install -y -o Dir::Cache::Archives="$HOME/apt-archives" $PACKAGES
+        # Drop versions the mirror no longer offers, so the cache does not grow; the runner's
+        # user saves it after the job.
+        sudo apt-get autoclean -o Dir::Cache::Archives="$HOME/apt-archives"
+        sudo chown -R "$USER" "$HOME/apt-archives"
