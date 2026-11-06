@@ -57,7 +57,7 @@ jobs:
           workspaces: src-tauri
       - name: Linux system dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libssl-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev
+        uses: ./.github/actions/linux-dependencies
       - run: npm ci
       - name: Formatting
         run: npm run format:check && cargo fmt --manifest-path src-tauri/Cargo.toml --check
@@ -176,16 +176,13 @@ jobs:
             echo 'For a native-only investigation, choose **Run workflow** and fill the three native source fields above. This skips compilation and packaging. Ordinary job reruns reuse the build too, but GitHub also reruns dependent packaging jobs on tag/full manual runs. Artifacts expire after seven days; after expiry a new build is required.'
           } >> "$GITHUB_STEP_SUMMARY"
 
-  # Distributables only on tags/manual runs, after checks and the independent native gate.
-  dist:
+  # Distributables only on tags/manual runs. The Linux packages need only the checks, so they
+  # build while the Windows native jobs run; the release job still waits for both.
+  dist-linux:
     if: inputs.native-source-run == '' && inputs.native-artifact-id == '' && inputs.native-source-sha == '' && (github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/'))
-    needs: [check, native-build, native-smoke]
+    needs: check
     timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
@@ -201,71 +198,96 @@ jobs:
         with:
           workspaces: src-tauri
       - name: Linux system dependencies
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libssl-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev rpm
+        uses: ./.github/actions/linux-dependencies
+        with:
+          extra: rpm
       - run: npm ci
       - name: Linux distribution
-        if: runner.os == 'Linux'
         run: npm run dist:linux
+      # Tauri bundles every binary of the crate; Connect STRATZ relies on stats-service sitting
+      # beside the app, so a bundler change must not drop it silently.
+      - name: Statistics service in the packages
+        shell: bash
+        run: |
+          # Read each listing whole before matching: under pipefail, `grep -q` closing the pipe
+          # early fails the producer, and a silent failure here hides which package is wrong.
+          deb=$(ls src-tauri/target/release/bundle/deb/*.deb)
+          listing=$(dpkg-deb -c "$deb")
+          # dpkg-deb prints `./usr/bin/...` or `usr/bin/...` depending on how the archive was built.
+          if ! grep -qE ' (\./)?usr/bin/stats-service$' <<<"$listing"; then
+            echo "::error::stats-service is missing from $deb"
+            echo "$listing"
+            exit 1
+          fi
+          rpm=$(ls src-tauri/target/release/bundle/rpm/*.rpm)
+          listing=$(rpm -qpl "$rpm")
+          if ! grep -qx '/usr/bin/stats-service' <<<"$listing"; then
+            echo "::error::stats-service is missing from $rpm"
+            echo "$listing"
+            exit 1
+          fi
+          appimage=$(ls "$PWD"/src-tauri/target/release/bundle/appimage/*.AppImage)
+          (cd "$RUNNER_TEMP" && "$appimage" --appimage-extract 'usr/bin/stats-service')
+          if [ ! -x "$RUNNER_TEMP/squashfs-root/usr/bin/stats-service" ]; then
+            echo "::error::stats-service is missing from $appimage"
+            find "$RUNNER_TEMP/squashfs-root" -maxdepth 3 | head -40
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ancient-lens-Linux
+          path: |
+            src-tauri/target/release/bundle/appimage/*.AppImage
+            src-tauri/target/release/bundle/deb/*.deb
+            src-tauri/target/release/bundle/rpm/*.rpm
+          if-no-files-found: error
+          retention-days: 7
+
+  # The Windows packages wrap the application the native gate tested.
+  dist-windows:
+    if: inputs.native-source-run == '' && inputs.native-artifact-id == '' && inputs.native-source-sha == '' && (github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/'))
+    needs: [check, native-build, native-smoke]
+    timeout-minutes: 45
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable branch, 2026-10-16
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: src-tauri
+      - run: npm ci
       - name: Download tested Windows application
-        if: runner.os == 'Windows'
         uses: actions/download-artifact@v8
         with:
           artifact-ids: ${{ needs.native-build.outputs.artifact-id }}
           path: src-tauri/target/release
           merge-multiple: true
       - name: Verify tested Windows application
-        if: runner.os == 'Windows'
         run: node scripts/native-build-artifact.mjs verify
       - name: Windows installer
-        if: runner.os == 'Windows'
         run: npx tauri bundle --bundles nsis
       # Tauri bundles every binary of the crate; Connect STRATZ relies on stats-service sitting
       # beside the app, so a bundler change must not drop it silently.
-      - name: Statistics service in the packages
+      - name: Statistics service in the installer
         shell: bash
-        run: |
-          if [ "$RUNNER_OS" = Windows ]; then
-            grep -q '/oname=stats-service.exe' src-tauri/target/release/nsis/x64/installer.nsi
-          else
-            # Read each listing whole before matching: under pipefail, `grep -q` closing the pipe
-            # early fails the producer, and a silent failure here hides which package is wrong.
-            deb=$(ls src-tauri/target/release/bundle/deb/*.deb)
-            listing=$(dpkg-deb -c "$deb")
-            # dpkg-deb prints `./usr/bin/...` or `usr/bin/...` depending on how the archive was built.
-            if ! grep -qE ' (\./)?usr/bin/stats-service$' <<<"$listing"; then
-              echo "::error::stats-service is missing from $deb"
-              echo "$listing"
-              exit 1
-            fi
-            rpm=$(ls src-tauri/target/release/bundle/rpm/*.rpm)
-            listing=$(rpm -qpl "$rpm")
-            if ! grep -qx '/usr/bin/stats-service' <<<"$listing"; then
-              echo "::error::stats-service is missing from $rpm"
-              echo "$listing"
-              exit 1
-            fi
-            appimage=$(ls "$PWD"/src-tauri/target/release/bundle/appimage/*.AppImage)
-            (cd "$RUNNER_TEMP" && "$appimage" --appimage-extract 'usr/bin/stats-service')
-            if [ ! -x "$RUNNER_TEMP/squashfs-root/usr/bin/stats-service" ]; then
-              echo "::error::stats-service is missing from $appimage"
-              find "$RUNNER_TEMP/squashfs-root" -maxdepth 3 | head -40
-              exit 1
-            fi
-          fi
+        run: grep -q '/oname=stats-service.exe' src-tauri/target/release/nsis/x64/installer.nsi
       # The portable ZIP copies the executable the installer build just produced.
       - name: Windows portable ZIP
-        if: runner.os == 'Windows'
         run: node scripts/package-native.mjs
       - uses: actions/upload-artifact@v7
         with:
-          name: ancient-lens-${{ runner.os }}
+          name: ancient-lens-Windows
           path: |
             release/*-Tauri-win.zip
             src-tauri/target/release/bundle/nsis/*-setup.exe
-            src-tauri/target/release/bundle/appimage/*.AppImage
-            src-tauri/target/release/bundle/deb/*.deb
-            src-tauri/target/release/bundle/rpm/*.rpm
           if-no-files-found: error
           retention-days: 7
 
@@ -273,7 +295,7 @@ jobs:
   # maintainer reviews the draft and publishes it by hand.
   release:
     if: inputs.native-source-run == '' && inputs.native-artifact-id == '' && inputs.native-source-sha == '' && startsWith(github.ref, 'refs/tags/v')
-    needs: dist
+    needs: [dist-linux, dist-windows]
     timeout-minutes: 10
     runs-on: ubuntu-latest
     permissions:
