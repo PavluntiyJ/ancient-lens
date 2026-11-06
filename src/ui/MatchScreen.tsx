@@ -62,6 +62,8 @@ import { MatchRole, RoleIcon } from './Roles';
 import { mainPosition, rankedRoles } from '../shared/roles';
 import { PlayerCard } from './PlayerCard';
 import { PlayerPreview } from './PlayerPreview';
+import type { NoteContext } from './NoteEditor';
+import { noteCount } from '../shared/notes';
 import { PartyBracket } from './PartyBracket';
 import { bracketPieces, findParties, partyTip } from '../shared/parties';
 import { PartyLoader } from '../shared/party-loader';
@@ -252,6 +254,7 @@ export function MatchScreen({
   setup,
   openTool,
   connectStratz,
+  openNotes,
 }: {
   ownAccountId: string;
   platform?: string;
@@ -271,6 +274,8 @@ export function MatchScreen({
   openTool?(page: 'draft' | 'roster'): void;
   /** Opens the Connect STRATZ prompt. */
   connectStratz?(): void;
+  /** Shows a player on the Notes page. */
+  openNotes?(accountId: string): void;
 }) {
   // Leaving a match must not wipe the roster and draft: a running player match waits for
   // a reconnect, any other last match (spectated, finished) stays until a new one appears.
@@ -514,6 +519,16 @@ export function MatchScreen({
   }, [ids, match, connected, revision, days, providerRevision, filter]);
   const heroOf = (player: LivePlayer) =>
     heroes.find((hero) => hero.id === player.heroId || (!!player.heroName && hero.name === player.heroName));
+  // A note written in a card keeps the live match, the player's hero and side.
+  const noteContext = (accountId: string): NoteContext | undefined => {
+    const player = live.players?.find((item) => item.accountId === accountId);
+    if (!live.matchId || live.matchId === '0' || !player) return undefined;
+    return {
+      matchId: live.matchId,
+      heroId: heroOf(player)?.id,
+      ally: selfTeam && player.team ? player.team === selfTeam : undefined,
+    };
+  };
   const livePicks = visibleDraftPicks(live, connected, draftNow);
   const liveBans = visibleDraftBans(live, connected, draftNow);
   const liveHovers = visibleDraftHovers(live, connected, draftNow);
@@ -1135,6 +1150,9 @@ export function MatchScreen({
                                       error={entry?.error}
                                       met={met}
                                       heroes={heroes}
+                                      history={ownHistory}
+                                      context={noteContext(player.accountId)}
+                                      openNotes={openNotes}
                                       onOpen={() => {
                                         hide();
                                         setSelected(player.accountId);
@@ -1183,7 +1201,7 @@ export function MatchScreen({
                                     <span
                                       title={`${note.text}
 
-Note of ${noteDate(note.updatedAt)}`}
+${noteCount(note.entries.length)} · latest of ${noteDate(note.updatedAt)}`}
                                       className="note-marker"
                                     >
                                       <Bookmark size={15} fill="currentColor" />
@@ -1404,6 +1422,9 @@ Note of ${noteDate(note.updatedAt)}`}
           totals={(id) => entries[id]?.result?.total}
           noteOf={(id) => notes.find((note) => note.accountId === id)}
           ownId={ownAccountId}
+          ownHistory={ownHistory}
+          contextOf={noteContext}
+          openNotes={openNotes}
           close={() => setSelected(undefined)}
         />
       )}

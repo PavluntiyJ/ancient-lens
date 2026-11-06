@@ -67,8 +67,8 @@ it('keeps the card inside the window at any zoom', () => {
   expect(rule('.player-card')).toContain('max-height: calc(90vh / var(--zoom, 1))');
 });
 
-// The generic empty state (.empty, 28px padding) must not turn "Add note" into a tall block.
-it('keeps an empty note one line high', () => {
+// The notes sit inside the card's padding like the other blocks.
+it('keeps the notes inside the card padding', () => {
   const css = readFileSync(new URL('../src/ui/styles.css', import.meta.url), 'utf8');
-  expect(css).toMatch(/\n\.player-card \.card-note-view\.empty \{[^}]*padding: 8px 12px;/);
+  expect(css).toMatch(/\n\.player-card > \.note-thread,\n\.player-card > \.error-text \{[^}]*margin: 10px 16px 0;/);
 });

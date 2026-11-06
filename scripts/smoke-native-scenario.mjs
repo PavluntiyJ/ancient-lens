@@ -2374,11 +2374,18 @@ try {
   assert.equal((await call('getState')).skippedVersion, nextVersion);
   assert.equal((await call('getRelease')).latest.version, laterVersion);
   await call('addMmr', 5000);
-  await call('saveNote', { accountId: '2', name: 'Second', text: 'Native IPC persistence', tag: 'neutral' });
+  await call('addNote', { accountId: '2', name: 'Second', text: 'Native IPC persistence' });
+  await call('addNote', { accountId: '2', name: '', text: 'A second note on top' });
   const saved = JSON.parse(await readFile(join(directory, 'state.json'), 'utf8'));
   assert.equal(saved.token, token);
   assert.equal(saved.mmr.at(-1).value, 5000);
   assert.equal(saved.notes.length, 2);
+  // A note of an older version became the first note of its player; a new one goes on top.
+  assert.deepEqual(
+    saved.notes.map((note) => note.entries.map((entry) => entry.text)),
+    [['A second note on top', 'Native IPC persistence'], ['Keep this note']],
+  );
+  assert.equal(saved.notes[0].name, 'Second');
   assert.equal(
     JSON.parse(await readFile(join(directory, 'state.pre-tauri.json'), 'utf8')).notes[0].text,
     'Keep this note',

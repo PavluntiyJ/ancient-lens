@@ -2,7 +2,13 @@ import { expect, it } from 'vitest';
 import type { Note } from '../src/shared/domain';
 import { Announcer, notedPlayers } from '../src/shared/encounters';
 
-const note = (accountId: string, tag: Note['tag']): Note => ({ accountId, name: '', text: 'x', tag, updatedAt: '' });
+const note = (accountId: string, _older?: string): Note => ({
+  accountId,
+  name: '',
+  text: 'x',
+  updatedAt: '',
+  entries: [{ id: accountId, text: 'x', at: '' }],
+});
 
 it('finds players with a note of any older type as one kind, never the own account', () => {
   const found = notedPlayers(['1', '55', '66', '88', '99'], '1', [

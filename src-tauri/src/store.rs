@@ -7,6 +7,10 @@ use std::{
 pub type Result<T> = std::result::Result<T, String>;
 /// Removed menu entries that are still remembered; far above any real number of accounts.
 const MAX_HIDDEN_PROFILES: usize = 256;
+/// Most notes kept about one player.
+const MAX_NOTE_ENTRIES: usize = 500;
+/// A note written this long after a recorded match with the player still belongs to it.
+const NOTE_AFTER_MATCH: i64 = 15 * 60;
 pub fn now() -> String {
     chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
 }
@@ -254,6 +258,9 @@ impl Store {
             atomic_json(&path, &data)?;
         }
         let matches = open_matches(&directory.join("matches.json"))?;
+        if migrate_notes(&mut data, &matches) {
+            atomic_json(&path, &data)?;
+        }
         Ok(Self {
             directory,
             data,
@@ -640,21 +647,75 @@ impl Store {
             "state:account" => {
                 next["accountId"] = json!(account_id(args["id"].as_str().unwrap_or(""))?)
             }
-            "note:save" => {
-                let mut note = args["note"].clone();
-                validate_note(&note)?;
-                note["accountId"] = json!(account_id(note["accountId"].as_str().unwrap_or(""))?);
+            // A note is added on top of the player's earlier ones, never in their place.
+            "note:add" => {
+                let input = &args["note"];
+                let id = account_id(input["accountId"].as_str().unwrap_or(""))?;
                 // The same words as SELF_NOTE in NoteEditor.tsx.
-                if note["accountId"] == next["accountId"] {
+                if next["accountId"] == id {
                     return Err("Why would you need a note about yourself? Everybody knows you are the best.".into());
                 }
-                note["name"] = json!(note["name"].as_str().unwrap().trim());
-                note["text"] = json!(note["text"].as_str().unwrap().trim());
-                note["updatedAt"] = json!(now());
+                let name = input["name"]
+                    .as_str()
+                    .map(str::trim)
+                    .filter(|name| name.chars().count() <= 80)
+                    .ok_or("Invalid note")?;
+                let text = input["text"].as_str().unwrap_or("").trim();
+                if text.is_empty() {
+                    return Err("Write a note.".into());
+                }
+                let mut entry =
+                    json!({"id":uuid::Uuid::new_v4().to_string(),"text":text,"at":now()});
+                for key in ["matchId", "heroId", "ally"] {
+                    if !input[key].is_null() {
+                        entry[key] = input[key].clone();
+                    }
+                }
+                validate_entry(&entry)?;
                 let notes = next["notes"].as_array_mut().unwrap();
-                notes.retain(|n| n["accountId"] != note["accountId"]);
+                let mut note = match notes.iter().position(|n| n["accountId"] == id) {
+                    Some(index) => notes.remove(index),
+                    None => json!({"accountId":id,"name":"","entries":[]}),
+                };
+                if !name.is_empty() {
+                    note["name"] = json!(name);
+                }
+                let entries = note["entries"].as_array_mut().unwrap();
+                if entries.len() >= MAX_NOTE_ENTRIES {
+                    return Err(format!(
+                        "Up to {MAX_NOTE_ENTRIES} notes per player are kept"
+                    ));
+                }
+                entries.insert(0, entry);
+                touch_note(&mut note);
                 notes.insert(0, note);
             }
+            "note:edit" => {
+                let (note, index) = note_entry(&mut next, args)?;
+                let text = args["text"].as_str().unwrap_or("").trim();
+                if text.is_empty() {
+                    return Err("Write a note.".into());
+                }
+                let entry = &mut note["entries"][index];
+                entry["text"] = json!(text);
+                entry["editedAt"] = json!(now());
+                validate_entry(entry)?;
+                touch_note(note);
+            }
+            "note:delete-entry" => {
+                let (note, index) = note_entry(&mut next, args)?;
+                note["entries"].as_array_mut().unwrap().remove(index);
+                if note["entries"].as_array().unwrap().is_empty() {
+                    let id = note["accountId"].clone();
+                    next["notes"]
+                        .as_array_mut()
+                        .unwrap()
+                        .retain(|n| n["accountId"] != id);
+                } else {
+                    touch_note(note);
+                }
+            }
+            // Every note about the player.
             "note:delete" => {
                 let id = account_id(args["id"].as_str().unwrap_or(""))?;
                 next["notes"]
@@ -731,19 +792,148 @@ fn open_matches(path: &Path) -> Result<Vec<Value>> {
         }
     }
 }
+/// A player's notes, newest first. `text`, `tag` and `updatedAt` repeat the newest note
+/// in the shape older versions read, so going back to one keeps the state file readable.
 fn validate_note(n: &Value) -> Result<()> {
     account_id(n["accountId"].as_str().unwrap_or(""))?;
+    let invalid = || Err("Invalid note".into());
     if n["name"]
         .as_str()
         .is_none_or(|s| s.trim().chars().count() > 80)
-        || n["text"]
+    {
+        return invalid();
+    }
+    if n.get("entries").is_none() {
+        // A note of an older version, migrated on open.
+        if n["text"]
             .as_str()
             .is_none_or(|s| s.trim().is_empty() || s.trim().chars().count() > 2000)
-        || !["neutral", "teammate", "avoid"].contains(&n["tag"].as_str().unwrap_or(""))
-    {
-        return Err("Invalid note".into());
+            || !["neutral", "teammate", "avoid"].contains(&n["tag"].as_str().unwrap_or(""))
+        {
+            return invalid();
+        }
+        return Ok(());
+    }
+    let Some(entries) = n["entries"]
+        .as_array()
+        .filter(|rows| !rows.is_empty() && rows.len() <= MAX_NOTE_ENTRIES)
+    else {
+        return invalid();
+    };
+    for entry in entries {
+        validate_entry(entry)?;
     }
     Ok(())
+}
+fn validate_entry(e: &Value) -> Result<()> {
+    let text = |key: &str, max: usize| {
+        e[key]
+            .as_str()
+            .is_some_and(|s| !s.trim().is_empty() && s.trim().chars().count() <= max)
+    };
+    let valid = e["id"]
+        .as_str()
+        .is_some_and(|id| uuid::Uuid::parse_str(id).is_ok())
+        && text("text", 2000)
+        && text("at", 40)
+        && (e["editedAt"].is_null() || text("editedAt", 40))
+        && (e["matchId"].is_null() || e["matchId"].as_u64().is_some_and(|id| id > 0))
+        && (e["heroId"].is_null()
+            || e["heroId"]
+                .as_u64()
+                .is_some_and(|id| (1..=1000).contains(&id)))
+        && (e["ally"].is_null() || e["ally"].is_boolean());
+    if valid {
+        Ok(())
+    } else {
+        Err("Invalid note".into())
+    }
+}
+/// The note `args` names by player and note ID, and its place among the player's notes.
+fn note_entry<'a>(state: &'a mut Value, args: &Value) -> Result<(&'a mut Value, usize)> {
+    let id = account_id(args["accountId"].as_str().unwrap_or(""))?;
+    let entry = args["entryId"].as_str().ok_or("Invalid note")?;
+    let note = state["notes"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|n| n["accountId"] == id)
+        .ok_or("Note not found")?;
+    let index = note["entries"]
+        .as_array()
+        .and_then(|rows| rows.iter().position(|row| row["id"] == entry))
+        .ok_or("Note not found")?;
+    Ok((note, index))
+}
+/// Repeats the newest note in the fields older versions read.
+fn touch_note(note: &mut Value) {
+    note["text"] = note["entries"][0]["text"].clone();
+    note["tag"] = json!("neutral");
+    note["updatedAt"] = json!(now());
+}
+/// Turns each note of an older version into the first note of its player, linked to the
+/// recorded match it was written during or shortly after. Returns whether anything changed.
+fn migrate_notes(data: &mut Value, matches: &[Value]) -> bool {
+    let mut changed = false;
+    for note in data["notes"].as_array_mut().into_iter().flatten() {
+        if note.get("entries").is_some() {
+            continue;
+        }
+        let at = note["updatedAt"].as_str().unwrap_or("").to_owned();
+        let mut entry = json!({"id":uuid::Uuid::new_v4().to_string(),"text":note["text"],"at":at});
+        let written = chrono::DateTime::parse_from_rfc3339(&at).map(|t| t.timestamp());
+        if let (Some(id), Ok(written)) = (note["accountId"].as_str(), written) {
+            if let Some((match_id, hero, ally)) = note_match(id, written, matches) {
+                entry["matchId"] = json!(match_id);
+                if let Some(hero) = hero {
+                    entry["heroId"] = json!(hero);
+                }
+                entry["ally"] = json!(ally);
+            }
+        }
+        note["entries"] = json!([entry]);
+        note["tag"] = json!("neutral");
+        changed = true;
+    }
+    changed
+}
+/// The recorded match a note about `account` written at `written` (Unix seconds) belongs
+/// to: the player was in it, and the note came during the match or shortly after its end.
+/// Returns the match ID, the player's hero when known, and whether they were an ally.
+fn note_match(account: &str, written: i64, matches: &[Value]) -> Option<(u64, Option<u64>, bool)> {
+    let id = account.parse::<u64>().ok()?;
+    matches
+        .iter()
+        .filter_map(|m| {
+            let start = m["start_time"].as_i64()?;
+            let end = start + m["duration"].as_i64().unwrap_or(0);
+            if written < start || written > end + NOTE_AFTER_MATCH {
+                return None;
+            }
+            let side = |key: &str| {
+                m[key]
+                    .as_array()
+                    .and_then(|rows| rows.iter().find(|p| p["id"] == id))
+                    .map(|p| p["hero"].as_u64())
+            };
+            let found = if let Some(hero) = side("allies") {
+                Some((hero, true))
+            } else if let Some(hero) = side("enemies") {
+                Some((hero, false))
+            } else {
+                let radiant = m["player_slot"].as_u64().map(|slot| slot < 128);
+                m["lineup"]
+                    .as_array()
+                    .and_then(|rows| rows.iter().find(|p| p["id"] == id))
+                    .and_then(|p| {
+                        Some((p["hero_id"].as_u64(), p["radiant"].as_bool()? == radiant?))
+                    })
+            }?;
+            Some((end, m["match_id"].as_u64()?, found))
+        })
+        // The match that ended closest to the note.
+        .min_by_key(|(end, _, _)| (written - end).abs())
+        .map(|(_, match_id, (hero, ally))| (match_id, hero, ally))
 }
 /// The last confirmed reading kept for display while Dota is closed; never a live value.
 fn snapshot(observation: &crate::own_account::Observation) -> Option<Value> {
@@ -1111,8 +1301,8 @@ mod tests {
         let mut s = Store::open(dir.path().into()).unwrap();
         let token = s.token();
         s.change(
-            "note:save",
-            &json!({"note":{"accountId":"123","name":"Test","text":"keep","tag":"avoid"}}),
+            "note:add",
+            &json!({"note":{"accountId":"123","name":"Test","text":"keep"}}),
         )
         .unwrap();
         let before = s.public();
@@ -1130,14 +1320,199 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let mut s = Store::open(dir.path().into()).unwrap();
         s.change("state:account", &json!({"id":"123"})).unwrap();
-        let note =
-            |id: &str| json!({"note":{"accountId":id,"name":"Me","text":"best","tag":"neutral"}});
+        let note = |id: &str| json!({"note":{"accountId":id,"name":"Me","text":"best"}});
         assert!(s
-            .change("note:save", &note("123"))
+            .change("note:add", &note("123"))
             .unwrap_err()
             .contains("note about yourself"));
-        s.change("note:save", &note("456")).unwrap();
+        s.change("note:add", &note("456")).unwrap();
         assert_eq!(s.public()["notes"].as_array().unwrap().len(), 1);
+    }
+    #[test]
+    fn notes_are_added_on_top_and_edited_or_deleted_one_by_one() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut s = Store::open(dir.path().into()).unwrap();
+        let add = |text: &str, extra: Value| {
+            let mut note = json!({"accountId":"456","name":"Kestrel","text":text});
+            for (key, value) in extra.as_object().unwrap() {
+                note[key] = value.clone();
+            }
+            json!({ "note": note })
+        };
+        s.change("note:add", &add("good support", json!({})))
+            .unwrap();
+        let state = s
+            .change(
+                "note:add",
+                &add(
+                    " tilted today ",
+                    json!({"matchId":9077798618u64,"heroId":100,"ally":true}),
+                ),
+            )
+            .unwrap();
+        let note = &state["notes"][0];
+        let entries = note["entries"].as_array().unwrap();
+        assert_eq!(entries.len(), 2, "the earlier note stays");
+        assert_eq!(
+            (
+                &entries[0]["text"],
+                &entries[0]["matchId"],
+                &entries[0]["heroId"],
+                &entries[0]["ally"]
+            ),
+            (
+                &json!("tilted today"),
+                &json!(9077798618u64),
+                &json!(100),
+                &json!(true)
+            )
+        );
+        assert!(entries[1].get("matchId").is_none());
+        // Older versions read the newest note from these fields.
+        assert_eq!(
+            (&note["text"], &note["tag"]),
+            (&json!("tilted today"), &json!("neutral"))
+        );
+        validate(&s.data).unwrap();
+        // An empty name keeps the one saved earlier.
+        let state = s
+            .change(
+                "note:add",
+                &json!({"note":{"accountId":"456","name":"","text":"third"}}),
+            )
+            .unwrap();
+        assert_eq!(state["notes"][0]["name"], "Kestrel");
+        for bad in [
+            json!({"matchId":0}),
+            json!({"heroId":"Tusk"}),
+            json!({"ally":"yes"}),
+        ] {
+            assert!(s.change("note:add", &add("x", bad)).is_err());
+        }
+        assert_eq!(
+            s.change("note:add", &add("   ", json!({}))).unwrap_err(),
+            "Write a note."
+        );
+        let first = s.public()["notes"][0]["entries"][2]["id"].clone();
+        let state = s
+            .change(
+                "note:edit",
+                &json!({"accountId":"456","entryId":first,"text":"great support"}),
+            )
+            .unwrap();
+        let edited = &state["notes"][0]["entries"][2];
+        assert_eq!(edited["text"], "great support");
+        assert!(edited["editedAt"].is_string());
+        assert_eq!(
+            state["notes"][0]["text"], "third",
+            "the newest note is unchanged"
+        );
+        assert_eq!(
+            s.change(
+                "note:edit",
+                &json!({"accountId":"456","entryId":"nope","text":"x"})
+            )
+            .unwrap_err(),
+            "Note not found"
+        );
+        // Deleting the newest note shows the next one; deleting the last removes the player.
+        let ids: Vec<Value> = s.public()["notes"][0]["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|e| e["id"].clone())
+            .collect();
+        let state = s
+            .change(
+                "note:delete-entry",
+                &json!({"accountId":"456","entryId":ids[0]}),
+            )
+            .unwrap();
+        assert_eq!(state["notes"][0]["text"], "tilted today");
+        for id in &ids[1..] {
+            s.change(
+                "note:delete-entry",
+                &json!({"accountId":"456","entryId":id}),
+            )
+            .unwrap();
+        }
+        assert!(s.public()["notes"].as_array().unwrap().is_empty());
+        // The whole player at once.
+        s.change("note:add", &add("again", json!({}))).unwrap();
+        s.change("note:delete", &json!({"id":"456"})).unwrap();
+        assert!(s.public()["notes"].as_array().unwrap().is_empty());
+    }
+    #[test]
+    fn a_player_keeps_at_most_500_notes() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut s = Store::open(dir.path().into()).unwrap();
+        let entries: Vec<Value> = (0..MAX_NOTE_ENTRIES)
+            .map(|_| json!({"id":uuid::Uuid::new_v4().to_string(),"text":"x","at":now()}))
+            .collect();
+        s.data["notes"] = json!([{"accountId":"456","name":"","entries":entries,"text":"x","tag":"neutral","updatedAt":now()}]);
+        validate(&s.data).unwrap();
+        assert!(s
+            .change(
+                "note:add",
+                &json!({"note":{"accountId":"456","name":"","text":"one more"}})
+            )
+            .unwrap_err()
+            .contains("500"));
+    }
+    #[test]
+    fn older_notes_become_the_first_note_linked_to_their_match() {
+        let dir = tempfile::tempdir().unwrap();
+        let live = json!({"mode":"player","status":"connected","matchId":"8012345678","gameState":"DOTA_GAMERULES_STATE_POST_GAME",
+            "clock":2400,"winTeam":"dire","players":[{"key":"self","team":"dire","teamSlot":2,"accountId":"123","heroId":74,"kills":9}]});
+        let mut row = crate::journal::record(&live, "2026-10-23T20:00:00.000Z").unwrap();
+        row["allies"] = json!([{"id":456,"hero":7}]);
+        row["lineup"] = json!([{"radiant":false,"own":true,"hero_id":74},{"radiant":true,"id":789,"hero_id":3}]);
+        crate::journal::validate(&row).unwrap();
+        let end = row["start_time"].as_i64().unwrap() + row["duration"].as_i64().unwrap();
+        let at = |seconds: i64| {
+            chrono::DateTime::from_timestamp(seconds, 0)
+                .unwrap()
+                .to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
+        };
+        atomic_json(
+            &dir.path().join("matches.json"),
+            &json!({"version":1,"matches":[row]}),
+        )
+        .unwrap();
+        let legacy = |id: &str, written: i64| json!({"accountId":id,"name":"P","text":"remember","tag":"avoid","updatedAt":at(written)});
+        let mut state = Store::open(dir.path().into()).unwrap().data;
+        state["notes"] = json!([
+            legacy("456", end + 5 * 60),
+            legacy("789", end - 600),
+            legacy("456", end + 20 * 60),
+            legacy("999", end),
+        ]);
+        state["notes"][2]["accountId"] = json!("457");
+        atomic_json(&dir.path().join("state.json"), &state).unwrap();
+        let s = Store::open(dir.path().into()).unwrap();
+        let notes = s.public()["notes"].as_array().unwrap().clone();
+        let entry = |i: usize| notes[i]["entries"][0].clone();
+        // Written five minutes after the match, about an ally.
+        assert_eq!(
+            (&entry(0)["matchId"], &entry(0)["heroId"], &entry(0)["ally"]),
+            (&json!(8012345678u64), &json!(7), &json!(true))
+        );
+        assert_eq!(
+            (&entry(0)["text"], &entry(0)["at"]),
+            (&json!("remember"), &json!(at(end + 5 * 60)))
+        );
+        assert_eq!(notes[0]["tag"], "neutral");
+        // During the match, an enemy known only from the lineup.
+        assert_eq!(
+            (&entry(1)["matchId"], &entry(1)["heroId"], &entry(1)["ally"]),
+            (&json!(8012345678u64), &json!(3), &json!(false))
+        );
+        // Another player, and a player not in the match, stay without a match.
+        assert!(entry(2).get("matchId").is_none() && entry(3).get("matchId").is_none());
+        validate(&s.data).unwrap();
+        // The migration is saved once and kept.
+        let again = Store::open(dir.path().into()).unwrap();
+        assert_eq!(again.public()["notes"], s.public()["notes"]);
     }
     #[test]
     fn corrupt_state_is_not_overwritten() {

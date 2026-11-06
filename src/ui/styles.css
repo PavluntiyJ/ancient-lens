@@ -2333,13 +2333,9 @@ td small {
   letter-spacing: 0.5px;
   text-transform: uppercase;
 }
-.player-card > .card-note,
+.player-card > .note-thread,
 .player-card > .error-text {
   margin: 10px 16px 0;
-}
-/* Overrides the generic empty state (.empty), which would make "Add note" a tall block. */
-.player-card .card-note-view.empty {
-  padding: 8px 12px;
 }
 .card-list-head {
   display: flex;
@@ -4413,37 +4409,6 @@ article.player-card {
   font-size: 13px;
   margin-bottom: 6px;
 }
-.notes-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(300px, 1fr);
-  gap: 12px;
-  align-items: start;
-}
-.note-card {
-  padding: 14px 0;
-  border-bottom: 1px solid var(--line);
-}
-.note-card .section-title {
-  margin-bottom: 8px;
-}
-.note-card small {
-  display: block;
-  color: var(--muted);
-}
-.note-card p {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  color: var(--text-2);
-}
-.note-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-}
-.note-actions > .icon-button {
-  margin-left: auto;
-}
 .live-layout {
   display: grid;
   grid-template-columns: 1.4fr 1fr;
@@ -4484,7 +4449,6 @@ article.player-card {
 
 /* The match viewport fits the roster and both carousels together. */
 @container app-layout (max-width: 900px) {
-  .notes-layout,
   .live-layout,
   .draft-layout {
     grid-template-columns: 1fr;
@@ -5131,18 +5095,6 @@ article.player-card {
   border-left: 3px solid var(--gold);
   background: color-mix(in srgb, var(--gold) 5%, var(--surface));
 }
-.preview-note .card-note-view {
-  min-height: 84px;
-  padding: 12px 14px;
-}
-.preview-note .card-note-form {
-  padding: 10px 12px;
-}
-.preview-note:has(.card-note-view.empty) {
-  border: 1px dashed color-mix(in srgb, var(--gold) 35%, transparent);
-  border-left: 3px solid color-mix(in srgb, var(--gold) 60%, transparent);
-  background: none;
-}
 .preview-note .player-note {
   margin: 0;
   padding: 0;
@@ -5398,82 +5350,6 @@ article.player-card {
 .tip-negative {
   color: var(--loss);
 }
-/* Note of a player in the player card (NoteEditor.tsx). */
-.card-note {
-  display: grid;
-  justify-items: start;
-  gap: 6px;
-}
-.card-note-view {
-  align-content: center;
-  border-radius: 4px;
-  cursor: pointer;
-}
-.card-note-view:hover,
-.card-note-view:focus-visible {
-  background: color-mix(in srgb, var(--gold) 7%, transparent);
-  outline: none;
-}
-.card-note-view.empty {
-  justify-items: center;
-}
-/* No note about oneself: the hint gives way to a compliment under the pointer. Both share
-   one cell, so the block keeps its height when they swap. */
-.card-note-view.self-note {
-  cursor: default;
-}
-.self-note-say {
-  display: grid;
-  place-items: center;
-}
-.self-note-say > * {
-  grid-area: 1 / 1;
-}
-.self-note-joke,
-.self-note:is(:hover, :focus-visible) .card-note-hint {
-  visibility: hidden;
-}
-.self-note-joke {
-  color: var(--gold);
-  font-size: 14px;
-  text-align: center;
-}
-.self-note:is(:hover, :focus-visible) .self-note-joke {
-  visibility: visible;
-}
-.card-note-hint {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--accent-light);
-  font-size: 13px;
-}
-.card-note-view.empty .card-note-hint {
-  color: var(--muted);
-  font-size: 14px;
-}
-.card-note-hint .note-date {
-  color: var(--muted);
-}
-.card-note-form {
-  justify-items: stretch;
-}
-.card-note-form textarea {
-  width: 100%;
-  resize: vertical;
-}
-.card-note-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.card-note-actions .danger-button {
-  margin-left: auto;
-}
-.card-note-actions select {
-  height: 32px;
-  padding-block: 0;
-}
 /* Rebindable shortcuts: one row per action, keycaps before the change button. */
 .shortcut-list {
   display: flex;
@@ -5585,14 +5461,10 @@ article.player-card {
   font-size: 12px;
   white-space: nowrap;
 }
-/* Note marker in the player row: the note's date in its title. */
+/* Note marker in the player row: the newest note, the count and its date in its title. */
 .note-marker {
   display: inline-flex;
   flex-shrink: 0;
-}
-.note-date {
-  color: var(--muted);
-  font-size: 12px;
 }
 .preview-sites {
   margin-left: auto;
@@ -5638,4 +5510,441 @@ article.player-card {
 .profile-account-pick > span {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+/* Notes of a player in a match card (NoteEditor.tsx): newest first, "Add note" on top. */
+.note-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.note-thread-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text-2);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.note-thread-head small {
+  color: var(--muted);
+  letter-spacing: normal;
+  text-transform: none;
+}
+.note-thread-head .text-button {
+  font-size: 13px;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.note-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent-light);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.note-add:hover,
+.note-add:focus-visible {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.note-compose {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.note-compose textarea {
+  width: 100%;
+  resize: none;
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.note-compose-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.note-compose-actions small {
+  flex: 1;
+  color: var(--muted);
+}
+.note-entries {
+  display: flex;
+  flex-direction: column;
+  max-height: 260px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.note-entries li {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+  --portrait: 40px;
+}
+.note-entries .portrait {
+  margin-top: 2px;
+}
+.note-meta {
+  color: var(--text-2);
+  font-size: 12px;
+}
+.note-entries p {
+  margin: 2px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+.preview-note .note-thread {
+  padding: 12px 14px;
+}
+/* No note about oneself: the hint gives way to a compliment under the pointer. Both share
+   one cell, so the block keeps its height when they swap. */
+.note-thread.self-note {
+  cursor: default;
+}
+.self-note-say {
+  display: grid;
+  place-items: center;
+  min-height: 40px;
+}
+.self-note-say > * {
+  grid-area: 1 / 1;
+}
+.note-add-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.self-note-joke,
+.self-note:is(:hover, :focus-visible) .note-add-hint {
+  visibility: hidden;
+}
+.self-note-joke {
+  color: var(--gold);
+  font-size: 14px;
+  text-align: center;
+}
+.self-note:is(:hover, :focus-visible) .self-note-joke {
+  visibility: visible;
+}
+
+/* Notes page (LocalTools.tsx): players beside the dossier of one of them. */
+.notes-page {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+}
+.notes-players {
+  display: flex;
+  flex: 1 1 280px;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 360px;
+  min-width: 0;
+}
+.notes-players-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.notes-players-head h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.notes-players-head small,
+.notes-empty {
+  color: var(--muted);
+  font-size: 13px;
+}
+.notes-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.notes-page .chip {
+  padding: 5px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 13px;
+  cursor: pointer;
+}
+.notes-page .chip[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent-light);
+}
+.notes-start {
+  align-self: flex-start;
+}
+.notes-player-list {
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+  list-style: none;
+}
+.notes-player-list button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.notes-player-list button:hover {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+.notes-player-list button[aria-current='true'] {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.notes-player-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.notes-player-text > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.notes-player-text b {
+  font-size: 15px;
+  font-weight: 600;
+}
+.notes-player-text span {
+  color: var(--text-2);
+  font-size: 13px;
+}
+.notes-player-text small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.notes-player-faces {
+  display: flex;
+  gap: 3px;
+  --portrait: 34px;
+}
+.notes-dossier {
+  display: flex;
+  flex: 999 1 520px;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.notes-dossier-empty {
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+.notes-dossier-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.notes-dossier-head h1 {
+  margin: 0 0 4px;
+  font-size: 26px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.notes-dossier-head small {
+  color: var(--text-2);
+  font-size: 13px;
+}
+.notes-met {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.notes-met > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+}
+.notes-met span {
+  color: var(--text-2);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.notes-met b {
+  font-size: 20px;
+  font-weight: 600;
+}
+.notes-add {
+  align-self: flex-start;
+  border-style: solid;
+}
+.notes-compose {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  border-radius: 8px;
+  background: var(--bg);
+}
+.notes-compose textarea {
+  resize: vertical;
+}
+.notes-compose-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.notes-compose-actions .spacer {
+  flex: 1;
+}
+.notes-timeline {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.notes-timeline > li {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 14px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+.notes-when {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--text-2);
+  font-size: 13px;
+}
+.notes-when small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.notes-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.notes-entry p {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.notes-match {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-2);
+  font-size: 13px;
+  --portrait: 44px;
+}
+.notes-match b {
+  color: var(--text);
+  font-weight: 600;
+}
+.notes-match a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  --portrait: 32px;
+}
+.notes-match b.green {
+  color: var(--win);
+}
+.notes-match b.error-text {
+  color: var(--loss);
+}
+.notes-general {
+  font-size: 13px;
+}
+.side-pill {
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+.side-pill.ally {
+  background: color-mix(in srgb, var(--radiant) 12%, transparent);
+  color: var(--radiant);
+}
+.side-pill.enemy {
+  background: color-mix(in srgb, var(--dire) 12%, transparent);
+  color: var(--dire);
+}
+.notes-entry-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.notes-entry-actions .text-button {
+  padding-inline: 0 6px;
+  font-size: 13px;
+}
+.notes-entry-actions .danger-text {
+  color: color-mix(in srgb, var(--dire) 70%, transparent);
+}
+.notes-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.notes-edit textarea {
+  resize: vertical;
+}
+/* Site links in the dossier: one row of small labelled buttons, as beside a page title. */
+.notes-dossier-head .player-sites.labelled {
+  display: flex;
+  flex-wrap: wrap;
+  width: auto;
+}
+.notes-dossier-head .player-sites.labelled .player-site {
+  display: inline-flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-color: var(--line-strong);
+  background: transparent;
+  font-size: 13px;
+}
+.notes-dossier-head .player-sites.labelled .player-site img {
+  width: 16px;
+  height: 16px;
 }

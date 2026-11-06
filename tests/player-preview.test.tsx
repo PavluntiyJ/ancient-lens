@@ -90,7 +90,13 @@ it('keeps the note and earlier meetings for a private profile, with unknowns as 
     <PlayerPreview
       name="Kestrel"
       summary={summary([], { isPublic: false })}
-      note={{ accountId: '55', name: '', text: 'Feeds mid', tag: 'avoid', updatedAt: '' }}
+      note={{
+        accountId: '55',
+        name: '',
+        text: 'Feeds mid',
+        updatedAt: '',
+        entries: [{ id: 'e', text: 'Feeds mid', at: '' }],
+      }}
       met={met}
       heroes={heroes}
     />,
