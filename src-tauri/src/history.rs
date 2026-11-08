@@ -21,7 +21,7 @@ impl Request {
     }
 }
 pub fn query(request: &Request) -> String {
-    format!("{{ player(steamAccountId:{}) {{ steamAccountId steamAccount {{ name avatar countryCode seasonRank seasonLeaderboardRank isAnonymous proSteamAccount {{ name }} }} matches(request:{{take:25,skip:{},playerList:ALL}}) {{ id endDateTime durationSeconds didRadiantWin gameMode lobbyType rank players {{ steamAccountId steamAccount {{ name }} heroId isRadiant kills deaths assists goldPerMinute experiencePerMinute role position numLastHits numDenies networth heroDamage towerDamage heroHealing imp }} }} }} }}", request.id, request.offset)
+    format!("{{ player(steamAccountId:{}) {{ steamAccountId steamAccount {{ name avatar countryCode seasonRank seasonLeaderboardRank isAnonymous proSteamAccount {{ name }} }} matches(request:{{take:25,skip:{},playerList:ALL}}) {{ id endDateTime durationSeconds didRadiantWin gameMode lobbyType rank players {{ steamAccountId steamAccount {{ name }} heroId isRadiant kills deaths assists goldPerMinute experiencePerMinute role position numLastHits numDenies networth heroDamage towerDamage heroHealing imp partyId }} }} }} }}", request.id, request.offset)
 }
 pub fn page(row: &Value, request: &Request) -> Result<Value> {
     if row["steamAccountId"]
@@ -64,6 +64,9 @@ pub fn page(row: &Value, request: &Request) -> Result<Value> {
             if let Some(rank) = rank_tier(&m["rank"]) {
                 row["average_rank"] = json!(rank);
             }
+            if let Some(size) = party_size(&m["players"], p, "isRadiant", "partyId") {
+                row["party_size"] = json!(size);
+            }
             Some(row)
         })();
         if let Some(m) = parsed {
@@ -93,6 +96,25 @@ pub fn rank_tier(value: &Value) -> Option<u64> {
     value
         .as_u64()
         .filter(|v| *v == 80 || ((1..=7).contains(&(v / 10)) && v % 10 <= 5))
+}
+/// Players who queued together with `own`, `own` included: teammates with its party ID
+/// (`party` names the field, `side` the team flag). A player without an ID while others in
+/// the match have one queued alone. `None` when no player has an ID, because then a solo
+/// queue cannot be told from a party the provider did not record, and for an impossible count.
+pub fn party_size(players: &Value, own: &Value, side: &str, party: &str) -> Option<u64> {
+    let players = players.as_array()?;
+    if players.iter().all(|p| p[party].as_u64().is_none()) {
+        return None;
+    }
+    let Some(id) = own[party].as_u64() else {
+        return Some(1);
+    };
+    let radiant = own[side].as_bool()?;
+    let size = players
+        .iter()
+        .filter(|p| p[side].as_bool() == Some(radiant) && p[party].as_u64() == Some(id))
+        .count() as u64;
+    Some(size).filter(|size| (1..=5).contains(size))
 }
 /// Kills and deaths of one team, summed over its five players (anonymous ones included),
 /// for kill and death participation; `None` unless all five report both. `side` names the
@@ -352,6 +374,39 @@ mod tests {
         assert!(page(&row, &request).unwrap()["matches"][0]
             .get("average_rank")
             .is_none());
+    }
+    #[test]
+    fn party_size_counts_teammates_with_the_own_party_id() {
+        let request = Request {
+            id: "1".into(),
+            offset: 0,
+        };
+        assert!(query(&request).contains("imp partyId }"));
+        let size = |parties: [Option<u64>; 10]| {
+            let players: Vec<Value> = parties
+                .iter()
+                .enumerate()
+                .map(|(i, party)| json!({"steamAccountId":i as u64 + 1,"heroId":i as u64 + 1,"isRadiant":i < 5,"partyId":party}))
+                .collect();
+            let row = json!({"steamAccountId":1,"matches":[{"id":10,"endDateTime":1700000000,"durationSeconds":1800,"players":players}]});
+            page(&row, &request).unwrap()["matches"][0]
+                .get("party_size")
+                .cloned()
+        };
+        let (a, b) = (Some(0), Some(1));
+        // Three on the own team; the same ID on the enemy team is another party.
+        assert_eq!(
+            size([a, a, None, a, b, a, a, None, None, None]),
+            Some(json!(3))
+        );
+        assert_eq!(size([b, a, a, None, None, b, b, b, b, b]), Some(json!(1)));
+        // No own ID while others have one: the player queued alone.
+        assert_eq!(
+            size([None, a, a, None, None, b, b, None, None, None]),
+            Some(json!(1))
+        );
+        // Nobody has an ID: not recorded, not solo.
+        assert_eq!(size([None; 10]), None);
     }
     #[test]
     fn team_totals_need_all_five_players_of_the_team() {

@@ -29,7 +29,7 @@ pub fn match_id(input: &str) -> Result<u64> {
         .ok_or_else(|| "Invalid match ID".into())
 }
 pub fn stratz_query(id: u64) -> String {
-    format!("{{ match(id:{id}) {{ id gameMode lobbyType rank players {{ steamAccountId heroId isRadiant kills deaths assists numLastHits numDenies networth heroDamage towerDamage heroHealing goldPerMinute experiencePerMinute imp role position }} }} }}")
+    format!("{{ match(id:{id}) {{ id gameMode lobbyType rank players {{ steamAccountId heroId isRadiant kills deaths assists numLastHits numDenies networth heroDamage towerDamage heroHealing goldPerMinute experiencePerMinute imp role position partyId }} }} }}")
 }
 
 fn player(radiant: Option<bool>, hero: &Value, account: &Value) -> Option<Map<String, Value>> {
@@ -40,6 +40,13 @@ fn player(radiant: Option<bool>, hero: &Value, account: &Value) -> Option<Map<St
         row.insert("account".into(), json!(id));
     }
     Some(row)
+}
+/// The provider's party ID of a player, for the party size (`history::party_size`); only
+/// compared within one match.
+fn party(row: &mut Map<String, Value>, id: &Value) {
+    if let Some(id) = id.as_u64() {
+        row.insert("party".into(), json!(id));
+    }
 }
 fn shape(id: u64, source: &str, mode: i64, lobby: i64, players: Vec<Value>) -> Result<Value> {
     // A match always has ten players; fewer means a partial or foreign response.
@@ -85,6 +92,7 @@ pub fn from_stratz(id: u64, m: &Value) -> Result<Value> {
             if let Some(role) = p["role"].as_str().filter(|v| v.len() <= 32) {
                 row.insert("role".into(), json!(role));
             }
+            party(&mut row, &p["partyId"]);
             Some(Value::Object(row))
         })
         .collect();
@@ -122,6 +130,7 @@ pub fn from_opendota(id: u64, m: &Value) -> Result<Value> {
             if let Some(lane) = p["lane_role"].as_u64().filter(|v| (1..=4).contains(v)) {
                 row.insert("lane_role".into(), json!(lane));
             }
+            party(&mut row, &p["party_id"]);
             Some(Value::Object(row))
         })
         .collect();
@@ -232,6 +241,16 @@ pub(crate) mod tests {
             (&p[1]["last_hits"], &p[1]["net_worth"]),
             (&json!(50), &json!(7000))
         );
+        assert!(p
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|p| p.get("party").is_none()));
+        let mut grouped = players.clone();
+        grouped[1]["partyId"] = json!(3);
+        let m = from_stratz(42, &json!({"id":42,"players":grouped})).unwrap();
+        assert_eq!(m["players"][1]["party"], 3);
+        assert!(stratz_query(42).contains("position partyId }"));
         assert!(from_stratz(42, &json!({"id":43,"players":[]})).is_err());
         assert!(stratz_query(42).contains("match(id:42)"));
         assert!(stratz_query(42).contains(" rank "));

@@ -4,6 +4,17 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 
 ## Unreleased
 
+### Added
+
+- The profile history has a **Type** column between **Hero** and **Time**: the game mode, the
+  lobby type (Ranked, Unranked, Battle Cup, Tournament or Lobby) and how many players queued
+  together, from STRATZ or OpenDota party data. It replaces the Mode column, which showed only
+  with all modes selected; matches without recorded party data show no party mark.
+
+### Fixed
+
+- All Random and Captains Draft matches from STRATZ are named instead of shown without a mode.
+
 ## 0.9.0 — November 6, 2026
 
 Several notes per player, each tied to its match, and a new Notes page. Existing notes are

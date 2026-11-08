@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { ArrowDown, ArrowUp, Coins } from 'lucide-react';
+import { ArrowDown, ArrowUp, Coins, User, Users } from 'lucide-react';
 import {
   formatDecimal,
   formatDuration,
@@ -8,7 +8,7 @@ import {
   type HeroAverageRow,
   type Match,
 } from '../../shared/domain';
-import { modeName } from '../../shared/history';
+import { gameModeName, lobbyName, partySize } from '../../shared/history';
 import { matchRanking } from '../../shared/match-rank';
 import { formatImp, impTier, impTiers } from '../../shared/performance';
 import type { HistorySort } from '../../shared/profile-history';
@@ -99,6 +99,56 @@ function StatValue({
   );
 }
 
+/** The party mark: one figure for a solo queue, a group with the count for a party. */
+function PartyMark({ size }: { size: number }) {
+  const Icon = size === 1 ? User : Users;
+  return (
+    <span className="profile-party" aria-label={size === 1 ? 'Solo' : `Party of ${size}`}>
+      <Icon size={11} aria-hidden="true" />
+      {size}
+    </span>
+  );
+}
+
+/** Game mode over lobby type and party size; each part only when the match data names it. */
+function GameType({ match }: { match: Match }) {
+  const mode = gameModeName(match);
+  const lobby = lobbyName(match);
+  const party = partySize(match);
+  if (!mode && !lobby && party === undefined) return <span className="muted">—</span>;
+  const main = mode ?? lobby?.name ?? '—';
+  const sub = mode ? lobby?.name : undefined;
+  return (
+    <span
+      className="profile-type"
+      {...tip(
+        <TipCard title="Game type" value={[lobby?.name, mode].filter(Boolean).join(' · ') || '—'}>
+          <p className="tip-verdict">
+            Lobby: <b>{lobby?.detail ?? 'not recorded'}</b>
+            <br />
+            Mode: <b>{mode ?? 'not recorded'}</b>
+            <br />
+            Party:{' '}
+            <b>
+              {party === undefined ? 'not recorded' : party === 1 ? 'solo queue' : `${party} players queued together`}
+            </b>
+          </p>
+          <p className="muted">Lobby, mode and party as the match data from STRATZ or OpenDota records them.</p>
+        </TipCard>,
+      )}
+    >
+      <span className="profile-type-main">{main}</span>
+      {(sub || party !== undefined) && (
+        <small>
+          {sub}
+          {sub && party !== undefined && <span className="profile-sep"> · </span>}
+          {party !== undefined && <PartyMark size={party} />}
+        </small>
+      )}
+    </span>
+  );
+}
+
 const columns: {
   key: string;
   label: string;
@@ -107,7 +157,7 @@ const columns: {
 }[] = [
   { key: 'date', label: 'Result', sort: 'date' },
   { key: 'hero', label: 'Hero', sort: 'hero' },
-  { key: 'mode', label: 'Mode', sort: 'mode', show: (view) => view.modes === 'all' },
+  { key: 'type', label: 'Type', sort: 'mode' },
   { key: 'duration', label: 'Time', sort: 'duration' },
   { key: 'kda', label: 'K / D / A', sort: 'kda' },
   { key: 'kp', label: 'KP', sort: 'kp' },
@@ -206,8 +256,8 @@ export function ProfileTable({
           </span>
         );
       }
-      case 'mode':
-        return modeName(match);
+      case 'type':
+        return <GameType match={match} />;
       case 'duration':
         return (
           <span

@@ -194,6 +194,8 @@ const history = Array.from({ length: 150 }, (_, k) => {
     position: position ? `POSITION_${position}` : null,
     game_mode: ability ? 18 : turbo ? 23 : 22,
     lobby_type: turbo || unranked || ability ? 0 : 7,
+    // Solo, duo, trio and a full stack; every tenth match without a recorded party.
+    ...(k % 10 !== 7 && { party_size: k % 23 === 11 ? 5 : k % 6 === 2 ? 2 : k % 14 === 5 ? 3 : 1 }),
     ...(k % 11 !== 10 && { average_rank: Math.max(10, Math.min(80, 62 + Math.round(noise('rank', ...key) * 9))) }),
   };
   return row;

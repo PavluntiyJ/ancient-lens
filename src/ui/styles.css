@@ -3328,6 +3328,30 @@ td small {
 .profile-sep {
   color: var(--faint);
 }
+.profile-table th[data-column='type'] {
+  width: 112px;
+}
+.profile-type {
+  display: inline-block;
+  max-width: 100%;
+  line-height: 1.15;
+}
+.profile-type-main {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.profile-type small {
+  display: block;
+  font-size: 11px;
+  color: var(--faint);
+}
+.profile-party {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--muted);
+}
 .profile-table td small {
   display: inline;
   color: var(--muted);

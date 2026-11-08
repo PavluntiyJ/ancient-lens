@@ -197,6 +197,13 @@ The profile shows a rank medal with confidence, an interactive MMR chart, positi
 match averages, and history with KP/DP, IMP, building damage, healing, measured MMR changes
 and site links. Statistics are coloured against OpenDota hero benchmarks.
 
+The **Type** column, between **Hero** and **Time**, shows the game mode over the lobby type
+(Ranked, Unranked, Battle Cup, Tournament, Lobby for a practice or custom lobby) and the party
+size: one figure for a solo queue, a group with the number of players who queued together.
+The party comes from the party data STRATZ or OpenDota keep for the match; when neither
+recorded a party, it is left out rather than shown as solo. Click the header to sort by lobby,
+mode and party.
+
 Filters cover period, hero, result, modes, position, duration, local start time and weekday,
 and patch; active filters show as chips with a Reset. Incomplete history is labelled and can
 be extended with **Load more history**. The match journal records your own matches from GSI,

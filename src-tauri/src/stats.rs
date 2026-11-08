@@ -80,6 +80,8 @@ pub(crate) fn mode(v: &Value) -> i64 {
             "CAPTAINS_MODE" => 2,
             "RANDOM_DRAFT" => 3,
             "SINGLE_DRAFT" => 4,
+            "ALL_RANDOM" => 5,
+            "CAPTAINS_DRAFT" => 16,
             "ALL_PICK" => 1,
             "ALL_PICK_RANKED" => 22,
             "TURBO" => 23,
@@ -93,8 +95,12 @@ pub(crate) fn lobby(v: &Value) -> i64 {
             "UNRANKED" => 0,
             "PRACTICE" => 1,
             "TOURNAMENT" => 2,
+            "COOP_VS_BOTS" => 4,
             "RANKED" => 7,
+            "SOLO_MID" => 8,
             "BATTLE_CUP" => 9,
+            // Valve and OpenDota number events 12; STRATZ names them only.
+            "EVENT" => 12,
             _ => -1,
         })
 }

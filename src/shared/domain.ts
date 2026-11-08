@@ -183,6 +183,9 @@ export const matchSchema = z.object({
   role: z.string().nullable().optional(),
   game_mode: z.number().optional(),
   lobby_type: z.number().optional(),
+  /** Own team's players who queued together, the player included (1 solo): STRATZ party IDs,
+   * OpenDota's party size. Absent when the provider recorded no party; a bad value is dropped. */
+  party_size: z.number().int().min(1).max(5).optional().catch(undefined),
   // STRATZ personal history only; absent values stay unknown rather than zero.
   last_hits: z.number().nullable().optional(),
   denies: z.number().nullable().optional(),

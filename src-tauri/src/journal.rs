@@ -24,7 +24,7 @@ const SCORES: [(&str, &str); 2] = [
     ("direScore", "dire_score"),
 ];
 /// What a match by ID adds to a record besides `STATS` (see `add_details`).
-const DETAILS: [&str; 10] = [
+const DETAILS: [&str; 11] = [
     "imp",
     "position",
     "role",
@@ -35,6 +35,7 @@ const DETAILS: [&str; 10] = [
     "team_deaths",
     "average_rank",
     "lineup",
+    "party_size",
 ];
 /// Records completed by an older version lack fields added since (rank, lineup); they are
 /// fetched again right away, and a record is at this version once a fetch kept its players.
@@ -381,6 +382,9 @@ pub fn add_details(row: &mut Value, details: &Value) -> bool {
     }
     for key in ["game_mode", "lobby_type", "average_rank"] {
         fill(row, key, &details[key]);
+    }
+    if let Some(size) = crate::history::party_size(&details["players"], &own, "radiant", "party") {
+        fill(row, "party_size", &json!(size));
     }
     let radiant = own["radiant"] == true;
     if let Some((kills, deaths)) =
@@ -906,10 +910,27 @@ mod tests {
             json!(["OpenDota"]),
             "a source is listed once"
         );
+        // The fixture records no parties: the party size stays unknown.
+        assert!(row.get("party_size").is_none());
         let mut other = fixture::record();
         other["hero_id"] = json!(9);
         assert!(!add_details(&mut other, &details));
         assert!(other.get("details").is_none());
+    }
+    #[test]
+    fn a_match_by_id_adds_the_party_size() {
+        use crate::match_details::{from_opendota, tests as fixture};
+        let mut source = fixture::opendota();
+        // Own player (Dire, index 8) with two teammates; Radiant shares the ID number.
+        for i in [0, 6, 8, 9] {
+            source["players"][i]["party_id"] = json!(5);
+        }
+        let mut row = fixture::record();
+        assert!(add_details(&mut row, &from_opendota(42, &source).unwrap()));
+        assert_eq!(row["party_size"], 3);
+        // Kept with the record in the merged history.
+        let history = json!({"accountId":"7","matches":[{"match_id":42,"start_time":1}]});
+        assert_eq!(merge(history, &[row])["matches"][0]["party_size"], 3);
     }
     #[test]
     fn a_later_fetch_adds_imp_to_a_kept_lineup() {

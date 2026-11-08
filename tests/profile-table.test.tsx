@@ -161,10 +161,35 @@ it('renders a match recorded only from the game with dashes and no cards', () =>
   expect(row.match(/data-tip/g)?.length ?? 0).toBeLessThanOrEqual(2);
 });
 
-it('hides optional columns and shows Mode only for all modes', () => {
+it('hides optional columns and always shows Type between Hero and Time', () => {
   const html = table([enigma], { view: { ...view, columns: { xpm: false, damage: true, lhdn: true } } });
   expect(html).not.toContain('data-column="xp_per_min"');
   expect(html).toContain('data-column="hero_damage"');
-  expect(html).not.toContain('data-column="mode"');
-  expect(table([enigma], { view: { ...view, modes: 'all' } })).toContain('data-column="mode"');
+  const head = text(html.slice(0, html.indexOf('</thead>')));
+  expect(head).toMatch(/Hero Type Time/);
+  expect(table([enigma], { view: { ...view, modes: 'all' } })).toContain('data-column="type"');
+});
+
+it('shows the mode over the lobby type and the party size', () => {
+  const cell = (match: Partial<Match>) => {
+    const html = table([{ ...enigma, ...match }]);
+    const start = html.indexOf('<td data-column="type"');
+    return html.slice(start, html.indexOf('</td>', start));
+  };
+  const ranked = cell({ game_mode: 22, lobby_type: 7, party_size: 3 });
+  expect(text(ranked)).toContain('All Pick Ranked · 3');
+  expect(ranked).toContain('aria-label="Party of 3"');
+  const solo = cell({ game_mode: 2, lobby_type: 9, party_size: 1 });
+  expect(text(solo)).toContain('Captains Mode Battle Cup · 1');
+  expect(solo).toContain('aria-label="Solo"');
+  // Lobby type 1 is a practice lobby, not a tournament.
+  expect(text(cell({ game_mode: 2, lobby_type: 1 }))).toContain('Captains Mode Lobby');
+  expect(text(cell({ game_mode: 2, lobby_type: 2 }))).toContain('Captains Mode Tournament');
+  // Unknown parts stay out instead of being guessed.
+  const unknownParty = cell({ game_mode: 23, lobby_type: 0 });
+  expect(text(unknownParty)).toContain('Turbo Unranked');
+  expect(unknownParty).not.toContain('profile-party');
+  expect(text(cell({ lobby_type: 7, local_only: true }))).toContain('Ranked');
+  expect(text(cell({ game_mode: -1 }))).toContain('—');
+  expect(cell({ party_size: 0 })).not.toContain('profile-party');
 });
