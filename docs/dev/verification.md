@@ -8,6 +8,7 @@ keys, local research archive, or running Dota game.
 | Command                                                                                      | Coverage                                                                |
 | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
 | `npm run check`                                                                              | TypeScript and Vitest: draft, roles, histories, accounts, state merging |
+| `npm run lint`                                                                               | Oxlint correctness rules and the React hooks rules                      |
 | `npm run format:check`                                                                       | Frontend/script formatting                                              |
 | `cargo fmt --manifest-path src-tauri/Cargo.toml --check`                                     | Rust formatting                                                         |
 | `npm run test:rust`                                                                          | Store, GSI, filters, history, service, synthetic readers, confidence    |

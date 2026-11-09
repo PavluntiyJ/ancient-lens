@@ -71,7 +71,7 @@ try {
                 log
                   .join('')
                   .split('\n')
-                  .find((line) => /Error[: \[]/.test(line)) || 'See scenario.log for the failure',
+                  .find((line) => /Error[: []/.test(line)) || 'See scenario.log for the failure',
             ),
           )
             .split('\n')[0]

@@ -17,6 +17,6 @@ it('makes the label and icon one keyboard target without a native title', () => 
 });
 
 it('states a source for every column', () => {
-  const infos = [...Object.values(rosterColumns).map((info) => (typeof info === 'function' ? info(30, 5) : info))];
+  const infos = Object.values(rosterColumns).map((info) => (typeof info === 'function' ? info(30, 5) : info));
   for (const info of infos) expect(info.source.length).toBeGreaterThan(5);
 });

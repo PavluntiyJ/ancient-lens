@@ -5,7 +5,6 @@ import type { Ranking } from '../shared/match-rank';
 import type { ChartPoint } from '../shared/mmr-chart';
 import type { LaneRow } from '../shared/lane-summary';
 import type { MetaPick } from '../shared/meta-picks';
-import { formatImp, impTier, impTiers } from '../shared/performance';
 import type { RoleGuess } from '../shared/role-guess';
 import { matchPosition, rankedRoles, type Position } from '../shared/roles';
 import { statBandLabels, type StatBand } from '../shared/stat-bands';
@@ -96,7 +95,12 @@ export function FrequentHeroTip({
       title={hero?.localized_name ?? 'Unknown hero'}
       rows={[
         ['Games', games],
-        ['Win rate', <span className={tone(rate - 50)}>{rate}%</span>],
+        [
+          'Win rate',
+          <span key="rate" className={tone(rate - 50)}>
+            {rate}%
+          </span>,
+        ],
       ]}
       note={pool}
     />
@@ -260,7 +264,7 @@ export function MmrPointTip({ point, match, hero }: { point: ChartPoint; match?:
           ? [
               [
                 'After match',
-                <span className="tip-match">
+                <span key="match" className="tip-match">
                   <Portrait hero={hero} />
                   {hero?.localized_name ?? `Hero #${match.hero_id}`}
                   {won !== null && <b className={won ? 'tip-positive' : 'tip-negative'}>{won ? 'Win' : 'Loss'}</b>}

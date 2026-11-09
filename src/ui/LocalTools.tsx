@@ -44,6 +44,8 @@ export function Notes({ local, update, focus }: LocalProps & { focus?: { id: str
   const [heroes, setHeroes] = useState<Hero[]>([]);
   const [error, setError] = useState('');
   const accounts = [...new Set([local.accountId, ...(local.profileAccounts ?? [])].filter(Boolean))];
+  // The account list is rebuilt on every render; the effect below follows its contents.
+  const accountKey = accounts.join();
   useEffect(() => {
     if (focus) setSelected(focus.id);
   }, [focus]);
@@ -56,12 +58,15 @@ export function Notes({ local, update, focus }: LocalProps & { focus?: { id: str
     // Notes are kept for every own account, so the saved matches of all of them count:
     // provider cache and match journal, never a new request.
     void Promise.all(
-      accounts.map((id) =>
-        api
-          .getHistory(id, 0, true)
-          .then((value) => (value?.accountId === id ? value.matches : []))
-          .catch(() => [] as Match[]),
-      ),
+      accountKey
+        .split(',')
+        .filter(Boolean)
+        .map((id) =>
+          api
+            .getHistory(id, 0, true)
+            .then((value) => (value?.accountId === id ? value.matches : []))
+            .catch(() => [] as Match[]),
+        ),
     ).then((lists) => {
       if (!current) return;
       const seen = new Set<number>();
@@ -70,7 +75,7 @@ export function Notes({ local, update, focus }: LocalProps & { focus?: { id: str
     return () => {
       current = false;
     };
-  }, [accounts.join(), local.journalRevision]);
+  }, [accountKey, local.journalRevision]);
   const met = useMemo(() => {
     const cache = new Map<string, Meetings | null>();
     return (id: string) => {

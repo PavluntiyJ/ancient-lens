@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   matchWon,
   type Hero,
@@ -129,8 +129,10 @@ function OwnProfileContent({
     setIdentityError('');
     void refreshIdentity();
     return () => {
+      // oxlint-disable-next-line react/exhaustive-deps -- a counter, not a DOM ref: the cleanup must bump its current value.
       identityGeneration.current++;
     };
+    // oxlint-disable-next-line react/exhaustive-deps -- a new account loads its identity once; refreshIdentity is rebuilt every render.
   }, [local.accountId]);
   async function load(offset = 0) {
     if (!local.accountId || loading.current) return;
@@ -187,6 +189,7 @@ function OwnProfileContent({
         }
       });
     return () => {
+      // oxlint-disable-next-line react/exhaustive-deps -- a counter, not a DOM ref: the cleanup must bump its current value.
       generation.current++;
       mounted.current = false;
       loading.current = false;
@@ -218,6 +221,7 @@ function OwnProfileContent({
         if (mounted.current && token === generation.current && value) setHistory(value);
       })
       .catch(() => {});
+    // oxlint-disable-next-line react/exhaustive-deps -- only a journal change reloads; an account change has its own load above.
   }, [journal]);
 
   const data = history?.accountId === local.accountId ? history : null;
@@ -225,9 +229,12 @@ function OwnProfileContent({
   const rank = ownProfileRank(local, data?.profile.rank_tier, data?.profile.leaderboard_rank);
   const filter: HistoryFilter = { ...view, patches };
   const filterKey = JSON.stringify(view);
+  // `filter` is a new object every render; filterKey and patches stand for its contents.
+  // oxlint-disable-next-line react/exhaustive-deps -- see above.
   const matches = useMemo(() => filterHistory(loaded, filter), [loaded, filterKey, patches]);
   const allPositions = useMemo(
     () => (view.position ? filterHistory(loaded, { ...filter, position: 0 }) : matches),
+    // oxlint-disable-next-line react/exhaustive-deps -- see above.
     [loaded, filterKey, patches, matches],
   );
   const ownEntries = useMemo(
@@ -236,10 +243,13 @@ function OwnProfileContent({
   );
   const ratings = useMemo(() => ratingByMatch(loaded, ownEntries), [loaded, ownEntries]);
   const measured = ownEntries.length > 0;
-  const heroName = (id: number) => heroes.find((hero) => hero.id === id)?.localized_name ?? `Hero #${id}`;
+  const heroName = useCallback(
+    (id: number) => heroes.find((hero) => hero.id === id)?.localized_name ?? `Hero #${id}`,
+    [heroes],
+  );
   const sorted = useMemo(
     () => sortProfileHistory(matches, view.sort, view.direction, heroName, ratings),
-    [matches, view.sort, view.direction, heroes, ratings],
+    [matches, view.sort, view.direction, heroName, ratings],
   );
   const averages = useHeroAverages(sorted, api.getHeroAverages);
   const selected = selectedId === undefined ? undefined : loaded.find((match) => match.match_id === selectedId);
