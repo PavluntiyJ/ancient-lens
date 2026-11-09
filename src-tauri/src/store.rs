@@ -1,4 +1,7 @@
+mod state;
+
 use serde_json::{json, Value};
+pub use state::{MmrEntry, Note, NoteEntry, RatingSnapshot, Reader, State};
 use std::{
     io::Write,
     path::{Path, PathBuf},
@@ -38,6 +41,9 @@ pub fn default_shortcuts() -> Value {
         "lanePrevious": "Alt+ArrowUp",
         "laneNext": "Alt+ArrowDown",
     })
+}
+fn default_shortcut_map() -> std::collections::BTreeMap<String, String> {
+    serde_json::from_value(default_shortcuts()).expect("default shortcuts are strings")
 }
 fn shortcut_modifier(token: &str) -> Option<&'static str> {
     match token.to_ascii_lowercase().as_str() {
@@ -212,7 +218,7 @@ fn write_json(path: &Path, text: serde_json::Result<String>) -> Result<()> {
 }
 pub struct Store {
     pub directory: PathBuf,
-    data: Value,
+    state: State,
     own: Option<crate::own_account::Observation>,
     /// Matches recorded from the game (`matches.json`), oldest first.
     matches: Vec<Value>,
@@ -226,44 +232,61 @@ impl Store {
     pub fn open(directory: PathBuf) -> Result<Self> {
         std::fs::create_dir_all(&directory).map_err(|e| e.to_string())?;
         let path = directory.join("state.json");
-        let mut data = match std::fs::read(&path) {
+        let mut state = match std::fs::read(&path) {
             Ok(bytes) => {
                 let v: Value = serde_json::from_slice(&bytes).map_err(|_| {
                     "The state.json file is corrupt; the original has been preserved."
                 })?;
-                validate(&v)?;
+                let state = State::from_value(v)?;
                 // A recoverable copy is made once, before the native app's first mutation.
                 let backup = directory.join("state.pre-tauri.json");
                 if !backup.exists() {
                     std::fs::copy(&path, &backup).map_err(|e| e.to_string())?;
                 }
-                v
+                state
             }
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
                 let mut bytes = [0u8; 32];
                 rand::fill(&mut bytes[..]);
                 let token: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
-                let v = json!({"version":1,"accountId":"","notes":[],"mmr":[],"token":token,"nativeRosterReader":"off"});
-                atomic_json(&path, &v)?;
-                v
+                let state = State {
+                    version: 1,
+                    account_id: String::new(),
+                    notes: vec![],
+                    mmr: vec![],
+                    token,
+                    native_roster_reader: Some(Reader::Off),
+                    shortcuts: None,
+                    close_to_tray: None,
+                    auto_hide: None,
+                    keys_over_game: None,
+                    update_check: None,
+                    skipped_version: None,
+                    rating_snapshots: None,
+                    profile_accounts: None,
+                    hidden_profiles: None,
+                    other: Default::default(),
+                };
+                write_state(&path, &state)?;
+                state
             }
             Err(e) => return Err(format!("Could not read state.json: {e}")),
         };
-        if data.get("nativeRosterReader").is_none() {
-            data["nativeRosterReader"] = json!("off");
-            atomic_json(&path, &data)?;
+        if state.native_roster_reader.is_none() {
+            state.native_roster_reader = Some(Reader::Off);
+            write_state(&path, &state)?;
         }
-        if data.get("shortcuts").is_none() {
-            data["shortcuts"] = default_shortcuts();
-            atomic_json(&path, &data)?;
+        if state.shortcuts.is_none() {
+            state.shortcuts = Some(default_shortcut_map());
+            write_state(&path, &state)?;
         }
         let matches = open_matches(&directory.join("matches.json"))?;
-        if migrate_notes(&mut data, &matches) {
-            atomic_json(&path, &data)?;
+        if migrate_notes(&mut state, &matches) {
+            write_state(&path, &state)?;
         }
         Ok(Self {
             directory,
-            data,
+            state,
             own: None,
             matches,
             revision: 0,
@@ -272,51 +295,43 @@ impl Store {
         })
     }
     pub fn public(&self) -> Value {
-        self.public_for_account(self.data["accountId"].as_str().unwrap_or(""))
+        self.public_for_account(&self.state.account_id)
     }
     pub fn profile_account(&self, input: &str) -> Result<Value> {
         Ok(self.public_for_account(&account_id(input)?))
     }
     fn public_for_account(&self, id: &str) -> Value {
-        let entries: Vec<_> = self.data["mmr"]
-            .as_array()
-            .unwrap()
+        let state = &self.state;
+        let entries: Vec<&MmrEntry> = state
+            .mmr
             .iter()
-            .filter(|m| m["accountId"].is_string() && m["accountId"] == id)
+            .filter(|m| m.account_id.as_deref() == Some(id))
             .collect();
-        let unassigned = self.data["mmr"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .filter(|m| !m["accountId"].is_string())
-            .count();
-        let snapshot = self.data["ratingSnapshots"][id].clone();
+        let unassigned = state.mmr.iter().filter(|m| m.account_id.is_none()).count();
+        let snapshot = state
+            .rating_snapshots
+            .as_ref()
+            .and_then(|rows| rows.get(id));
         let mut accounts = Vec::<String>::new();
-        let hidden: Vec<&str> = self.data["hiddenProfiles"]
-            .as_array()
-            .into_iter()
+        let hidden: Vec<&str> = state
+            .hidden_profiles
+            .iter()
             .flatten()
-            .filter_map(Value::as_str)
+            .map(String::as_str)
             .collect();
-        let candidates = self.data["profileAccounts"]
-            .as_array()
-            .into_iter()
+        let candidates = state
+            .profile_accounts
+            .iter()
             .flatten()
-            .filter_map(Value::as_str)
+            .map(String::as_str)
             .chain(
-                self.data["ratingSnapshots"]
-                    .as_object()
-                    .into_iter()
+                state
+                    .rating_snapshots
+                    .iter()
                     .flat_map(|rows| rows.keys().map(String::as_str)),
             )
-            .chain(
-                self.data["mmr"]
-                    .as_array()
-                    .into_iter()
-                    .flatten()
-                    .filter_map(|row| row["accountId"].as_str()),
-            )
-            .chain(self.data["accountId"].as_str());
+            .chain(state.mmr.iter().filter_map(|row| row.account_id.as_deref()))
+            .chain(std::iter::once(state.account_id.as_str()));
         for candidate in candidates {
             if !candidate.is_empty()
                 && !hidden.contains(&candidate)
@@ -325,39 +340,37 @@ impl Store {
                 accounts.push(candidate.to_owned());
             }
         }
-        json!({"revision":self.revision,"accountId": id, "notes":self.data["notes"], "mmr":entries,"unassignedMmrCount":unassigned,"ownAccount":self.own,"ratingSnapshot":snapshot,"profileAccounts":accounts,"nativeRosterReader":self.data["nativeRosterReader"],"closeToTray":self.close_to_tray(),"autoHide":self.auto_hide(),"keysOverGame":self.keys_over_game(),"updateCheck":self.update_check(),"skippedVersion":self.data["skippedVersion"],"shortcuts":self.shortcuts(),"recordedMatches":self.recorded(id).len(),"journalRevision":self.journal_revision})
+        json!({"revision":self.revision,"accountId": id, "notes":state.notes, "mmr":entries,"unassignedMmrCount":unassigned,"ownAccount":self.own,"ratingSnapshot":snapshot,"profileAccounts":accounts,"nativeRosterReader":state.native_roster_reader,"closeToTray":self.close_to_tray(),"autoHide":self.auto_hide(),"keysOverGame":self.keys_over_game(),"updateCheck":self.update_check(),"skippedVersion":state.skipped_version,"shortcuts":self.shortcuts(),"recordedMatches":self.recorded(id).len(),"journalRevision":self.journal_revision})
     }
     /// The stored bindings, with defaults for any key an older state file did not have.
     pub fn shortcuts(&self) -> Value {
         let mut merged = default_shortcuts();
-        if let Some(stored) = self.data.get("shortcuts").and_then(Value::as_object) {
-            for (name, value) in stored {
-                if SHORTCUT_NAMES.contains(&name.as_str()) {
-                    merged[name] = value.clone();
-                }
+        for (name, value) in self.state.shortcuts.iter().flatten() {
+            if SHORTCUT_NAMES.contains(&name.as_str()) {
+                merged[name] = json!(value);
             }
         }
         merged
     }
     /// The window close button hides to the tray unless the user turned it off (absent = on).
     pub fn close_to_tray(&self) -> bool {
-        self.data["closeToTray"].as_bool().unwrap_or(true)
+        self.state.close_to_tray.unwrap_or(true)
     }
     /// Both windows hide when the user activates another application (absent = on).
     pub fn auto_hide(&self) -> bool {
-        self.data["autoHide"].as_bool().unwrap_or(true)
+        self.state.auto_hide.unwrap_or(true)
     }
     /// While the game runs, the window keys listen only over it and this app (absent = on).
     pub fn keys_over_game(&self) -> bool {
-        self.data["keysOverGame"].as_bool().unwrap_or(true)
+        self.state.keys_over_game.unwrap_or(true)
     }
     /// Whether the app asks GitHub for new releases (absent = on).
     pub fn update_check(&self) -> bool {
-        self.data["updateCheck"].as_bool().unwrap_or(true)
+        self.state.update_check.unwrap_or(true)
     }
     /// The single user consent for every Dota memory reader (Linux roster, Windows rating).
     pub fn memory_reader(&self) -> bool {
-        self.data["nativeRosterReader"] == "on"
+        self.state.reader() == Reader::On
     }
     /// Only the live observation, for frequent updates that leave stored data unchanged.
     pub fn own_public(&self) -> Value {
@@ -370,12 +383,12 @@ impl Store {
         &mut self,
         observation: crate::own_account::Observation,
     ) -> Result<bool> {
-        let mut next: Option<Value> = None;
+        let mut next: Option<State> = None;
         let mut measured: Option<String> = None;
         if let Some(id) = &observation.account_id {
             let id = account_id(id)?;
-            if self.data["accountId"] != id.as_str() {
-                next.get_or_insert_with(|| self.data.clone())["accountId"] = json!(id);
+            if self.state.account_id != id {
+                next.get_or_insert_with(|| self.state.clone()).account_id = id.clone();
             }
             if observation.status == "measured" {
                 if let (Some(value), Some(confidence)) = (observation.mmr, observation.confidence) {
@@ -383,48 +396,60 @@ impl Store {
                         return Err("Invalid rating measurement".into());
                     }
                     // Confidence decays with time alone, so only a new MMR is a journal entry.
-                    let last =
-                        self.data["mmr"].as_array().unwrap().iter().rev().find(|m| {
-                            m["accountId"] == id.as_str() && m["source"] == "dota-memory"
-                        });
-                    if last.is_none_or(|m| m["value"] != value) {
-                        next.get_or_insert_with(|| self.data.clone())["mmr"].as_array_mut().unwrap().push(json!({"id":uuid::Uuid::new_v4().to_string(),"accountId":id,"value":value,"confidence":confidence,"source":"dota-memory","createdAt":observation.observed_at}));
+                    let last = self.state.mmr.iter().rev().find(|m| {
+                        m.account_id.as_deref() == Some(id.as_str())
+                            && m.source.as_deref() == Some("dota-memory")
+                    });
+                    if last.is_none_or(|m| m.value != u64::from(value)) {
+                        next.get_or_insert_with(|| self.state.clone())
+                            .mmr
+                            .push(MmrEntry {
+                                id: uuid::Uuid::new_v4().to_string(),
+                                account_id: Some(id.clone()),
+                                value: value.into(),
+                                confidence: Some(confidence.into()),
+                                source: Some("dota-memory".into()),
+                                created_at: observation.observed_at.clone(),
+                                other: Default::default(),
+                            });
                         measured = Some(id.clone());
                     }
                 }
             }
             if let Some(snapshot) = snapshot(&observation) {
-                validate_snapshot(&snapshot)?;
-                let stored = &self.data["ratingSnapshots"][id.as_str()];
-                let same = ["mmr", "confidence", "behaviorScore", "communicationScore"]
-                    .iter()
-                    .all(|key| stored[key] == snapshot[key]);
+                snapshot.check()?;
+                let stored = self
+                    .state
+                    .rating_snapshots
+                    .as_ref()
+                    .and_then(|rows| rows.get(&id));
+                let same = stored.is_some_and(|stored| stored.same_reading(&snapshot));
                 // Equal values only refresh the time, at most every ten minutes, so an open
                 // game does not rewrite state.json on every poll.
-                let recent = stored["confirmedAt"]
-                    .as_str()
-                    .and_then(|at| chrono::DateTime::parse_from_rfc3339(at).ok())
+                let recent = stored
+                    .and_then(|stored| {
+                        chrono::DateTime::parse_from_rfc3339(&stored.confirmed_at).ok()
+                    })
                     .is_some_and(|at| {
                         chrono::Utc::now().signed_duration_since(at) < chrono::Duration::minutes(10)
                     });
                 if !same || !recent {
-                    let next = next.get_or_insert_with(|| self.data.clone());
-                    if !next["ratingSnapshots"].is_object() {
-                        next["ratingSnapshots"] = json!({});
-                    }
-                    next["ratingSnapshots"][id.as_str()] = snapshot;
+                    next.get_or_insert_with(|| self.state.clone())
+                        .rating_snapshots
+                        .get_or_insert_with(Default::default)
+                        .insert(id.clone(), snapshot);
                 }
             }
         }
         let changed = next.is_some();
         if let Some(next) = next {
-            atomic_json(&self.directory.join("state.json"), &next)?;
-            self.data = next;
+            write_state(&self.directory.join("state.json"), &next)?;
+            self.state = next;
         }
         // A new rating may be the result of the last recorded match.
         if let Some(id) = measured {
             let mut matches = self.matches.clone();
-            if crate::journal::attribute(&mut matches, self.data["mmr"].as_array().unwrap(), &id) {
+            if crate::journal::attribute(&mut matches, &self.mmr_rows(), &id) {
                 self.save_matches(matches)?;
             }
         }
@@ -433,11 +458,16 @@ impl Store {
         Ok(changed)
     }
     pub fn token(&self) -> String {
-        self.data["token"].as_str().unwrap().into()
+        self.state.token.clone()
     }
     pub fn export(&self) -> Value {
         // Include all accounts and legacy unassigned records, without the GSI secret.
-        json!({"accountId":self.data["accountId"],"notes":self.data["notes"],"mmr":self.data["mmr"],"ratingSnapshots":self.data["ratingSnapshots"],"profileAccounts":self.data["profileAccounts"],"hiddenProfiles":self.data["hiddenProfiles"],"nativeRosterReader":self.data["nativeRosterReader"],"matches":self.matches})
+        let state = &self.state;
+        json!({"accountId":state.account_id,"notes":state.notes,"mmr":state.mmr,"ratingSnapshots":state.rating_snapshots,"profileAccounts":state.profile_accounts,"hiddenProfiles":state.hidden_profiles,"nativeRosterReader":state.native_roster_reader,"matches":self.matches})
+    }
+    /// The rating entries in the shape the match journal reads.
+    fn mmr_rows(&self) -> Vec<Value> {
+        self.state.mmr.iter().map(|entry| json!(entry)).collect()
     }
     /// Matches recorded from the game for one account.
     pub fn recorded(&self, account: &str) -> Vec<Value> {
@@ -479,12 +509,15 @@ impl Store {
         if let Some((_, tier)) = self.medal.filter(|(id, _)| row["match_id"] == *id) {
             row["medal_rank"] = json!(tier);
         }
-        let account = row["accountId"].as_str().unwrap().to_owned();
-        let entries = self.data["mmr"].as_array().unwrap();
-        crate::journal::baseline(&mut row, entries);
+        let account = row["accountId"]
+            .as_str()
+            .ok_or("Invalid match record")?
+            .to_owned();
+        let entries = self.mmr_rows();
+        crate::journal::baseline(&mut row, &entries);
         let mut matches = self.matches.clone();
         matches.push(row);
-        crate::journal::attribute(&mut matches, entries, &account);
+        crate::journal::attribute(&mut matches, &entries, &account);
         let excess = matches.len().saturating_sub(crate::journal::LIMIT);
         matches.drain(..excess);
         self.save_matches(matches)?;
@@ -547,33 +580,38 @@ impl Store {
         Ok(())
     }
     pub fn change(&mut self, command: &str, args: &Value) -> Result<Value> {
-        let mut next = self.data.clone();
+        let mut next = self.state.clone();
         match command {
             "state:reader" => {
-                let value = args["value"]
-                    .as_str()
-                    .filter(|v| ["off", "on"].contains(v))
-                    .ok_or("Invalid Dota memory reading setting")?;
-                next["nativeRosterReader"] = json!(value);
+                next.native_roster_reader = Some(match args["value"].as_str() {
+                    Some("off") => Reader::Off,
+                    Some("on") => Reader::On,
+                    _ => return Err("Invalid Dota memory reading setting".into()),
+                });
             }
             "state:tray" => {
-                next["closeToTray"] = json!(args["value"]
-                    .as_bool()
-                    .ok_or("Invalid close-to-tray setting")?);
+                next.close_to_tray = Some(
+                    args["value"]
+                        .as_bool()
+                        .ok_or("Invalid close-to-tray setting")?,
+                );
             }
             "state:auto-hide" => {
-                next["autoHide"] =
-                    json!(args["value"].as_bool().ok_or("Invalid auto-hide setting")?);
+                next.auto_hide = Some(args["value"].as_bool().ok_or("Invalid auto-hide setting")?);
             }
             "state:keys-over-game" => {
-                next["keysOverGame"] = json!(args["value"]
-                    .as_bool()
-                    .ok_or("Invalid shortcut scope setting")?);
+                next.keys_over_game = Some(
+                    args["value"]
+                        .as_bool()
+                        .ok_or("Invalid shortcut scope setting")?,
+                );
             }
             "state:update-check" => {
-                next["updateCheck"] = json!(args["value"]
-                    .as_bool()
-                    .ok_or("Invalid update check setting")?);
+                next.update_check = Some(
+                    args["value"]
+                        .as_bool()
+                        .ok_or("Invalid update check setting")?,
+                );
             }
             // The notice stays away for this version only; a newer one shows again.
             "state:skip-version" => {
@@ -581,78 +619,63 @@ impl Store {
                     .as_str()
                     .and_then(crate::releases::version)
                     .ok_or("Invalid version")?;
-                next["skippedVersion"] = json!(crate::releases::format(version));
+                next.skipped_version = Some(crate::releases::format(version));
             }
             "state:shortcuts" => {
-                next["shortcuts"] = validate_shortcuts(&args["shortcuts"])?;
+                let merged = validate_shortcuts(&args["shortcuts"])?;
+                next.shortcuts =
+                    Some(serde_json::from_value(merged).map_err(|_| "Invalid shortcut settings")?);
             }
             "state:add-profile" => {
                 let id = account_id(args["id"].as_str().unwrap_or(""))?;
                 // Adding an account that was removed from the menu shows it again.
-                if let Some(hidden) = next.get_mut("hiddenProfiles").and_then(Value::as_array_mut) {
+                if let Some(hidden) = &mut next.hidden_profiles {
                     hidden.retain(|old| old != &id);
                 }
-                if !next["profileAccounts"].is_array() {
-                    next["profileAccounts"] = json!([]);
-                }
-                let rows = next["profileAccounts"].as_array_mut().unwrap();
-                if !rows.iter().any(|old| old == &id) {
+                let rows = next.profile_accounts.get_or_insert_with(Vec::new);
+                if !rows.contains(&id) {
                     if rows.len() >= 32 {
                         return Err("Up to 32 saved profiles are supported".into());
                     }
-                    rows.push(json!(id));
+                    rows.push(id);
                 }
             }
             "state:remove-profile" => {
                 let id = account_id(args["id"].as_str().unwrap_or(""))?;
                 // The game's account stays in the menu; its key and the header icon rely on it.
-                if next["accountId"] == id {
+                if next.account_id == id {
                     return Err("The current account cannot be removed".into());
                 }
                 // Removing hides the entry; readings, notes and matches are kept.
-                if let Some(rows) = next
-                    .get_mut("profileAccounts")
-                    .and_then(Value::as_array_mut)
-                {
+                if let Some(rows) = &mut next.profile_accounts {
                     rows.retain(|old| old != &id);
                 }
                 // Only IDs the menu would still derive from saved readings need remembering;
                 // the rest are dropped, so the list stays as small as the data it filters.
-                let derived: std::collections::HashSet<String> = next["ratingSnapshots"]
-                    .as_object()
-                    .into_iter()
+                let derived: std::collections::HashSet<String> = next
+                    .rating_snapshots
+                    .iter()
                     .flat_map(|rows| rows.keys().cloned())
-                    .chain(
-                        next["mmr"]
-                            .as_array()
-                            .into_iter()
-                            .flatten()
-                            .filter_map(|row| row["accountId"].as_str().map(str::to_owned)),
-                    )
+                    .chain(next.mmr.iter().filter_map(|row| row.account_id.clone()))
                     .collect();
-                if !next["hiddenProfiles"].is_array() {
-                    next["hiddenProfiles"] = json!([]);
-                }
-                let hidden = next["hiddenProfiles"].as_array_mut().unwrap();
-                hidden.retain(|old| old.as_str().is_some_and(|old| derived.contains(old)));
-                if derived.contains(&id) && !hidden.iter().any(|old| old == &id) {
+                let hidden = next.hidden_profiles.get_or_insert_with(Vec::new);
+                hidden.retain(|old| derived.contains(old));
+                if derived.contains(&id) && !hidden.contains(&id) {
                     if hidden.len() >= MAX_HIDDEN_PROFILES {
                         return Err(format!(
                             "Up to {MAX_HIDDEN_PROFILES} removed profiles are remembered"
                         ));
                     }
-                    hidden.push(json!(id));
+                    hidden.push(id);
                 }
             }
-            "state:account" => {
-                next["accountId"] = json!(account_id(args["id"].as_str().unwrap_or(""))?)
-            }
+            "state:account" => next.account_id = account_id(args["id"].as_str().unwrap_or(""))?,
             // A note is added on top of the player's earlier ones, never in their place.
             "note:add" => {
                 let input = &args["note"];
                 let id = account_id(input["accountId"].as_str().unwrap_or(""))?;
                 // The same words as SELF_NOTE in NoteEditor.tsx.
-                if next["accountId"] == id {
+                if next.account_id == id {
                     return Err("Why would you need a note about yourself? Everybody knows you are the best.".into());
                 }
                 let name = input["name"]
@@ -664,31 +687,50 @@ impl Store {
                 if text.is_empty() {
                     return Err("Write a note.".into());
                 }
-                let mut entry =
-                    json!({"id":uuid::Uuid::new_v4().to_string(),"text":text,"at":now()});
-                for key in ["matchId", "heroId", "ally"] {
-                    if !input[key].is_null() {
-                        entry[key] = input[key].clone();
-                    }
-                }
-                validate_entry(&entry)?;
-                let notes = next["notes"].as_array_mut().unwrap();
-                let mut note = match notes.iter().position(|n| n["accountId"] == id) {
-                    Some(index) => notes.remove(index),
-                    None => json!({"accountId":id,"name":"","entries":[]}),
+                // Absent or null is no link; anything else must have the field's type.
+                let field = |key: &str| Some(&input[key]).filter(|value| !value.is_null());
+                let number = |key: &str| {
+                    field(key)
+                        .map(|value| value.as_u64().ok_or("Invalid note"))
+                        .transpose()
+                };
+                let entry = NoteEntry {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    text: text.to_owned(),
+                    at: now(),
+                    edited_at: None,
+                    match_id: number("matchId")?,
+                    hero_id: number("heroId")?,
+                    ally: field("ally")
+                        .map(|value| value.as_bool().ok_or("Invalid note"))
+                        .transpose()?,
+                    other: Default::default(),
+                };
+                entry.check()?;
+                let mut note = match next.notes.iter().position(|n| n.account_id == id) {
+                    Some(index) => next.notes.remove(index),
+                    None => Note {
+                        account_id: id,
+                        name: String::new(),
+                        entries: Some(vec![]),
+                        text: None,
+                        tag: None,
+                        updated_at: String::new(),
+                        other: Default::default(),
+                    },
                 };
                 if !name.is_empty() {
-                    note["name"] = json!(name);
+                    note.name = name.to_owned();
                 }
-                let entries = note["entries"].as_array_mut().unwrap();
+                let entries = note.entries_mut();
                 if entries.len() >= MAX_NOTE_ENTRIES {
                     return Err(format!(
                         "Up to {MAX_NOTE_ENTRIES} notes per player are kept"
                     ));
                 }
                 entries.insert(0, entry);
-                touch_note(&mut note);
-                notes.insert(0, note);
+                note.touch();
+                next.notes.insert(0, note);
             }
             "note:edit" => {
                 let (note, index) = note_entry(&mut next, args)?;
@@ -696,35 +738,29 @@ impl Store {
                 if text.is_empty() {
                     return Err("Write a note.".into());
                 }
-                let entry = &mut note["entries"][index];
-                entry["text"] = json!(text);
-                entry["editedAt"] = json!(now());
-                validate_entry(entry)?;
-                touch_note(note);
+                let entry = &mut note.entries_mut()[index];
+                entry.text = text.to_owned();
+                entry.edited_at = Some(now());
+                entry.check()?;
+                note.touch();
             }
             "note:delete-entry" => {
                 let (note, index) = note_entry(&mut next, args)?;
-                note["entries"].as_array_mut().unwrap().remove(index);
-                if note["entries"].as_array().unwrap().is_empty() {
-                    let id = note["accountId"].clone();
-                    next["notes"]
-                        .as_array_mut()
-                        .unwrap()
-                        .retain(|n| n["accountId"] != id);
+                note.entries_mut().remove(index);
+                if note.entries_mut().is_empty() {
+                    let id = note.account_id.clone();
+                    next.notes.retain(|n| n.account_id != id);
                 } else {
-                    touch_note(note);
+                    note.touch();
                 }
             }
             // Every note about the player.
             "note:delete" => {
                 let id = account_id(args["id"].as_str().unwrap_or(""))?;
-                next["notes"]
-                    .as_array_mut()
-                    .unwrap()
-                    .retain(|n| n["accountId"] != id);
+                next.notes.retain(|n| n.account_id != id);
             }
             "mmr:add" => {
-                let id = account_id(next["accountId"].as_str().unwrap_or(""))?;
+                let id = account_id(&next.account_id)?;
                 if args
                     .get("expectedAccountId")
                     .is_some_and(|expected| expected.as_str() != Some(&id))
@@ -737,30 +773,51 @@ impl Store {
                     .as_u64()
                     .filter(|v| *v <= 20000)
                     .ok_or("MMR must be between 0 and 20000.")?;
-                next["mmr"].as_array_mut().unwrap().push(
-                    json!({"id":uuid::Uuid::new_v4().to_string(),"accountId":id,"source":"manual","value":value,"createdAt":now()}),
-                );
+                next.mmr.push(MmrEntry {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    account_id: Some(id),
+                    value,
+                    confidence: None,
+                    source: Some("manual".into()),
+                    created_at: now(),
+                    other: Default::default(),
+                });
             }
             "mmr:delete" => {
                 let id = args["id"].as_str().ok_or("Invalid entry ID")?;
                 uuid::Uuid::parse_str(id).map_err(|_| "Invalid entry ID")?;
                 // Only the current account's entries are listed, so only they can be deleted;
                 // other accounts' and unassigned legacy entries stay untouched.
-                let account = next["accountId"].clone();
-                let entries = next["mmr"].as_array_mut().unwrap();
-                let before = entries.len();
-                entries.retain(|n| n["id"] != id || n["accountId"] != account);
-                if entries.len() == before {
+                let account = next.account_id.clone();
+                let before = next.mmr.len();
+                next.mmr
+                    .retain(|n| n.id != id || n.account_id.as_deref() != Some(account.as_str()));
+                if next.mmr.len() == before {
                     return Err("Entry not found".into());
                 }
             }
             _ => return Err("Unknown operation".into()),
         }
-        atomic_json(&self.directory.join("state.json"), &next)?;
-        self.data = next;
+        write_state(&self.directory.join("state.json"), &next)?;
+        self.state = next;
         self.revision += 1;
         Ok(self.public())
     }
+    /// The saved state as written to disk.
+    #[cfg(test)]
+    fn data(&self) -> Value {
+        self.state.to_value()
+    }
+    /// Replaces the saved state in memory only, as a test fixture.
+    #[cfg(test)]
+    fn set_data(&mut self, value: Value) {
+        self.state = State::from_value(value).unwrap();
+    }
+}
+/// Writes the state in the file's established shape: through `Value`, so keys keep their
+/// sorted order and the bytes match what earlier versions wrote.
+fn write_state(path: &Path, state: &State) -> Result<()> {
+    atomic_json(path, &state.to_value())
 }
 /// Loads the match journal. An unreadable file is set aside under a new name instead of
 /// blocking the app or being overwritten by the next recorded match.
@@ -770,14 +827,16 @@ fn open_matches(path: &Path) -> Result<Vec<Value>> {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(vec![]),
         Err(e) => return Err(format!("Could not read matches.json: {e}")),
     };
-    let parsed = serde_json::from_slice::<Value>(&bytes).ok().filter(|v| {
-        v["version"] == 1
-            && v["matches"]
-                .as_array()
-                .is_some_and(|rows| rows.iter().all(|row| crate::journal::validate(row).is_ok()))
-    });
+    let parsed = serde_json::from_slice::<Value>(&bytes)
+        .ok()
+        .filter(|v| v["version"] == 1)
+        .and_then(|mut v| match v["matches"].take() {
+            Value::Array(rows) => Some(rows),
+            _ => None,
+        })
+        .filter(|rows| rows.iter().all(|row| crate::journal::validate(row).is_ok()));
     match parsed {
-        Some(v) => Ok(v["matches"].as_array().unwrap().clone()),
+        Some(rows) => Ok(rows),
         None => {
             let aside = path.with_file_name(format!(
                 "matches.unreadable-{}.json",
@@ -792,107 +851,47 @@ fn open_matches(path: &Path) -> Result<Vec<Value>> {
         }
     }
 }
-/// A player's notes, newest first. `text`, `tag` and `updatedAt` repeat the newest note
-/// in the shape older versions read, so going back to one keeps the state file readable.
-fn validate_note(n: &Value) -> Result<()> {
-    account_id(n["accountId"].as_str().unwrap_or(""))?;
-    let invalid = || Err("Invalid note".into());
-    if n["name"]
-        .as_str()
-        .is_none_or(|s| s.trim().chars().count() > 80)
-    {
-        return invalid();
-    }
-    if n.get("entries").is_none() {
-        // A note of an older version, migrated on open.
-        if n["text"]
-            .as_str()
-            .is_none_or(|s| s.trim().is_empty() || s.trim().chars().count() > 2000)
-            || !["neutral", "teammate", "avoid"].contains(&n["tag"].as_str().unwrap_or(""))
-        {
-            return invalid();
-        }
-        return Ok(());
-    }
-    let Some(entries) = n["entries"]
-        .as_array()
-        .filter(|rows| !rows.is_empty() && rows.len() <= MAX_NOTE_ENTRIES)
-    else {
-        return invalid();
-    };
-    for entry in entries {
-        validate_entry(entry)?;
-    }
-    Ok(())
-}
-fn validate_entry(e: &Value) -> Result<()> {
-    let text = |key: &str, max: usize| {
-        e[key]
-            .as_str()
-            .is_some_and(|s| !s.trim().is_empty() && s.trim().chars().count() <= max)
-    };
-    let valid = e["id"]
-        .as_str()
-        .is_some_and(|id| uuid::Uuid::parse_str(id).is_ok())
-        && text("text", 2000)
-        && text("at", 40)
-        && (e["editedAt"].is_null() || text("editedAt", 40))
-        && (e["matchId"].is_null() || e["matchId"].as_u64().is_some_and(|id| id > 0))
-        && (e["heroId"].is_null()
-            || e["heroId"]
-                .as_u64()
-                .is_some_and(|id| (1..=1000).contains(&id)))
-        && (e["ally"].is_null() || e["ally"].is_boolean());
-    if valid {
-        Ok(())
-    } else {
-        Err("Invalid note".into())
-    }
-}
 /// The note `args` names by player and note ID, and its place among the player's notes.
-fn note_entry<'a>(state: &'a mut Value, args: &Value) -> Result<(&'a mut Value, usize)> {
+fn note_entry<'a>(state: &'a mut State, args: &Value) -> Result<(&'a mut Note, usize)> {
     let id = account_id(args["accountId"].as_str().unwrap_or(""))?;
     let entry = args["entryId"].as_str().ok_or("Invalid note")?;
-    let note = state["notes"]
-        .as_array_mut()
-        .unwrap()
+    let note = state
+        .notes
         .iter_mut()
-        .find(|n| n["accountId"] == id)
+        .find(|n| n.account_id == id)
         .ok_or("Note not found")?;
-    let index = note["entries"]
-        .as_array()
-        .and_then(|rows| rows.iter().position(|row| row["id"] == entry))
+    let index = note
+        .entries
+        .as_ref()
+        .and_then(|rows| rows.iter().position(|row| row.id == entry))
         .ok_or("Note not found")?;
     Ok((note, index))
 }
-/// Repeats the newest note in the fields older versions read.
-fn touch_note(note: &mut Value) {
-    note["text"] = note["entries"][0]["text"].clone();
-    note["tag"] = json!("neutral");
-    note["updatedAt"] = json!(now());
-}
 /// Turns each note of an older version into the first note of its player, linked to the
 /// recorded match it was written during or shortly after. Returns whether anything changed.
-fn migrate_notes(data: &mut Value, matches: &[Value]) -> bool {
+fn migrate_notes(state: &mut State, matches: &[Value]) -> bool {
     let mut changed = false;
-    for note in data["notes"].as_array_mut().into_iter().flatten() {
-        if note.get("entries").is_some() {
-            continue;
-        }
-        let at = note["updatedAt"].as_str().unwrap_or("").to_owned();
-        let mut entry = json!({"id":uuid::Uuid::new_v4().to_string(),"text":note["text"],"at":at});
-        let written = chrono::DateTime::parse_from_rfc3339(&at).map(|t| t.timestamp());
-        if let (Some(id), Ok(written)) = (note["accountId"].as_str(), written) {
-            if let Some((match_id, hero, ally)) = note_match(id, written, matches) {
-                entry["matchId"] = json!(match_id);
-                if let Some(hero) = hero {
-                    entry["heroId"] = json!(hero);
-                }
-                entry["ally"] = json!(ally);
+    for note in state.notes.iter_mut().filter(|note| note.entries.is_none()) {
+        let at = note.updated_at.clone();
+        let mut entry = NoteEntry {
+            id: uuid::Uuid::new_v4().to_string(),
+            text: note.text.clone().unwrap_or_default(),
+            at: at.clone(),
+            edited_at: None,
+            match_id: None,
+            hero_id: None,
+            ally: None,
+            other: Default::default(),
+        };
+        if let Ok(written) = chrono::DateTime::parse_from_rfc3339(&at).map(|t| t.timestamp()) {
+            if let Some((match_id, hero, ally)) = note_match(&note.account_id, written, matches) {
+                entry.match_id = Some(match_id);
+                entry.hero_id = hero;
+                entry.ally = Some(ally);
             }
         }
-        note["entries"] = json!([entry]);
-        note["tag"] = json!("neutral");
+        note.entries = Some(vec![entry]);
+        note.tag = Some("neutral".into());
         changed = true;
     }
     changed
@@ -936,113 +935,23 @@ fn note_match(account: &str, written: i64, matches: &[Value]) -> Option<(u64, Op
         .map(|(_, match_id, (hero, ally))| (match_id, hero, ally))
 }
 /// The last confirmed reading kept for display while Dota is closed; never a live value.
-fn snapshot(observation: &crate::own_account::Observation) -> Option<Value> {
+fn snapshot(observation: &crate::own_account::Observation) -> Option<RatingSnapshot> {
     if !["measured", "calibrating"].contains(&observation.status.as_str()) {
         return None;
     }
-    Some(json!({
-        "mmr": observation.mmr,
-        "confidence": observation.confidence?,
-        "behaviorScore": observation.behavior_score?,
-        "communicationScore": observation.communication_score?,
-        "confirmedAt": observation.observed_at,
-    }))
+    Some(RatingSnapshot {
+        mmr: observation.mmr.map(u64::from),
+        confidence: observation.confidence?.into(),
+        behavior_score: observation.behavior_score?.into(),
+        communication_score: observation.communication_score?.into(),
+        confirmed_at: observation.observed_at.clone(),
+        other: Default::default(),
+    })
 }
-fn validate_snapshot(v: &Value) -> Result<()> {
-    let score = |key: &str| v[key].as_u64().is_some_and(|s| s <= 12000);
-    if !(v["mmr"].is_null() || v["mmr"].as_u64().is_some_and(|m| (1..=20000).contains(&m)))
-        || v["confidence"].as_u64().is_none_or(|c| c > 100)
-        || !score("behaviorScore")
-        || !score("communicationScore")
-        || !v["confirmedAt"].is_string()
-    {
-        return Err("Invalid rating snapshot".into());
-    }
-    Ok(())
-}
+/// Checks a whole state file as `Store::open` does.
+#[cfg(test)]
 fn validate(v: &Value) -> Result<()> {
-    let invalid = "Unrecognized state.json format; the original has been preserved.";
-    if v["version"] != 1
-        || !v["accountId"].is_string()
-        || v["token"].as_str().is_none_or(|s| {
-            s.len() != 64
-                || !s
-                    .bytes()
-                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
-        })
-    {
-        return Err(invalid.into());
-    }
-    if v.get("nativeRosterReader").is_some()
-        && !matches!(v["nativeRosterReader"].as_str(), Some("off" | "on"))
-    {
-        return Err(invalid.into());
-    }
-    if v.get("closeToTray")
-        .is_some_and(|value| !value.is_boolean())
-        || v.get("autoHide").is_some_and(|value| !value.is_boolean())
-        || v.get("keysOverGame")
-            .is_some_and(|value| !value.is_boolean())
-        || v.get("updateCheck")
-            .is_some_and(|value| !value.is_boolean())
-        || v.get("skippedVersion")
-            .is_some_and(|value| value.as_str().and_then(crate::releases::version).is_none())
-    {
-        return Err(invalid.into());
-    }
-    if let Some(shortcuts) = v.get("shortcuts") {
-        validate_shortcuts(shortcuts).map_err(|_| invalid)?;
-    }
-    if let Some(snapshots) = v.get("ratingSnapshots") {
-        for (id, snapshot) in snapshots.as_object().ok_or(invalid)? {
-            account_id(id)?;
-            validate_snapshot(snapshot).map_err(|_| invalid)?;
-        }
-    }
-    if let Some(accounts) = v.get("profileAccounts") {
-        let accounts = accounts
-            .as_array()
-            .filter(|rows| rows.len() <= 32)
-            .ok_or(invalid)?;
-        let mut seen = std::collections::HashSet::new();
-        for id in accounts {
-            let id = id.as_str().ok_or(invalid)?;
-            if account_id(id)? != id || !seen.insert(id) {
-                return Err(invalid.into());
-            }
-        }
-    }
-    if let Some(hidden) = v.get("hiddenProfiles") {
-        let hidden = hidden
-            .as_array()
-            .filter(|rows| rows.len() <= MAX_HIDDEN_PROFILES)
-            .ok_or(invalid)?;
-        let mut seen = std::collections::HashSet::new();
-        for id in hidden {
-            let id = id.as_str().ok_or(invalid)?;
-            if account_id(id)? != id || !seen.insert(id) {
-                return Err(invalid.into());
-            }
-        }
-    }
-    for n in v["notes"].as_array().ok_or(invalid)? {
-        validate_note(n)?;
-        if !n["updatedAt"].is_string() {
-            return Err(invalid.into());
-        }
-    }
-    for m in v["mmr"].as_array().ok_or(invalid)? {
-        if let Some(id) = m.get("accountId") {
-            account_id(id.as_str().ok_or(invalid)?)?;
-        }
-        if !m["id"].is_string()
-            || !m["createdAt"].is_string()
-            || m["value"].as_u64().is_none_or(|v| v > 20000)
-        {
-            return Err(invalid.into());
-        }
-    }
-    Ok(())
+    State::from_value(v.clone()).map(|_| ())
 }
 #[cfg(test)]
 mod tests {
@@ -1052,14 +961,14 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let store = Store::open(dir.path().into()).unwrap();
         assert_eq!(store.public()["nativeRosterReader"], "off");
-        let mut legacy = store.data.clone();
+        let mut legacy = store.data();
         legacy.as_object_mut().unwrap().remove("nativeRosterReader");
         legacy["accountId"] = json!("123");
         atomic_json(&dir.path().join("state.json"), &legacy).unwrap();
         let mut migrated = Store::open(dir.path().into()).unwrap();
         assert_eq!(migrated.public()["nativeRosterReader"], "off");
         assert_eq!(migrated.public()["accountId"], "123");
-        assert_eq!(migrated.data["token"], legacy["token"]);
+        assert_eq!(migrated.data()["token"], legacy["token"]);
         for mode in ["on", "off"] {
             migrated
                 .change("state:reader", &json!({"value":mode}))
@@ -1085,7 +994,7 @@ mod tests {
         let store = Store::open(dir.path().into()).unwrap();
         assert_eq!(store.public()["shortcuts"], default_shortcuts());
         // An older state file gains the defaults without losing its data.
-        let mut legacy = store.data.clone();
+        let mut legacy = store.data();
         legacy.as_object_mut().unwrap().remove("shortcuts");
         legacy["accountId"] = json!("123");
         atomic_json(&dir.path().join("state.json"), &legacy).unwrap();
@@ -1201,7 +1110,7 @@ mod tests {
             assert!(reopened
                 .change("state:tray", &json!({"value":value}))
                 .is_err());
-            let mut invalid = reopened.data.clone();
+            let mut invalid = reopened.data();
             invalid["closeToTray"] = value;
             assert!(validate(&invalid).is_err());
         }
@@ -1223,7 +1132,7 @@ mod tests {
             assert!(reopened
                 .change("state:auto-hide", &json!({"value":value}))
                 .is_err());
-            let mut invalid = reopened.data.clone();
+            let mut invalid = reopened.data();
             invalid["autoHide"] = value;
             assert!(validate(&invalid).is_err());
         }
@@ -1248,7 +1157,7 @@ mod tests {
             assert!(reopened
                 .change("state:keys-over-game", &json!({"value":value}))
                 .is_err());
-            let mut invalid = reopened.data.clone();
+            let mut invalid = reopened.data();
             invalid["keysOverGame"] = value;
             assert!(validate(&invalid).is_err());
         }
@@ -1277,14 +1186,14 @@ mod tests {
             assert!(reopened
                 .change("state:skip-version", &json!({"version":version}))
                 .is_err());
-            let mut invalid = reopened.data.clone();
+            let mut invalid = reopened.data();
             invalid["skippedVersion"] = version;
             assert!(validate(&invalid).is_err());
         }
         assert!(reopened
             .change("state:update-check", &json!({"value":"on"}))
             .is_err());
-        let mut invalid = reopened.data.clone();
+        let mut invalid = reopened.data();
         invalid["updateCheck"] = json!("on");
         assert!(validate(&invalid).is_err());
     }
@@ -1373,7 +1282,7 @@ mod tests {
             (&note["text"], &note["tag"]),
             (&json!("tilted today"), &json!("neutral"))
         );
-        validate(&s.data).unwrap();
+        validate(&s.data()).unwrap();
         // An empty name keeps the one saved earlier.
         let state = s
             .change(
@@ -1449,8 +1358,10 @@ mod tests {
         let entries: Vec<Value> = (0..MAX_NOTE_ENTRIES)
             .map(|_| json!({"id":uuid::Uuid::new_v4().to_string(),"text":"x","at":now()}))
             .collect();
-        s.data["notes"] = json!([{"accountId":"456","name":"","entries":entries,"text":"x","tag":"neutral","updatedAt":now()}]);
-        validate(&s.data).unwrap();
+        let mut data = s.data();
+        data["notes"] = json!([{"accountId":"456","name":"","entries":entries,"text":"x","tag":"neutral","updatedAt":now()}]);
+        validate(&data).unwrap();
+        s.set_data(data);
         assert!(s
             .change(
                 "note:add",
@@ -1480,7 +1391,7 @@ mod tests {
         )
         .unwrap();
         let legacy = |id: &str, written: i64| json!({"accountId":id,"name":"P","text":"remember","tag":"avoid","updatedAt":at(written)});
-        let mut state = Store::open(dir.path().into()).unwrap().data;
+        let mut state = Store::open(dir.path().into()).unwrap().data();
         state["notes"] = json!([
             legacy("456", end + 5 * 60),
             legacy("789", end - 600),
@@ -1509,10 +1420,65 @@ mod tests {
         );
         // Another player, and a player not in the match, stay without a match.
         assert!(entry(2).get("matchId").is_none() && entry(3).get("matchId").is_none());
-        validate(&s.data).unwrap();
+        validate(&s.data()).unwrap();
         // The migration is saved once and kept.
         let again = Store::open(dir.path().into()).unwrap();
         assert_eq!(again.public()["notes"], s.public()["notes"]);
+    }
+    #[test]
+    fn fields_of_a_newer_version_survive_a_write_and_the_file_keeps_its_bytes() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("state.json");
+        let mut s = Store::open(dir.path().into()).unwrap();
+        s.change("state:account", &json!({"id":"123"})).unwrap();
+        s.change(
+            "note:add",
+            &json!({"note":{"accountId":"456","name":"P","text":"x","matchId":7,"ally":false}}),
+        )
+        .unwrap();
+        s.change("mmr:add", &json!({"value":3000})).unwrap();
+        s.change("state:tray", &json!({"value":true})).unwrap();
+        let mut data = s.data();
+        data["futureSetting"] = json!({"nested":[1, "two"]});
+        data["notes"][0]["futureNote"] = json!(true);
+        data["notes"][0]["entries"][0]["futureEntry"] = json!("kept");
+        data["mmr"][0]["futureReading"] = json!(null);
+        atomic_json(&path, &data).unwrap();
+        let written = std::fs::read(&path).unwrap();
+        // Setting a value it already has rewrites the file byte for byte.
+        let mut s = Store::open(dir.path().into()).unwrap();
+        s.change("state:tray", &json!({"value":true})).unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), written);
+        // A real change keeps every field this version does not know.
+        s.change("state:tray", &json!({"value":false})).unwrap();
+        let saved: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        assert_eq!(saved["futureSetting"], json!({"nested":[1, "two"]}));
+        assert_eq!(saved["notes"][0]["futureNote"], true);
+        assert_eq!(saved["notes"][0]["entries"][0]["futureEntry"], "kept");
+        assert!(saved["mmr"][0]
+            .as_object()
+            .unwrap()
+            .contains_key("futureReading"));
+        assert_eq!(saved["closeToTray"], false);
+    }
+    #[test]
+    fn a_mistyped_field_is_a_load_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let s = Store::open(dir.path().into()).unwrap();
+        for (key, value) in [
+            ("autoHide", json!("yes")),
+            ("profileAccounts", json!(null)),
+            (
+                "notes",
+                json!([{"accountId":"456","name":7,"updatedAt":"x"}]),
+            ),
+            ("mmr", json!([{"id":"a","value":-1,"createdAt":"x"}])),
+        ] {
+            let mut data = s.data();
+            data[key] = value;
+            atomic_json(&dir.path().join("state.json"), &data).unwrap();
+            assert!(Store::open(dir.path().into()).is_err(), "{key}");
+        }
     }
     #[test]
     fn corrupt_state_is_not_overwritten() {
@@ -1548,17 +1514,19 @@ mod tests {
             .as_array()
             .unwrap()
             .contains(&json!("999")));
-        assert_eq!(store.data["hiddenProfiles"], json!([]));
+        assert_eq!(store.data()["hiddenProfiles"], json!([]));
         // Many accounts with saved readings, all removed: the limit is an error, not a
         // state file that could no longer be opened.
-        let reading = store.data["mmr"][0].clone();
+        let mut data = store.data();
+        let reading = data["mmr"][0].clone();
         assert_eq!(reading["accountId"], "1");
         for id in 2..=MAX_HIDDEN_PROFILES + 2 {
             let mut copy = reading.clone();
             copy["id"] = json!(uuid::Uuid::new_v4().to_string());
             copy["accountId"] = json!(id.to_string());
-            store.data["mmr"].as_array_mut().unwrap().push(copy);
+            data["mmr"].as_array_mut().unwrap().push(copy);
         }
+        store.set_data(data);
         for id in 2..MAX_HIDDEN_PROFILES + 2 {
             store
                 .change("state:remove-profile", &json!({"id":id.to_string()}))
@@ -1570,14 +1538,14 @@ mod tests {
             .unwrap_err()
             .contains("removed profiles"));
         assert_eq!(
-            Store::open(dir.path().into()).unwrap().data["hiddenProfiles"]
+            Store::open(dir.path().into()).unwrap().data()["hiddenProfiles"]
                 .as_array()
                 .unwrap()
                 .len(),
             MAX_HIDDEN_PROFILES
         );
         // A hand-edited file over the limit is rejected like other corrupt lists.
-        let mut over = store.data.clone();
+        let mut over = store.data();
         over["hiddenProfiles"]
             .as_array_mut()
             .unwrap()
@@ -1697,7 +1665,7 @@ mod tests {
     fn legacy_rating_is_preserved_without_guessing_its_owner() {
         let dir = tempfile::tempdir().unwrap();
         let s = Store::open(dir.path().into()).unwrap();
-        let mut legacy = s.data.clone();
+        let mut legacy = s.data();
         legacy["accountId"] = json!("123");
         legacy["mmr"] =
             json!([{"id":uuid::Uuid::new_v4().to_string(),"value":2000,"createdAt":now()}]);
