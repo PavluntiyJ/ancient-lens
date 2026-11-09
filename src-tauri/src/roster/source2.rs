@@ -119,7 +119,7 @@ pub(crate) fn class_at(memory: &impl Memory, address: u64) -> Result<Class> {
     let table = memory.u64(address + 48)?;
     let data = memory.read(table, count * 32)?;
     let mut fields = BTreeMap::new();
-    for f in data.chunks_exact(32) {
+    for f in data.as_chunks::<32>().0 {
         let name = memory.string(u64::from_le_bytes(f[..8].try_into().unwrap()))?;
         let offset = u32::from_le_bytes(f[16..20].try_into().unwrap()) as u64;
         if !name.starts_with("m_") || offset >= size || fields.insert(name, offset).is_some() {
@@ -292,13 +292,13 @@ fn entities_at(memory: &impl Memory, pointer: u64, types: &EntityTypes) -> Resul
     let mut resource = None;
     let mut proxy = None;
     let mut teams = [None; 2];
-    for (group, ptr) in chunks.chunks_exact(8).enumerate() {
-        let chunk = u64::from_le_bytes(ptr.try_into().unwrap());
+    for (group, ptr) in chunks.as_chunks::<8>().0.iter().enumerate() {
+        let chunk = u64::from_le_bytes(*ptr);
         if chunk == 0 {
             continue;
         }
         let data = memory.read(chunk, 512 * 0x70)?;
-        for (slot, identity) in data.chunks_exact(0x70).enumerate() {
+        for (slot, identity) in data.as_chunks::<0x70>().0.iter().enumerate() {
             let instance = u64::from_le_bytes(identity[..8].try_into().unwrap());
             let handle = u32::from_le_bytes(identity[16..20].try_into().unwrap());
             if instance == 0 || handle & 0x7fff != (group * 512 + slot) as u32 {
@@ -357,8 +357,10 @@ fn bans(memory: &impl Memory, layout: &Layout, rules: u64) -> Result<Vec<u32>> {
     }
     let data = memory.read(memory.u64(rules + field + 8)?, count as usize * 4)?;
     Ok(data
-        .chunks_exact(4)
-        .map(|v| u32::from_le_bytes(v.try_into().unwrap()))
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|v| u32::from_le_bytes(*v))
         .collect())
 }
 fn read_roster(

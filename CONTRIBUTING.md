@@ -46,18 +46,20 @@ Start with the [installation guide](docs/guide/install.md), the
 
 ## Checks
 
-| Change             | Run                                                                                          |
-| ------------------ | -------------------------------------------------------------------------------------------- |
-| Any                | `npm ci`, `npm run check`, `npm run format:check`, `npm run check:public`                    |
-| Rust               | `cargo fmt --manifest-path src-tauri/Cargo.toml --check`, `npm run test:rust`                |
-| Statistics service | `cargo check --manifest-path src-tauri/Cargo.toml --no-default-features --bin stats-service` |
-| Launcher scripts   | `python3 -m unittest discover -s tests/python` (`py -3` on Windows)                          |
-| UI or desktop      | `npm run build` and `npm run test:native` on each platform you can reach                     |
-| Memory readers     | The offline game-file tests in the [native reader guide](docs/dev/native-reader.md)          |
-| Screenshots        | `npm run build`, then `npm run docs:screenshots` ([details](docs/README.md#screenshots))     |
+| Change             | Run                                                                                                                                                             |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Any                | `npm ci`, `npm run check`, `npm run format:check`, `npm run check:public`                                                                                       |
+| Rust               | `cargo fmt --manifest-path src-tauri/Cargo.toml --check`, `npm run test:rust`, `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings` |
+| Statistics service | `cargo check --manifest-path src-tauri/Cargo.toml --no-default-features --bin stats-service`, and the same with `cargo clippy … -- -D warnings`                 |
+| Launcher scripts   | `python3 -m unittest discover -s tests/python` (`py -3` on Windows)                                                                                             |
+| UI or desktop      | `npm run build` and `npm run test:native` on each platform you can reach                                                                                        |
+| Memory readers     | The offline game-file tests in the [native reader guide](docs/dev/native-reader.md)                                                                             |
+| Screenshots        | `npm run build`, then `npm run docs:screenshots` ([details](docs/README.md#screenshots))                                                                        |
 
 `npm run test:rust` builds the web assets first, because Tauri embeds them when the crate
-compiles; a direct `cargo test` needs an earlier `npm run build:web`.
+compiles; a direct `cargo test` or `cargo clippy` needs an earlier `npm run build:web`.
+Clippy warnings fail CI; a lint that is wrong for one case gets an `#[allow(...)]` with a
+one-line reason, never a crate-wide allow.
 `npm run format` and `cargo fmt --manifest-path src-tauri/Cargo.toml` format your changes.
 The optional pre-push hook runs the main checks: `git config core.hooksPath .githooks`.
 Ordinary tests use fixtures, need no API keys and never start Dota. See

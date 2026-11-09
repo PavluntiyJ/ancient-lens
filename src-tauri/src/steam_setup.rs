@@ -179,6 +179,8 @@ fn account_configs(steam: &Path, account: Option<String>) -> Vec<PathBuf> {
     }
 }
 
+// The error is the status handed to the page by value; `locate` runs once per setup check.
+#[allow(clippy::result_large_err)]
 fn locate(host: &impl Host) -> std::result::Result<Install, Status> {
     let roots: Vec<PathBuf> = host
         .steam_roots()

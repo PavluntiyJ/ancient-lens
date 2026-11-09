@@ -171,7 +171,7 @@ pub(crate) mod tests {
         let mut players: Vec<Value> = (0..10)
             .map(|i: u64| {
                 let slot = if i < 5 { i } else { 128 + i - 5 };
-                json!({"player_slot":slot,"hero_id":i + 1,"account_id":if i % 2 == 0 {json!(100 + i)} else {Value::Null},
+                json!({"player_slot":slot,"hero_id":i + 1,"account_id":if i.is_multiple_of(2) {json!(100 + i)} else {Value::Null},
                     "kills":i,"deaths":2,"assists":3,"last_hits":40,"denies":2,"net_worth":9000,"hero_damage":12000,
                     "tower_damage":300,"hero_healing":0,"gold_per_min":400,"xp_per_min":500})
             })
