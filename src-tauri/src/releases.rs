@@ -55,8 +55,8 @@ pub fn client() -> reqwest::Client {
         .timeout(Duration::from_secs(15))
         .connect_timeout(Duration::from_secs(8))
         .redirect(reqwest::redirect::Policy::none())
-        // GitHub refuses requests without one; it names the app, not its version.
-        .user_agent("AncientLens")
+        // GitHub refuses requests without one.
+        .user_agent(crate::api::USER_AGENT)
         .build()
         .expect("TLS client")
 }
