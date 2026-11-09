@@ -112,10 +112,35 @@ fn adopt(child: std::process::Child) {
 
 #[cfg(target_os = "linux")]
 fn unit_installed() -> bool {
-    dirs::config_dir().is_some_and(|path| {
-        path.join("systemd/user/ancient-lens-stats.service")
-            .is_file()
-    })
+    dirs::config_dir()
+        .is_some_and(|path| unit_usable(&path.join("systemd/user/ancient-lens-stats.service")))
+}
+
+/// A user unit the app may start. The retired Python launcher installed one that runs
+/// `start-personal-stratz.py` from a source checkout; once that script is gone the unit can only
+/// fail, so the app starts `stats-service` itself instead, with the same saved token.
+#[cfg(target_os = "linux")]
+fn unit_usable(unit: &Path) -> bool {
+    let Ok(text) = std::fs::read_to_string(unit) else {
+        return false;
+    };
+    let retired = text.lines().find_map(|line| {
+        let command = line.trim().strip_prefix("ExecStart=")?;
+        command
+            .split('"')
+            .chain(command.split_whitespace())
+            .find(|part| part.ends_with("start-personal-stratz.py"))
+            .map(PathBuf::from)
+    });
+    match retired {
+        Some(script) if !script.is_file() => {
+            crate::log_line!(
+                "Statistics service: ignoring the ancient-lens-stats unit of the retired launcher"
+            );
+            false
+        }
+        _ => true,
+    }
 }
 
 /// `systemctl --user <action>` on the installed unit; the unit alone reads the keyring.
@@ -325,7 +350,7 @@ pub async fn resolve(explicit: Option<String>, isolated: bool) -> Option<String>
 
 /// How a new token reaches a service.
 enum Route {
-    /// Started outside the app (for example by the Python launcher); it keeps its own token.
+    /// Started outside the app (for example from a terminal); it keeps its own token.
     External,
     #[cfg(target_os = "linux")]
     Unit,
@@ -458,6 +483,32 @@ mod tests {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_unit_of_the_retired_launcher_is_ignored_once_its_script_is_gone() {
+        let dir = tempfile::tempdir().unwrap();
+        let unit = dir.path().join("ancient-lens-stats.service");
+        let script = dir.path().join("start-personal-stratz.py");
+        std::fs::write(
+            &unit,
+            format!(
+                "[Service]\nExecStart=/usr/bin/python3 \"{}\" --saved-token\n",
+                script.display()
+            ),
+        )
+        .unwrap();
+        assert!(!unit_usable(&unit));
+        std::fs::write(&script, "").unwrap();
+        assert!(unit_usable(&unit));
+        // A unit someone wrote for the binary itself stays in use.
+        std::fs::write(
+            &unit,
+            "[Service]\nExecStart=/opt/ancient-lens/stats-service\n",
+        )
+        .unwrap();
+        assert!(unit_usable(&unit));
+        assert!(!unit_usable(&dir.path().join("missing.service")));
+    }
     #[test]
     fn stopping_a_service_this_app_did_not_start_is_safe() {
         let _slot = owned_slot();

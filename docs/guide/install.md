@@ -135,11 +135,11 @@ user, with the same permissions as Dota. Do not run the app as root.
 
 Build packages on the target platform:
 
-| Command                | Output                                                       |
-| ---------------------- | ------------------------------------------------------------ |
+| Command                | Output                                                               |
+| ---------------------- | -------------------------------------------------------------------- |
 | `npm run dist:linux`   | AppImage, `.deb` and `.rpm` under `src-tauri/target/release/bundle/` |
-| `npm run dist:win`     | NSIS installer under `src-tauri/target/release/bundle/nsis/` |
-| `npm run dist:win:zip` | Portable ZIP under `release/`                                |
+| `npm run dist:win`     | NSIS installer under `src-tauri/target/release/bundle/nsis/`         |
+| `npm run dist:win:zip` | Portable ZIP under `release/`                                        |
 
 On Fedora, use the `.rpm`, the native executable or AppImage, not the Debian package. Make
 an AppImage executable before launching it (`chmod +x <download>.AppImage`).

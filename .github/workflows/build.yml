@@ -45,9 +45,6 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - uses: actions/setup-python@v7
-        with:
-          python-version: '3.12'
       # Installs the version and components named in rust-toolchain.toml.
       - run: rustup toolchain install --no-self-update
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
@@ -62,7 +59,6 @@ jobs:
       - run: npm run check
       - run: npm run lint
       - run: npm run check:public
-      - run: python -m unittest discover -s tests/python
       - run: npm run test:rust
       - run: cargo check --manifest-path src-tauri/Cargo.toml --no-default-features --bin stats-service
       # After test:rust, which builds the web assets Tauri embeds.

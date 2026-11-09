@@ -51,7 +51,6 @@ Start with the [installation guide](docs/guide/install.md), the
 | Any                | `npm ci`, `npm run check`, `npm run lint`, `npm run format:check`, `npm run check:public`                                                                       |
 | Rust               | `cargo fmt --manifest-path src-tauri/Cargo.toml --check`, `npm run test:rust`, `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings` |
 | Statistics service | `cargo check --manifest-path src-tauri/Cargo.toml --no-default-features --bin stats-service`, and the same with `cargo clippy … -- -D warnings`                 |
-| Launcher scripts   | `python3 -m unittest discover -s tests/python` (`py -3` on Windows)                                                                                             |
 | UI or desktop      | `npm run build` and `npm run test:native` on each platform you can reach                                                                                        |
 | Memory readers     | The offline game-file tests in the [native reader guide](docs/dev/native-reader.md)                                                                             |
 | Screenshots        | `npm run build`, then `npm run docs:screenshots` ([details](docs/README.md#screenshots))                                                                        |
