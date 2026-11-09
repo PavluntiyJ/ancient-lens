@@ -103,8 +103,8 @@ pub struct Api {
     player_slots: Semaphore,
     /// Steam identity fetches wait here instead of taking player-history slots.
     steam_slots: Semaphore,
-    /// An isolated run (`ANCIENT_TEST_DATA`): fixtures only, never a live provider. Read once
-    /// at construction so tests can build an isolated API without the process environment.
+    /// An isolated run: fixtures only, never a live provider. Copied from the startup
+    /// mode; tests can still build an isolated API without the process environment.
     isolated: bool,
     /// OpenDota's API root; a local fake in tests.
     opendota: String,
@@ -122,7 +122,7 @@ struct Pending {
 }
 impl Api {
     pub fn new(directory: PathBuf, broker_url: Option<String>) -> Result<Arc<Self>> {
-        let isolated = std::env::var_os("ANCIENT_TEST_DATA").is_some();
+        let isolated = crate::mode::Mode::current().isolated();
         Self::build(directory, broker_url, isolated, OPENDOTA, STEAM)
     }
     fn build(

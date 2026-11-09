@@ -23,6 +23,28 @@ inspect the real game process or call live STRATZ. The release check never asks 
 isolated run; the scenario gives it a fixture list through `ANCIENT_TEST_RELEASES`. The page's local storage stays inside
 that directory too: `XDG_DATA_HOME` on Linux, a WebView2 data folder on Windows.
 
+### Isolated mode
+
+`src-tauri/src/mode.rs` reads the isolation environment once at startup. The desktop,
+provider client and GSI worker share that immutable snapshot; changing the environment
+later cannot enable a test command. The caller/window check still runs before dispatch.
+
+| Area | Difference with `ANCIENT_TEST_DATA` set |
+| --- | --- |
+| Storage | State/cache/logs use that directory; window positions are neither read nor saved. Linux's driver also sets `XDG_DATA_HOME`; Windows WebView2 uses its `webview2/` subdirectory. |
+| Test commands | `window:test-size` and `window:test-foreground` are routed to `desktop/test_commands.rs`; both are unknown commands in normal mode. |
+| Browser and folders | Links and log-folder commands return their validated destination without opening it. |
+| Steam | Status reports that Steam is not checked; repair is rejected. |
+| STRATZ setup | Connect/disconnect are rejected without accessing credentials or the user's service. Explicit loopback fixture services are still usable. |
+| Identity/items/history | The provider client retains its fixture-only paths and demonstration labels. |
+| GSI/reader | GSI binds an ephemeral loopback port; enabling the reader starts the synthetic worker. |
+| Account and recorded-match workers | No automatic real-account polling or provider completion of recorded matches. `ANCIENT_TEST_ACCOUNT_FEED` optionally supplies synthetic account observations. |
+| Releases | No GitHub requests; `ANCIENT_TEST_RELEASES` optionally supplies a release-list file. |
+| Tray and shortcuts | No tray or Linux portal binding. Windows keeps the existing shortcut registration for native tests. |
+| Foreground watching | Disabled unless `ANCIENT_TEST_AUTO_HIDE=1`; tests can report synthetic foreground changes explicitly. |
+| First-run dialogs | Suppressed unless `ANCIENT_READER_PROMPT=1`. |
+| Windows debugging | `ANCIENT_WEBVIEW_DEBUG_PORT` enables debugging only in isolated mode. |
+
 One scenario, `scripts/smoke-native-scenario.mjs`, runs on both systems through the driver in
 `scripts/native-capture.mjs`: `WebKitWebDriver` on Linux (needs a desktop session), Playwright
 over the WebView2 debugging protocol on Windows. Both give the scenario element references,

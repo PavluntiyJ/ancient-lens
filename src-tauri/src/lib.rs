@@ -16,6 +16,7 @@ pub mod journal;
 pub mod local_service;
 pub mod log;
 pub mod match_details;
+pub mod mode;
 #[cfg(feature = "desktop")]
 pub mod overlay;
 pub mod own_account;
