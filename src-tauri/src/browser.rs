@@ -3,13 +3,9 @@ use std::process::{Command, Stdio};
 use std::time::Duration;
 
 pub async fn open(url: &str) -> Result<(), String> {
-    let mut commands = open::commands(url);
+    let commands = open::commands(url);
     #[cfg(target_os = "linux")]
-    if std::env::var_os("APPIMAGE").is_some() {
-        for command in &mut commands {
-            clean_appimage(command);
-        }
-    }
+    let commands = without_appimage_libraries(commands);
     launch(commands).await
 }
 
@@ -32,6 +28,16 @@ async fn launch(commands: Vec<Command>) -> Result<(), String> {
         }
     }
     Err("Could not open the browser. Copy the website address into your browser.".into())
+}
+
+#[cfg(target_os = "linux")]
+fn without_appimage_libraries(mut commands: Vec<Command>) -> Vec<Command> {
+    if std::env::var_os("APPIMAGE").is_some() {
+        for command in &mut commands {
+            clean_appimage(command);
+        }
+    }
+    commands
 }
 
 #[cfg(target_os = "linux")]
