@@ -390,6 +390,8 @@ export type AppInfo = {
   /** False while the keys are released because another app is in front during a game. */
   keysListening?: boolean;
   dataPath: string;
+  /** The current log file; older lines are in `ancient-lens.1.log` beside it. */
+  logPath?: string;
   gsiPort: number;
   /** False in isolated test runs, so automation never meets the first-run reader question. */
   readerPrompt?: boolean;
@@ -570,6 +572,7 @@ export type DesktopApi = {
   onRelease?(callback: (info: ReleaseInfo) => void): () => void;
   /** Opens the page of the release the last check found. */
   openRelease?(): Promise<string>;
+  openLogFolder?(): Promise<string>;
   setShortcuts?(value: import('./shortcuts').Shortcuts): Promise<LocalState>;
   getPlayer(id: string): Promise<PlayerResult>;
   /** The median medal of the live match's players, kept with its journal record. */

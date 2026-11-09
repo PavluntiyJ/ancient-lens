@@ -204,7 +204,7 @@ mod platform {
                 let event = match conn.wait_for_event() {
                     Ok(event) => event,
                     Err(error) => {
-                        eprintln!("Active window: {error}");
+                        crate::log_line!("Active window: {error}");
                         return;
                     }
                 };

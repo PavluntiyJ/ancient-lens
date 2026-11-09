@@ -85,7 +85,7 @@ fn spawn(path: &Path, token: &str) -> Result<()> {
     std::os::windows::process::CommandExt::creation_flags(&mut command, CREATE_NO_WINDOW);
     match command.spawn() {
         Ok(child) => {
-            eprintln!(
+            crate::log_line!(
                 "Statistics service: started {} (pid {})",
                 path.display(),
                 child.id()
@@ -94,7 +94,7 @@ fn spawn(path: &Path, token: &str) -> Result<()> {
             Ok(())
         }
         Err(error) => {
-            eprintln!(
+            crate::log_line!(
                 "Statistics service: could not start {}: {error}",
                 path.display()
             );
@@ -190,7 +190,7 @@ pub fn stale_notice() -> Option<String> {
 
 fn set_stale_notice(notice: Option<String>) {
     if let Some(notice) = &notice {
-        eprintln!("Statistics service: {notice}");
+        crate::log_line!("Statistics service: {notice}");
     }
     if let Ok(mut slot) = STALE_NOTICE.lock() {
         *slot = notice;
@@ -264,7 +264,7 @@ async fn refresh(health: &Health) {
     }
     #[cfg(target_os = "linux")]
     if unit_installed() && unit_active().await {
-        eprintln!("Statistics service: restarting the older ancient-lens-stats unit");
+        crate::log_line!("Statistics service: restarting the older ancient-lens-stats unit");
         if systemctl("restart").await && wait_current(Duration::from_secs(5)).await {
             set_stale_notice(None);
             return;

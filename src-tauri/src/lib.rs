@@ -13,6 +13,7 @@ pub mod history;
 pub mod item_stats;
 pub mod journal;
 pub mod local_service;
+pub mod log;
 pub mod match_details;
 #[cfg(feature = "desktop")]
 pub mod overlay;
