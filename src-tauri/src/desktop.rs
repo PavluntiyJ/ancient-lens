@@ -1,3 +1,5 @@
+mod test_commands;
+
 use crate::error::Error;
 use crate::{
     api::Api,
@@ -16,6 +18,7 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 use tokio::sync::{Mutex, RwLock};
 
 struct Desktop {
+    mode: &'static crate::mode::Mode,
     store: Mutex<Store>,
     /// Replaced when STRATZ is connected or disconnected from Settings.
     api: std::sync::RwLock<Arc<Api>>,
@@ -470,6 +473,9 @@ async fn desktop_call(
     if !WINDOWS.contains(&window.label()) || !trusted(&window.url().map_err(|e| e.to_string())?) {
         return Err("Untrusted window".into());
     }
+    if state.mode.test_command(&command) {
+        return test_commands::handle(&app, &window, &state, &command, &args);
+    }
     match command.as_str() {
         "window:resize" => {
             let direction =
@@ -523,21 +529,6 @@ async fn desktop_call(
                     .map_err(|e| e.to_string())?;
             }
             Ok(json!({"width": width, "height": height}))
-        }
-        // Isolated tests set the native window size, as WebDriver does on Linux; the Windows
-        // driver (WebView2 debugging protocol) cannot.
-        "window:test-size" if std::env::var_os("ANCIENT_TEST_DATA").is_some() => {
-            let size = |key: &str| args[key].as_f64().filter(|v| (100.0..=10000.0).contains(v));
-            let (width, height) = size("width")
-                .zip(size("height"))
-                .ok_or("Invalid window size")?;
-            if window.is_maximized().map_err(|e| e.to_string())? {
-                window.unmaximize().map_err(|e| e.to_string())?;
-            }
-            window
-                .set_size(tauri::LogicalSize::new(width, height))
-                .map_err(|e| e.to_string())?;
-            Ok(Value::Null)
         }
         "window:action" => {
             match args["action"].as_str().unwrap_or("") {
@@ -602,7 +593,7 @@ async fn desktop_call(
         "app:info" => {
             let store = state.store.lock().await;
             Ok(
-                json!({"version":env!("CARGO_PKG_VERSION"),"platform":if cfg!(windows){"win32"}else{std::env::consts::OS},"runtime":"Tauri + Rust","wayland":std::env::var_os("WAYLAND_DISPLAY").is_some(),"shortcut":state.shortcut.load(Ordering::Relaxed),"shortcutKey":store.shortcuts()["global"],"shortcutTrigger":state.shortcut_trigger.lock().ok().and_then(|t| t.clone()),"profileShortcut":state.profile_shortcut.load(Ordering::Relaxed),"profileShortcutKey":store.shortcuts()["profile"],"profileShortcutTrigger":state.profile_trigger.lock().ok().and_then(|t| t.clone()),"overlay":overlay::passive(),"autoHide":crate::foreground::available(),"keysOverGame":crate::foreground::available() && state.keys_releasable.load(Ordering::Relaxed),"keysListening":!state.keys_released.load(Ordering::Relaxed),"window":window.label(),"tray":state.tray.load(Ordering::Relaxed),"dataPath":store.directory,"logPath":crate::log::folder(&store.directory).join("ancient-lens.log"),"gsiPort":state.port.load(Ordering::Relaxed),"readerPrompt":reader_prompt()}),
+                json!({"version":env!("CARGO_PKG_VERSION"),"platform":if cfg!(windows){"win32"}else{std::env::consts::OS},"runtime":"Tauri + Rust","wayland":std::env::var_os("WAYLAND_DISPLAY").is_some(),"shortcut":state.shortcut.load(Ordering::Relaxed),"shortcutKey":store.shortcuts()["global"],"shortcutTrigger":state.shortcut_trigger.lock().ok().and_then(|t| t.clone()),"profileShortcut":state.profile_shortcut.load(Ordering::Relaxed),"profileShortcutKey":store.shortcuts()["profile"],"profileShortcutTrigger":state.profile_trigger.lock().ok().and_then(|t| t.clone()),"overlay":overlay::passive(),"autoHide":crate::foreground::available(),"keysOverGame":crate::foreground::available() && state.keys_releasable.load(Ordering::Relaxed),"keysListening":!state.keys_released.load(Ordering::Relaxed),"window":window.label(),"tray":state.tray.load(Ordering::Relaxed),"dataPath":store.directory,"logPath":crate::log::folder(&store.directory).join("ancient-lens.log"),"gsiPort":state.port.load(Ordering::Relaxed),"readerPrompt":state.mode.reader_prompt}),
             )
         }
         "player:site" => {
@@ -610,9 +601,7 @@ async fn desktop_call(
                 args["id"].as_str().unwrap_or(""),
                 args["site"].as_str().unwrap_or(""),
             )?;
-            if std::env::var_os("ANCIENT_TEST_DATA").is_none() {
-                crate::browser::open(&url).await?;
-            }
+            state.mode.open_external(&url).await?;
             Ok(json!(url))
         }
         "match:site" => {
@@ -620,9 +609,7 @@ async fn desktop_call(
                 args["id"].as_str().unwrap_or(""),
                 args["site"].as_str().unwrap_or(""),
             )?;
-            if std::env::var_os("ANCIENT_TEST_DATA").is_none() {
-                crate::browser::open(&url).await?;
-            }
+            state.mode.open_external(&url).await?;
             Ok(json!(url))
         }
         "live:get" => Ok(state.live.read().await.clone()),
@@ -631,18 +618,14 @@ async fn desktop_call(
             Err("Configure a local STRATZ service; see docs/guide/stats-service.md.".into())
         }
         "stratz:tokens" => {
-            if std::env::var_os("ANCIENT_TEST_DATA").is_none() {
-                crate::browser::open(crate::stratz_token::TOKENS_PAGE).await?;
-            }
+            state
+                .mode
+                .open_external(crate::stratz_token::TOKENS_PAGE)
+                .await?;
             Ok(json!(crate::stratz_token::TOKENS_PAGE))
         }
-        // Isolated test runs never touch this computer's secret store or its service.
-        "provider:connect" | "provider:disconnect"
-            if std::env::var_os("ANCIENT_TEST_DATA").is_some() =>
-        {
-            Err("Connecting STRATZ is disabled in isolated test sessions.".into())
-        }
         "provider:connect" | "provider:disconnect" => {
+            state.mode.require_secret_store()?;
             if state.explicit_service {
                 return Err(
                     "The statistics service is set by ANCIENT_STATS_URL for this launch.".into(),
@@ -803,11 +786,11 @@ async fn desktop_call(
         "log:open" => {
             let folder = crate::log::folder(&state.store.lock().await.directory);
             let path = folder.to_string_lossy().into_owned();
-            if std::env::var_os("ANCIENT_TEST_DATA").is_none() {
-                crate::browser::open(&path)
-                    .await
-                    .map_err(|_| "Could not open the folder. Its path is shown above.")?;
-            }
+            state
+                .mode
+                .open_external(&path)
+                .await
+                .map_err(|_| "Could not open the folder. Its path is shown above.")?;
             Ok(json!(path))
         }
         "release:open" => {
@@ -818,9 +801,7 @@ async fn desktop_call(
                 .as_ref()
                 .and_then(|release| release["url"].as_str().map(String::from))
                 .ok_or("No newer version is known.")?;
-            if std::env::var_os("ANCIENT_TEST_DATA").is_none() {
-                crate::browser::open(&url).await?;
-            }
+            state.mode.open_external(&url).await?;
             Ok(json!(url))
         }
         "state:tray" => {
@@ -838,23 +819,6 @@ async fn desktop_call(
                 .store(value["autoHide"] == true, Ordering::Relaxed);
             let _ = app.emit("state:update", &value);
             Ok(value)
-        }
-        // Isolated tests do not watch the active window (see `run`); they report an activation
-        // here instead: one of this app's windows, or another program by its file name.
-        "window:test-foreground" if std::env::var_os("ANCIENT_TEST_DATA").is_some() => {
-            let pid = if args["own"] == true {
-                std::process::id()
-            } else {
-                0
-            };
-            let hidden = foreground(&app, pid, args["exe"].as_str(), args["initial"] == true);
-            let minimized = WINDOWS.map(|label| {
-                app.get_webview_window(label)
-                    .is_some_and(|w| w.is_minimized().unwrap_or(false))
-            });
-            Ok(
-                json!({"hidden": hidden, "minimized": minimized, "keys": !state.keys_released.load(Ordering::Relaxed)}),
-            )
         }
         "state:keys-over-game" => {
             let value = state.store.lock().await.change(&command, &args)?;
@@ -904,17 +868,10 @@ async fn desktop_call(
             let _ = app.emit("state:update", &value);
             Ok(value)
         }
-        // Isolated test runs never look at or touch this computer's Steam.
-        "steam:status" | "steam:repair" if std::env::var_os("ANCIENT_TEST_DATA").is_some() => {
-            if command == "steam:repair" {
-                return Err("Steam setup is disabled in isolated test sessions.".into());
-            }
-            serde_json::to_value(steam_setup::Status::unavailable(
-                "Steam is not checked in isolated test sessions.",
-            ))
-            .map_err(Error::from)
-        }
         "steam:status" => {
+            if let Some(status) = state.mode.steam_status(false)? {
+                return serde_json::to_value(status).map_err(Error::from);
+            }
             let (config, memory) = {
                 let store = state.store.lock().await;
                 let port = state.port.load(Ordering::Relaxed);
@@ -928,6 +885,7 @@ async fn desktop_call(
             serde_json::to_value(status).map_err(Error::from)
         }
         "steam:repair" => {
+            state.mode.steam_status(true)?;
             let Ok(_running) = state.steam_repair.try_lock() else {
                 return Err("Steam setup is already running.".into());
             };
@@ -983,19 +941,13 @@ async fn desktop_call(
         _ => Err("Unknown command".into()),
     }
 }
-/// Whether the page may offer first-run reader/STRATZ setup. Isolated test runs skip the
-/// dialogs so automation never meets a modal, unless ANCIENT_READER_PROMPT=1 asks for them.
-fn reader_prompt() -> bool {
-    std::env::var_os("ANCIENT_TEST_DATA").is_none()
-        || std::env::var_os("ANCIENT_READER_PROMPT").is_some_and(|v| v == "1")
-}
 /// The match and profile windows come from tauri.conf.json but are built here, so that test
 /// runs on Windows can expose WebView2 to the smoke test. wry otherwise sets its
 /// own browser arguments, which hide WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS.
 /// A debugging port lets any local process drive the app, so it is only ever
 /// opened in isolated test mode (ANCIENT_TEST_DATA). Both windows share one WebView2
 /// environment, so they get the same arguments and one port shows both pages.
-fn build_window(app: &tauri::App, label: &str) -> tauri::Result<()> {
+fn build_window(app: &tauri::App, label: &str, _mode: &crate::mode::Mode) -> tauri::Result<()> {
     let config = app
         .config()
         .app
@@ -1011,16 +963,12 @@ fn build_window(app: &tauri::App, label: &str) -> tauri::Result<()> {
         .focused(!passive)
         .focusable(!passive);
     #[cfg(windows)]
-    if let Some(test_data) = std::env::var_os("ANCIENT_TEST_DATA") {
+    if let Some(test_data) = &_mode.test_data {
         // WebView2 otherwise keeps local storage under %LOCALAPPDATA% for every run, so tests
         // would share first-run answers with each other and with the user's real profile.
         // Linux tests isolate WebKit through XDG_DATA_HOME instead.
-        builder = builder.data_directory(std::path::PathBuf::from(test_data).join("webview2"));
-        if let Some(port) = std::env::var("ANCIENT_WEBVIEW_DEBUG_PORT")
-            .ok()
-            .and_then(|v| v.parse::<u16>().ok())
-            .filter(|p| *p > 0)
-        {
+        builder = builder.data_directory(test_data.join("webview2"));
+        if let Some(port) = _mode.webview_debug_port {
             // Keep wry's defaults: these flags replace them rather than append.
             builder = builder.additional_browser_args(&format!(
                 "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --remote-debugging-port={port}"
@@ -1039,7 +987,8 @@ pub fn run() {
     // Setup may start the statistics service; an error after that returns before `app.run`
     // installs its exit handler, so this stops the child on every way out of here.
     let _service = crate::local_service::StopOnDrop;
-    let isolated = std::env::var_os("ANCIENT_TEST_DATA").is_some();
+    let mode = crate::mode::Mode::current();
+    let isolated = mode.isolated();
     let mut builder = tauri::Builder::default()
         // Starting the app again brings both windows back, the match window in front.
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
@@ -1104,13 +1053,7 @@ pub fn run() {
             }
         })
         .setup(move |app| {
-            let directory = std::env::var_os("ANCIENT_TEST_DATA")
-                .map(std::path::PathBuf::from)
-                .unwrap_or_else(|| {
-                    dirs::config_dir()
-                        .expect("User config directory")
-                        .join("Ancient Lens")
-                });
+            let directory = mode.data_directory();
             crate::log::init(&directory);
             crate::log_line!(
                 "Ancient Lens {} started on {}",
@@ -1126,16 +1069,12 @@ pub fn run() {
             let explicit = explicit_service.is_some();
             let broker = tauri::async_runtime::block_on(crate::local_service::resolve(
                 explicit_service,
-                std::env::var_os("ANCIENT_TEST_DATA").is_some(),
+                isolated,
             ));
             let api =
                 tauri::async_runtime::block_on(async { Api::new(directory.join("cache"), broker) })
                     .map_err(std::io::Error::other)?;
-            let port = if std::env::var_os("ANCIENT_TEST_DATA").is_some() {
-                0
-            } else {
-                32123
-            };
+            let port = if isolated { 0 } else { 32123 };
             let handle = app.handle().clone();
             let (port, gsi) = tauri::async_runtime::block_on(gsi::start(
                 port,
@@ -1168,7 +1107,7 @@ pub fn run() {
             ))
             .map_err(std::io::Error::other)?;
             for label in WINDOWS {
-                build_window(app, label)?;
+                build_window(app, label, mode)?;
             }
             // Linux binds the shortcuts through the desktop portal in the background below.
             let keys = global_keys(&store.shortcuts());
@@ -1177,12 +1116,12 @@ pub fn run() {
                     && app.global_shortcut().register(keys[i].as_str()).is_ok()
             });
             // Isolated test runs keep the old close-to-quit behaviour and leave the tray alone.
-            let has_tray =
-                std::env::var_os("ANCIENT_TEST_DATA").is_none() && tray_host() && tray(app).is_ok();
+            let has_tray = !isolated && tray_host() && tray(app).is_ok();
             let close_to_tray = store.close_to_tray();
             let auto_hide = store.auto_hide();
             let keys_over_game = store.keys_over_game();
             app.manage(Desktop {
+                mode,
                 store: Mutex::new(store),
                 api: std::sync::RwLock::new(api),
                 explicit_service: explicit,
@@ -1217,7 +1156,7 @@ pub fn run() {
             }
             // Isolated runs leave the windows up whatever the user activates, so tests stay
             // deterministic; ANCIENT_TEST_AUTO_HIDE=1 watches as a normal session does.
-            if !isolated || std::env::var_os("ANCIENT_TEST_AUTO_HIDE").is_some_and(|v| v == "1") {
+            if mode.watch_foreground {
                 let handle = app.handle().clone();
                 // Setup runs on the main thread, whose message loop delivers the Windows hook.
                 let watched = crate::foreground::watch(move |pid, exe, initial| {
@@ -1239,10 +1178,7 @@ pub fn run() {
                 }
             }
             // Optional fixture feed only in isolated tests; never read it in a normal session.
-            let test_feed = isolated
-                .then(|| std::env::var_os("ANCIENT_TEST_ACCOUNT_FEED"))
-                .flatten()
-                .map(std::path::PathBuf::from);
+            let test_feed = mode.account_feed.clone();
             if !isolated || test_feed.is_some() {
                 let handle = app.handle().clone();
                 tauri::async_runtime::spawn(async move {
@@ -1295,10 +1231,7 @@ pub fn run() {
                 tauri::async_runtime::spawn(match_details(app.handle().clone()));
             }
             // Isolated tests never ask GitHub; they may read a fixture release list instead.
-            let releases = isolated
-                .then(|| std::env::var_os("ANCIENT_TEST_RELEASES"))
-                .flatten()
-                .map(std::path::PathBuf::from);
+            let releases = mode.releases.clone();
             if !isolated || releases.is_some() {
                 tauri::async_runtime::spawn(release_check(app.handle().clone(), releases));
             }

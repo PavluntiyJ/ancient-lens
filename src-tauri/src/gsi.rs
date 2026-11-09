@@ -280,7 +280,7 @@ pub async fn start(
         live,
         update,
         Box::new(finished),
-        std::env::var_os("ANCIENT_TEST_DATA").is_some(),
+        crate::mode::Mode::current().isolated(),
     ));
     #[cfg(any(target_os = "linux", windows))]
     control.set_reader(reader_enabled).await;
