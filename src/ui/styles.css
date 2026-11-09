@@ -1764,24 +1764,6 @@ td small {
   font-size: 13px;
   color: var(--text-2);
 }
-.rail-panel {
-  min-width: 0;
-  padding: 10px 12px 12px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-}
-.rail-panel h2 {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 14px;
-  margin-bottom: 8px;
-  color: var(--text);
-}
-.rail-panel h2 svg {
-  color: var(--accent);
-}
 .rail-empty {
   text-align: center;
   color: var(--muted);
@@ -1856,17 +1838,9 @@ td small {
 .matrix-empty {
   opacity: 0.35;
 }
-.matrix-team {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 600;
-  margin: 0 2px;
-}
-.matrix-team.radiant,
 .matchup-average.radiant {
   color: var(--radiant);
 }
-.matrix-team.dire,
 .matchup-average.dire {
   color: var(--dire);
 }
@@ -2096,15 +2070,6 @@ td small {
 .team-name.dire {
   color: var(--dire);
 }
-.lane-pill {
-  padding: 1px 8px;
-  border-radius: 3px;
-  background: var(--raised);
-  border: 1px solid var(--line-strong);
-  color: var(--text);
-  font-size: 12px;
-  letter-spacing: 0.6px;
-}
 .lane-heading {
   position: absolute;
   width: 1px;
@@ -2112,12 +2077,6 @@ td small {
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
-}
-.lane-carousel-body {
-  display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) 22px;
-  align-items: center;
-  gap: 2px;
 }
 .lane-arrow {
   width: 22px;
@@ -2246,9 +2205,6 @@ td small {
   height: 2px;
   background: var(--dire);
   transform: rotate(-18deg);
-}
-.recommendations-panel {
-  position: relative;
 }
 .suggestion-tile:focus-visible,
 .matchup-cell:focus-visible {
@@ -2515,8 +2471,7 @@ td small {
 .role-unknown {
   color: var(--muted);
 }
-.lane-heading,
-.lane-pill {
+.lane-heading {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4682,44 +4637,6 @@ article.player-card {
 .hero-performance.pool-recent {
   outline-color: #38bdf8;
 }
-
-.draft-tabs {
-  display: flex;
-  gap: 4px;
-  grid-column: 1 / -1;
-  flex-shrink: 0;
-}
-.draft-tabs button {
-  flex: 1;
-  padding: 5px 8px;
-  font-size: 12px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 3px;
-  color: var(--text-2);
-}
-.draft-tabs button[aria-selected='true'] {
-  color: var(--text);
-  border-color: var(--accent);
-}
-.draft-advice,
-.advice-content {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  min-width: 0;
-  flex: 1;
-}
-.advice-content > .draft-carousel {
-  overflow-y: auto;
-}
-.advice-content[hidden] {
-  display: none;
-}
-.advice-content > .rail-panel {
-  flex: 1;
-  min-height: 0;
-}
 .counter-panel {
   display: flex;
   flex-direction: column;
@@ -5489,14 +5406,6 @@ article.player-card {
 .note-marker {
   display: inline-flex;
   flex-shrink: 0;
-}
-.preview-sites {
-  margin-left: auto;
-  align-self: flex-start;
-}
-.preview-sites .player-site img {
-  width: 20px;
-  height: 20px;
 }
 
 .profile-table th[data-column='gold_per_min'] button {
