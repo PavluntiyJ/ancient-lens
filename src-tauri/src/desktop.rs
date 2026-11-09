@@ -380,7 +380,8 @@ fn rebind(app: &tauri::AppHandle, previous: &[String; 2], next: &[String; 2]) ->
             return Err(format!(
                 "{} is already used by another application. The previous shortcuts are still active.",
                 next[i]
-            ));
+            )
+            .into());
         }
     }
     Ok(())

@@ -160,7 +160,8 @@ mod platform {
             let code = unsafe { GetLastError() };
             return Err(format!(
                 "Could not save the token in Windows Credential Manager (error {code})."
-            ));
+            )
+            .into());
         }
         Ok(())
     }
