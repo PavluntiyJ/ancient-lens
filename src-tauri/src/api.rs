@@ -78,6 +78,10 @@ pub fn client() -> reqwest::Client {
         .build()
         .expect("TLS client")
 }
+mod limiter;
+use limiter::Limiter;
+/// About one request per 1.1 seconds to each provider.
+const REQUEST_INTERVAL: Duration = Duration::from_millis(1100);
 const OPENDOTA: &str = "https://api.opendota.com/api";
 const STEAM: &str = "https://steamcommunity.com/profiles";
 /// What a final OpenDota failure does to other requests.
@@ -91,14 +95,10 @@ enum Failure {
 pub struct Api {
     directory: PathBuf,
     client: reqwest::Client,
-    next: Mutex<Instant>,
-    cooldown: Mutex<Instant>,
-    issue: Mutex<String>,
-    paused: tokio::sync::Notify,
-    steam_next: Mutex<Instant>,
-    steam_cooldown: Mutex<Instant>,
-    steam_issue: Mutex<String>,
-    steam_paused: tokio::sync::Notify,
+    /// OpenDota's pacing and pauses; a Steam failure never touches it.
+    opendota_limiter: Limiter,
+    /// Steam Community's pacing and pauses; an OpenDota pause never touches it.
+    steam_limiter: Limiter,
     locks: Mutex<HashMap<String, Arc<Mutex<()>>>>,
     slots: Semaphore,
     summary_slots: Semaphore,
@@ -159,14 +159,8 @@ impl Api {
         Ok(Arc::new(Self {
             directory,
             client,
-            next: Mutex::new(Instant::now()),
-            cooldown: Mutex::new(Instant::now()),
-            issue: Mutex::new(String::new()),
-            paused: tokio::sync::Notify::new(),
-            steam_next: Mutex::new(Instant::now()),
-            steam_cooldown: Mutex::new(Instant::now()),
-            steam_issue: Mutex::new(String::new()),
-            steam_paused: tokio::sync::Notify::new(),
+            opendota_limiter: Limiter::new(REQUEST_INTERVAL),
+            steam_limiter: Limiter::new(REQUEST_INTERVAL),
             locks: Mutex::new(HashMap::new()),
             slots: Semaphore::new(40),
             summary_slots: Semaphore::new(20),
@@ -183,38 +177,13 @@ impl Api {
     pub fn info(&self) -> Value {
         json!({"source":if self.broker.is_some(){"STRATZ"}else{"OpenDota"},"hasToken":false,"persistent":false,"automatic":true,"serviceConfigured":self.broker.is_some(),"status":if self.broker.is_some(){"Service configured; access is checked when loading a match."}else{"Using public OpenDota. Connect STRATZ for draft statistics and faster player history."}})
     }
-    /// Dedicated pacing for Steam Community fetches. Keeps its own next/cooldown/pause
-    /// state so a Steam error never blocks OpenDota, and an OpenDota pause never
-    /// blocks Steam.
-    async fn steam_pace(&self) -> Result<()> {
-        if Instant::now() < *self.steam_cooldown.lock().await {
-            return Err(self.steam_issue.lock().await.clone());
-        }
-        let when = {
-            let mut next = self.steam_next.lock().await;
-            let when = (*next).max(Instant::now());
-            *next = when + Duration::from_millis(1100);
-            when
-        };
-        tokio::select! { _ = tokio::time::sleep_until(when.into()) => {}, _ = self.steam_paused.notified() => {} }
-        if Instant::now() < *self.steam_cooldown.lock().await {
-            return Err(self.steam_issue.lock().await.clone());
-        }
-        Ok(())
-    }
-    async fn steam_pause(&self, seconds: u64, message: &str) {
-        *self.steam_issue.lock().await = message.into();
-        *self.steam_cooldown.lock().await = Instant::now() + Duration::from_secs(seconds);
-        *self.steam_next.lock().await = Instant::now();
-        self.steam_paused.notify_waiters();
-    }
     async fn steam_fetch(&self, id: &str) -> Result<String> {
         let steam_id = id.parse::<u64>().unwrap() + 76561197960265728;
         // One transient retry for parity with OpenDota's request_once; a second
-        // failure pauses new Steam requests for a minute via steam_pause()
+        // failure pauses new Steam requests for a minute through its limiter
         // (does not touch OpenDota's pause state).
         for attempt in 0..2 {
-            self.steam_pace().await?;
+            self.steam_limiter.wait().await?;
             let mut steam_url = reqwest::Url::parse(&self.steam).unwrap();
             steam_url
                 .path_segments_mut()
@@ -232,7 +201,7 @@ impl Api {
                 Err(_) if attempt == 0 => continue,
                 Err(_) => {
                     let message = "Steam profile refresh unavailable after a retry. New Steam requests are paused for one minute.";
-                    self.steam_pause(60, message).await;
+                    self.steam_limiter.pause(60, message).await;
                     return Err(message.into());
                 }
             };
@@ -247,7 +216,7 @@ impl Api {
                     .unwrap_or(60)
                     .clamp(60, 3600);
                 let message = "Steam is limiting profile requests. Names refresh again later.";
-                self.steam_pause(retry, message).await;
+                self.steam_limiter.pause(retry, message).await;
                 return Err(message.into());
             }
             if response.status().is_server_error() && attempt == 0 {
@@ -258,7 +227,7 @@ impl Api {
                     "Steam profile refresh unavailable (HTTP {}). New Steam requests are paused for one minute.",
                     response.status().as_u16()
                 );
-                self.steam_pause(60, &message).await;
+                self.steam_limiter.pause(60, &message).await;
                 return Err(message);
             }
             if !response.status().is_success()
@@ -423,19 +392,7 @@ impl Api {
     }
     async fn request_once(&self, endpoint: &str, failure: Failure) -> Result<Value> {
         for attempt in 0..2 {
-            if Instant::now() < *self.cooldown.lock().await {
-                return Err(self.issue.lock().await.clone());
-            }
-            let when = {
-                let mut next = self.next.lock().await;
-                let when = (*next).max(Instant::now());
-                *next = when + Duration::from_millis(1100);
-                when
-            };
-            tokio::select! { _ = tokio::time::sleep_until(when.into()) => {}, _ = self.paused.notified() => {} }
-            if Instant::now() < *self.cooldown.lock().await {
-                return Err(self.issue.lock().await.clone());
-            }
+            self.opendota_limiter.wait().await?;
             let response = match self
                 .client
                 .get(format!("{}/{endpoint}", self.opendota))
@@ -449,7 +406,7 @@ impl Api {
                 }
                 Err(_) => {
                     let message = "OpenDota did not respond after a retry. New requests are paused for one minute.";
-                    self.pause(60, message).await;
+                    self.opendota_limiter.pause(60, message).await;
                     return Err(message.into());
                 }
             };
@@ -461,11 +418,12 @@ impl Api {
                     .and_then(|v| v.parse::<u64>().ok())
                     .unwrap_or(60)
                     .clamp(60, 3600);
-                self.pause(
-                    retry,
-                    "OpenDota rate limit reached. Try again in one minute.",
-                )
-                .await;
+                self.opendota_limiter
+                    .pause(
+                        retry,
+                        "OpenDota rate limit reached. Try again in one minute.",
+                    )
+                    .await;
             }
             if response.status().is_server_error() && attempt == 0 {
                 continue;
@@ -481,7 +439,7 @@ impl Api {
                     "OpenDota unavailable (HTTP {}). New requests are paused for one minute.",
                     response.status().as_u16()
                 );
-                self.pause(60, &message).await;
+                self.opendota_limiter.pause(60, &message).await;
                 return Err(message);
             }
             return read_response(response)
@@ -748,12 +706,6 @@ impl Api {
             return Err("Invalid hero averages response".into());
         }
         Ok(data)
-    }
-    async fn pause(&self, seconds: u64, message: &str) {
-        *self.issue.lock().await = message.into();
-        *self.cooldown.lock().await = Instant::now() + Duration::from_secs(seconds);
-        *self.next.lock().await = Instant::now();
-        self.paused.notify_waiters();
     }
     async fn resource_with_stale(&self, endpoint: &str) -> Result<Part> {
         match self.resource(endpoint, 300_000).await {
@@ -1638,7 +1590,9 @@ mod partial_tests {
         drop(_steam);
         // An uncached account never reports the player-history slots as busy: it reaches
         // Steam's own gate, which is paused here so no request leaves the test.
-        api.steam_pause(60, "steam paused for the test").await;
+        api.steam_limiter
+            .pause(60, "steam paused for the test")
+            .await;
         let error = api.steam_profile("456", false).await.unwrap_err();
         assert_eq!(error, "steam paused for the test");
         assert_eq!(api.player_slots.available_permits(), 0);
@@ -1735,11 +1689,11 @@ mod partial_tests {
         .unwrap();
         let error = api.item_stats(1).await.unwrap_err();
         assert_eq!(error, "OpenDota unavailable (HTTP 503).");
-        assert!(*api.cooldown.lock().await <= Instant::now());
-        assert!(api.issue.lock().await.is_empty());
+        assert!(*api.opendota_limiter.cooldown.lock().await <= Instant::now());
+        assert!(api.opendota_limiter.issue.lock().await.is_empty());
         // Any other OpenDota request that fails the same way still pauses the service.
         assert!(api.request("heroes").await.unwrap_err().contains("paused"));
-        assert!(*api.cooldown.lock().await > Instant::now());
+        assert!(*api.opendota_limiter.cooldown.lock().await > Instant::now());
     }
 
     #[tokio::test]
@@ -1767,10 +1721,12 @@ mod partial_tests {
         let api = Api::build(dir.path().into(), None, false, OPENDOTA, &limited).unwrap();
         let error = api.steam_profile("123", true).await.unwrap_err();
         assert!(error.contains("limiting"), "{error}");
-        assert!(*api.steam_cooldown.lock().await > Instant::now() + Duration::from_secs(500));
+        assert!(
+            *api.steam_limiter.cooldown.lock().await > Instant::now() + Duration::from_secs(500)
+        );
         // The next request is refused locally, and OpenDota is untouched.
         assert_eq!(api.steam_profile("456", true).await.unwrap_err(), error);
-        assert!(*api.cooldown.lock().await <= Instant::now());
+        assert!(*api.opendota_limiter.cooldown.lock().await <= Instant::now());
         // 5xx twice: a one-minute Steam pause.
         let down = fake(StatusCode::SERVICE_UNAVAILABLE, None).await;
         let api = Api::build(dir.path().into(), None, false, OPENDOTA, &down).unwrap();
@@ -1779,8 +1735,10 @@ mod partial_tests {
             error.contains("HTTP 503") && error.contains("paused"),
             "{error}"
         );
-        assert!(*api.steam_cooldown.lock().await > Instant::now() + Duration::from_secs(50));
-        assert!(*api.cooldown.lock().await <= Instant::now());
+        assert!(
+            *api.steam_limiter.cooldown.lock().await > Instant::now() + Duration::from_secs(50)
+        );
+        assert!(*api.opendota_limiter.cooldown.lock().await <= Instant::now());
     }
 
     #[tokio::test]
@@ -2112,20 +2070,20 @@ async fn steam_pause_state_is_independent_from_opendota_pause_state() {
     let dir = tempfile::tempdir().unwrap();
     let api = Api::new(dir.path().into(), None).unwrap();
     // Steam pauses only Steam.
-    api.steam_pause(60, "steam down").await;
-    assert!(api.steam_pace().await.is_err());
+    api.steam_limiter.pause(60, "steam down").await;
+    assert!(api.steam_limiter.wait().await.is_err());
     // OpenDota pace/pause state untouched: its cooldown is still in the past.
-    assert!(*api.cooldown.lock().await <= Instant::now());
-    assert!(api.issue.lock().await.is_empty());
+    assert!(*api.opendota_limiter.cooldown.lock().await <= Instant::now());
+    assert!(api.opendota_limiter.issue.lock().await.is_empty());
     // OpenDota pauses only OpenDota.
-    let before_steam_issue = api.steam_issue.lock().await.clone();
-    api.pause(60, "opendota down").await;
-    assert_eq!(*api.steam_issue.lock().await, before_steam_issue);
-    assert!(*api.steam_cooldown.lock().await > Instant::now());
+    let before_steam_issue = api.steam_limiter.issue.lock().await.clone();
+    api.opendota_limiter.pause(60, "opendota down").await;
+    assert_eq!(*api.steam_limiter.issue.lock().await, before_steam_issue);
+    assert!(*api.steam_limiter.cooldown.lock().await > Instant::now());
     // Steam next slot is unaffected by OpenDota's next-slot reset.
-    let steam_next_before = *api.steam_next.lock().await;
-    api.pause(60, "opendota again").await;
-    assert_eq!(*api.steam_next.lock().await, steam_next_before);
+    let steam_next_before = *api.steam_limiter.next.lock().await;
+    api.opendota_limiter.pause(60, "opendota again").await;
+    assert_eq!(*api.steam_limiter.next.lock().await, steam_next_before);
     // OpenDota's own gate now refuses, Steam's is still refusing (both paused, independent).
-    assert!(*api.cooldown.lock().await > Instant::now());
+    assert!(*api.opendota_limiter.cooldown.lock().await > Instant::now());
 }
