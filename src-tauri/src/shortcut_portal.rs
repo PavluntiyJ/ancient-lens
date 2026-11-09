@@ -41,7 +41,7 @@ fn request(
     connection: &Connection,
     token: &str,
     call: impl FnOnce() -> zbus::Result<OwnedObjectPath>,
-) -> Result<Results, String> {
+) -> crate::error::Result<Results> {
     let sender = connection
         .unique_name()
         .ok_or("No D-Bus name")?
@@ -100,7 +100,7 @@ pub struct Binding {
     pub triggers: HashMap<String, String>,
 }
 impl Binding {
-    pub fn bind() -> Result<Self, String> {
+    pub fn bind() -> crate::error::Result<Self> {
         let connection = Connection::session().map_err(|e| e.to_string())?;
         // Apps started outside their desktop file have no ID the portal could use for them.
         if let Ok(registry) = Proxy::new(
@@ -180,7 +180,7 @@ impl Binding {
         })
     }
     /// Calls `pressed` with the shortcut ID for each press until the connection ends.
-    pub fn listen(&self, pressed: impl Fn(&str)) -> Result<(), String> {
+    pub fn listen(&self, pressed: impl Fn(&str)) -> crate::error::Result<()> {
         let portal = Proxy::new(&self.connection, DESTINATION, PATH, INTERFACE)
             .map_err(|e| e.to_string())?;
         for message in portal

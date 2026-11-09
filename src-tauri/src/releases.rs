@@ -1,6 +1,7 @@
 //! New-version notice: the app asks GitHub for its release list and compares versions here.
 //! The request carries no app version, account, ID or setting; GitHub sees the IP address.
 //! Nothing is downloaded or installed.
+use crate::error::Error;
 use crate::store::Result;
 use serde_json::{json, Value};
 use std::time::{Duration, Instant};
@@ -70,9 +71,12 @@ pub async fn fetch(client: &reqwest::Client) -> Result<Value> {
             .header("x-github-api-version", "2022-11-28")
             .send()
             .await
-            .map_err(|_| "GitHub is unreachable".to_string())?;
+            .map_err(|_| Error::upstream("GitHub is unreachable"))?;
         if !response.status().is_success() {
-            return Err(format!("HTTP {}", response.status().as_u16()));
+            return Err(Error::upstream(format!(
+                "HTTP {}",
+                response.status().as_u16()
+            )));
         }
         crate::api::read_response(response).await
     }

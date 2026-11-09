@@ -49,7 +49,7 @@ impl Limiter {
 
     async fn refuse_while_paused(&self) -> Result<()> {
         if Instant::now() < *self.cooldown.lock().await {
-            return Err(self.issue.lock().await.clone());
+            return Err(self.issue.lock().await.clone().into());
         }
         Ok(())
     }
@@ -87,8 +87,8 @@ mod tests {
             .await
             .expect("the pause wakes the queued request")
             .unwrap();
-        assert_eq!(result.unwrap_err(), "provider down");
-        assert_eq!(limiter.wait().await.unwrap_err(), "provider down");
+        assert_eq!(result.unwrap_err().message(), "provider down");
+        assert_eq!(limiter.wait().await.unwrap_err().message(), "provider down");
     }
 
     #[tokio::test]

@@ -1,3 +1,4 @@
+use crate::error::Error;
 use crate::{
     stats::{self, Filter},
     store::{account_id, atomic_json, now, Result},
@@ -42,7 +43,8 @@ pub async fn read_response(mut response: reqwest::Response) -> Result<Value> {
         return Err(format!(
             "Statistics service unavailable (HTTP {}).",
             response.status().as_u16()
-        ));
+        )
+        .into());
     }
     if response
         .content_length()
@@ -224,7 +226,7 @@ impl Api {
                     response.status().as_u16()
                 );
                 self.steam_limiter.pause(60, &message).await;
-                return Err(message);
+                return Err(message.into());
             }
             if !response.status().is_success()
                 || response
@@ -428,7 +430,8 @@ impl Api {
                 return Err(format!(
                     "OpenDota unavailable (HTTP {}).",
                     response.status().as_u16()
-                ));
+                )
+                .into());
             }
             if response.status().is_server_error() {
                 let message = format!(
@@ -436,11 +439,11 @@ impl Api {
                     response.status().as_u16()
                 );
                 self.opendota_limiter.pause(60, &message).await;
-                return Err(message);
+                return Err(message.into());
             }
             return read_response(response)
                 .await
-                .map_err(|e| format!("OpenDota: {e}"));
+                .map_err(|e| Error::upstream(format!("OpenDota: {e}")));
         }
         unreachable!()
     }
@@ -1590,7 +1593,7 @@ mod partial_tests {
             .pause(60, "steam paused for the test")
             .await;
         let error = api.steam_profile("456", false).await.unwrap_err();
-        assert_eq!(error, "steam paused for the test");
+        assert_eq!(error.message(), "steam paused for the test");
         assert_eq!(api.player_slots.available_permits(), 0);
     }
 
@@ -1684,11 +1687,16 @@ mod partial_tests {
         )
         .unwrap();
         let error = api.item_stats(1).await.unwrap_err();
-        assert_eq!(error, "OpenDota unavailable (HTTP 503).");
+        assert_eq!(error.message(), "OpenDota unavailable (HTTP 503).");
         assert!(*api.opendota_limiter.cooldown.lock().await <= Instant::now());
         assert!(api.opendota_limiter.issue.lock().await.is_empty());
         // Any other OpenDota request that fails the same way still pauses the service.
-        assert!(api.request("heroes").await.unwrap_err().contains("paused"));
+        assert!(api
+            .request("heroes")
+            .await
+            .unwrap_err()
+            .message()
+            .contains("paused"));
         assert!(*api.opendota_limiter.cooldown.lock().await > Instant::now());
     }
 
@@ -1716,7 +1724,7 @@ mod partial_tests {
         let limited = fake(StatusCode::TOO_MANY_REQUESTS, Some("600")).await;
         let api = Api::build(dir.path().into(), None, false, OPENDOTA, &limited).unwrap();
         let error = api.steam_profile("123", true).await.unwrap_err();
-        assert!(error.contains("limiting"), "{error}");
+        assert!(error.message().contains("limiting"), "{error}");
         assert!(
             *api.steam_limiter.cooldown.lock().await > Instant::now() + Duration::from_secs(500)
         );
@@ -1728,7 +1736,7 @@ mod partial_tests {
         let api = Api::build(dir.path().into(), None, false, OPENDOTA, &down).unwrap();
         let error = api.steam_profile("123", true).await.unwrap_err();
         assert!(
-            error.contains("HTTP 503") && error.contains("paused"),
+            error.message().contains("HTTP 503") && error.message().contains("paused"),
             "{error}"
         );
         assert!(
@@ -1743,7 +1751,7 @@ mod partial_tests {
         let api = Api::build(dir.path().into(), None, true, OPENDOTA, STEAM).unwrap();
         // No fixture: an error, never a live Steam request.
         assert_eq!(
-            api.steam_profile("123", true).await.unwrap_err(),
+            api.steam_profile("123", true).await.unwrap_err().message(),
             "No isolated Steam identity fixture"
         );
         crate::store::atomic_json(
@@ -1800,7 +1808,7 @@ mod partial_tests {
         let api = Api::build(dir.path().into(), None, true, OPENDOTA, STEAM).unwrap();
         let result = api.item_stats(1).await;
         assert!(
-            matches!(result, Err(error) if error.contains("No isolated item statistics fixture"))
+            matches!(result, Err(error) if error.message().contains("No isolated item statistics fixture"))
         );
     }
 
@@ -2008,6 +2016,7 @@ mod partial_tests {
             .hero_averages(&[33], "ALL")
             .await
             .unwrap_err()
+            .message()
             .contains("local STRATZ service"));
         task.abort();
     }

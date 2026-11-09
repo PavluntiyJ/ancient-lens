@@ -6,6 +6,7 @@ mod browser;
 #[cfg(feature = "desktop")]
 pub mod desktop;
 pub mod draft;
+pub mod error;
 #[cfg(feature = "desktop")]
 pub mod foreground;
 pub mod gsi;

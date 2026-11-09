@@ -7,7 +7,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-pub type Result<T> = std::result::Result<T, String>;
+pub use crate::error::{Error, Result};
 /// Removed menu entries that are still remembered; far above any real number of accounts.
 const MAX_HIDDEN_PROFILES: usize = 256;
 /// Most notes kept about one player.
@@ -270,7 +270,7 @@ impl Store {
                 write_state(&path, &state)?;
                 state
             }
-            Err(e) => return Err(format!("Could not read state.json: {e}")),
+            Err(e) => return Err(format!("Could not read state.json: {e}").into()),
         };
         if state.native_roster_reader.is_none() {
             state.native_roster_reader = Some(Reader::Off);
@@ -664,7 +664,8 @@ impl Store {
                     if hidden.len() >= MAX_HIDDEN_PROFILES {
                         return Err(format!(
                             "Up to {MAX_HIDDEN_PROFILES} removed profiles are remembered"
-                        ));
+                        )
+                        .into());
                     }
                     hidden.push(id);
                 }
@@ -724,9 +725,9 @@ impl Store {
                 }
                 let entries = note.entries_mut();
                 if entries.len() >= MAX_NOTE_ENTRIES {
-                    return Err(format!(
-                        "Up to {MAX_NOTE_ENTRIES} notes per player are kept"
-                    ));
+                    return Err(
+                        format!("Up to {MAX_NOTE_ENTRIES} notes per player are kept").into(),
+                    );
                 }
                 entries.insert(0, entry);
                 note.touch();
@@ -825,7 +826,7 @@ fn open_matches(path: &Path) -> Result<Vec<Value>> {
     let bytes = match std::fs::read(path) {
         Ok(bytes) => bytes,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(vec![]),
-        Err(e) => return Err(format!("Could not read matches.json: {e}")),
+        Err(e) => return Err(format!("Could not read matches.json: {e}").into()),
     };
     let parsed = serde_json::from_slice::<Value>(&bytes)
         .ok()
@@ -1233,6 +1234,7 @@ mod tests {
         assert!(s
             .change("note:add", &note("123"))
             .unwrap_err()
+            .message()
             .contains("note about yourself"));
         s.change("note:add", &note("456")).unwrap();
         assert_eq!(s.public()["notes"].as_array().unwrap().len(), 1);
@@ -1299,7 +1301,9 @@ mod tests {
             assert!(s.change("note:add", &add("x", bad)).is_err());
         }
         assert_eq!(
-            s.change("note:add", &add("   ", json!({}))).unwrap_err(),
+            s.change("note:add", &add("   ", json!({})))
+                .unwrap_err()
+                .message(),
             "Write a note."
         );
         let first = s.public()["notes"][0]["entries"][2]["id"].clone();
@@ -1321,7 +1325,8 @@ mod tests {
                 "note:edit",
                 &json!({"accountId":"456","entryId":"nope","text":"x"})
             )
-            .unwrap_err(),
+            .unwrap_err()
+            .message(),
             "Note not found"
         );
         // Deleting the newest note shows the next one; deleting the last removes the player.
@@ -1368,6 +1373,7 @@ mod tests {
                 &json!({"note":{"accountId":"456","name":"","text":"one more"}})
             )
             .unwrap_err()
+            .message()
             .contains("500"));
     }
     #[test]
@@ -1536,6 +1542,7 @@ mod tests {
         assert!(store
             .change("state:remove-profile", &json!({"id":last}))
             .unwrap_err()
+            .message()
             .contains("removed profiles"));
         assert_eq!(
             Store::open(dir.path().into()).unwrap().data()["hiddenProfiles"]

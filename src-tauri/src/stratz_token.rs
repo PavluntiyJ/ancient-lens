@@ -1,6 +1,7 @@
 //! The player's own STRATZ token: checked against STRATZ, kept in the system secret store and
 //! handed only to the statistics service. It never enters app state, settings, exports or
 //! logs, and no error message repeats it.
+use crate::error::Error;
 use crate::store::Result;
 use std::time::Duration;
 
@@ -53,20 +54,23 @@ pub async fn probe(endpoint: &str, token: &str) -> Result<()> {
         .send()
         .await;
     let result = match sent {
-        Err(_) => Err(
-            "Could not reach STRATZ to check the token. Check the internet connection and try again."
-                .to_string(),
-        ),
+        Err(_) => Err(Error::upstream(
+            "Could not reach STRATZ to check the token. Check the internet connection and try again.",
+        )),
         Ok(response) => match response.status().as_u16() {
-            401 | 403 => Err(
-                "STRATZ rejected this token. Copy your token again from stratz.com/api.".into(),
-            ),
-            429 => Err("STRATZ is limiting requests right now. Wait a minute and try again.".into()),
-            status if !(200..300).contains(&status) => Err(format!(
-                "STRATZ returned HTTP {status} while checking the token. Try again later."
+            401 | 403 => Err(Error::unauthorized(
+                "STRATZ rejected this token. Copy your token again from stratz.com/api.",
             )),
+            429 => Err(Error::rate_limited(
+                "STRATZ is limiting requests right now. Wait a minute and try again.",
+            )),
+            status if !(200..300).contains(&status) => Err(Error::upstream(format!(
+                "STRATZ returned HTTP {status} while checking the token. Try again later."
+            ))),
             _ => match crate::api::read_response(response).await {
-                Err(_) => Err("STRATZ sent an unexpected answer. Try again later.".into()),
+                Err(_) => Err(Error::upstream(
+                    "STRATZ sent an unexpected answer. Try again later.",
+                )),
                 Ok(value) => {
                     let errors = value["errors"].as_array().is_some_and(|e| !e.is_empty());
                     let players = value["data"]["players"]
@@ -157,7 +161,8 @@ mod platform {
             let code = unsafe { GetLastError() };
             return Err(format!(
                 "Could not save the token in Windows Credential Manager (error {code})."
-            ));
+            )
+            .into());
         }
         Ok(())
     }
@@ -226,21 +231,21 @@ mod platform {
             .stderr(std::process::Stdio::piped())
             .kill_on_drop(true);
         let run = async {
-            let mut child = command.spawn().map_err(|_| UNAVAILABLE.to_string())?;
+            let mut child = command.spawn().map_err(|_| Error::from(UNAVAILABLE))?;
             if let (Some(input), Some(mut stdin)) = (input, child.stdin.take()) {
                 stdin
                     .write_all(input.as_bytes())
                     .await
-                    .map_err(|_| UNAVAILABLE.to_string())?;
+                    .map_err(|_| Error::from(UNAVAILABLE))?;
             }
             child
                 .wait_with_output()
                 .await
-                .map_err(|_| UNAVAILABLE.to_string())
+                .map_err(|_| Error::from(UNAVAILABLE))
         };
         tokio::time::timeout(Duration::from_secs(60), run)
             .await
-            .map_err(|_| UNAVAILABLE.to_string())?
+            .map_err(|_| Error::from(UNAVAILABLE))?
     }
 
     pub async fn save(token: &str) -> Result<()> {
@@ -409,8 +414,11 @@ mod tests {
         ] {
             let (url, server) = fake(status, body).await;
             let error = probe(&url, TOKEN).await.unwrap_err();
-            assert!(error.contains(expected), "{status} {body}: {error}");
-            assert!(!error.contains(TOKEN));
+            assert!(
+                error.message().contains(expected),
+                "{status} {body}: {error}"
+            );
+            assert!(!error.message().contains(TOKEN));
             server.abort();
         }
     }
@@ -421,7 +429,10 @@ mod tests {
         let url = format!("http://{}/graphql", listener.local_addr().unwrap());
         drop(listener);
         let error = probe(&url, TOKEN).await.unwrap_err();
-        assert!(error.contains("Could not reach STRATZ"), "{error}");
+        assert!(
+            error.message().contains("Could not reach STRATZ"),
+            "{error}"
+        );
     }
 
     /// Opt-in: writes, reads and deletes a synthetic entry under a separate test target.

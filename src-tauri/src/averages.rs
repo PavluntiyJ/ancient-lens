@@ -38,7 +38,9 @@ pub fn query(ids: &[u64], bracket: &str) -> String {
 pub fn parse(data: &Value, ids: &[u64]) -> Result<Vec<Value>> {
     let rows = data["stats"]
         .as_array()
-        .ok_or("upstream hero averages unavailable")?;
+        .ok_or(crate::error::Error::upstream(
+            "upstream hero averages unavailable",
+        ))?;
     let number = |row: &Value, field: &str| row[field].as_f64().filter(|v| v.is_finite());
     Ok(rows
         .iter()

@@ -1,4 +1,5 @@
 mod diagnostics;
+use crate::error::Error;
 use crate::store::{account_id, Result};
 use axum::{
     extract::{DefaultBodyLimit, State},
@@ -63,7 +64,7 @@ fn stats(player: &Value, hero: &Value) -> Value {
 pub fn normalize(v: &Value, token: &str) -> Result<Value> {
     let supplied = v["auth"]["token"].as_str().unwrap_or("");
     if !bool::from(supplied.as_bytes().ct_eq(token.as_bytes())) {
-        return Err("Unauthorized".into());
+        return Err(Error::unauthorized("Unauthorized"));
     }
     if v["provider"]["appid"] != 570 {
         return Err("Invalid GSI format".into());
@@ -257,7 +258,7 @@ async fn receive(
             s.control.ingest(v).await;
             StatusCode::OK
         }
-        Err(e) if e == "Unauthorized" => StatusCode::FORBIDDEN,
+        Err(Error::Unauthorized(_)) => StatusCode::FORBIDDEN,
         Err(_) => StatusCode::BAD_REQUEST,
     }
 }

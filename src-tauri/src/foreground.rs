@@ -42,7 +42,7 @@ pub fn available() -> bool {
 /// window that is already active. Windows: call it on a thread with a message loop.
 pub fn watch(
     changed: impl Fn(u32, Option<String>, bool) + Send + Sync + 'static,
-) -> Result<(), String> {
+) -> crate::error::Result<()> {
     if !available() {
         return Err("This desktop does not report the active window".into());
     }
@@ -77,7 +77,7 @@ mod platform {
     /// The last window reported, by its root owner, so that each switch is reported once.
     static LAST: AtomicUsize = AtomicUsize::new(0);
 
-    pub fn watch(changed: Changed) -> Result<(), String> {
+    pub fn watch(changed: Changed) -> crate::error::Result<()> {
         CHANGED
             .set(changed)
             .map_err(|_| "Already watching the active window")?;
@@ -166,10 +166,10 @@ mod platform {
         rust_connection::RustConnection,
     };
 
-    pub fn watch(changed: Changed) -> Result<(), String> {
+    pub fn watch(changed: Changed) -> crate::error::Result<()> {
         let (conn, screen) = x11rb::connect(None).map_err(|e| e.to_string())?;
         let root = conn.setup().roots[screen].root;
-        let atom = |name: &str| -> Result<u32, String> {
+        let atom = |name: &str| -> crate::error::Result<u32> {
             Ok(conn
                 .intern_atom(false, name.as_bytes())
                 .map_err(|e| e.to_string())?
@@ -240,7 +240,7 @@ mod platform {
 mod platform {
     use super::Changed;
 
-    pub fn watch(_: Changed) -> Result<(), String> {
+    pub fn watch(_: Changed) -> crate::error::Result<()> {
         Err("This desktop does not report the active window".into())
     }
 }
