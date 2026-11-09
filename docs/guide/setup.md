@@ -221,6 +221,14 @@ JSON export includes notes and MMR but omits the GSI secret. **Exports still
 contain player IDs, names, notes, and rating history; they are personal backups,
 not anonymous diagnostics.** Import is not implemented yet.
 
+`logs/ancient-lens.log` records what the app did: start-up, connection outcomes with
+durations, reader and setup errors. Nothing leaves your computer unless you attach the file
+to a bug report yourself. Before a line is written, long numbers (player, Steam and match
+IDs), token-like strings, memory addresses and your home folder name are replaced, and
+requests are logged by their shape (`players/#/recentMatches`), never with response bodies.
+The file holds at most 1 MB; the older megabyte is kept as `ancient-lens.1.log`. **Settings →
+Data → Open log folder** opens it. Read it before you share it.
+
 `cache/` contains player summaries, account/provider-specific history (STRATZ
 history pages include all ten players of each match), hero catalogues, hero
 benchmarks, the patch table, and draft statistics. Cached data is labelled stale on network

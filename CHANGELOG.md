@@ -10,6 +10,8 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
   lobby type (Ranked, Unranked, Battle Cup, Tournament or Lobby) and how many players queued
   together, from STRATZ or OpenDota party data. It replaces the Mode column, which showed only
   with all modes selected; matches without recorded party data show no party mark.
+- A log file for bug reports, `logs/ancient-lens.log` in the data folder, limited to 2 MB with
+  IDs, tokens and your home folder name removed. **Settings → Data → Open log folder** opens it.
 
 ### Fixed
 

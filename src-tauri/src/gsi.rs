@@ -251,7 +251,7 @@ async fn receive(
         Ok((packet, v)) => {
             if let Some(diagnostics) = &s.diagnostics {
                 if diagnostics.record(&packet, &v).await.is_err() {
-                    eprintln!("GSI draft diagnostics: could not write local log");
+                    crate::log_line!("GSI draft diagnostics: could not write local log");
                 }
             }
             s.control.ingest(v).await;

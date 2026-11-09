@@ -3,7 +3,7 @@ description: Report a reproducible problem with Ancient Lens.
 body:
   - type: markdown
     attributes:
-      value: Do not include tokens, generated GSI configuration, state.json, personal exports, or unredacted logs. For vulnerabilities, follow SECURITY.md.
+      value: Do not include tokens, generated GSI configuration, state.json, personal exports, or logs you have not read. For vulnerabilities, follow SECURITY.md.
   - type: input
     id: version
     attributes:
@@ -24,6 +24,14 @@ body:
       description: For game-related issues, include game mode, participant or spectator, GSI status, reader on/off, provider, and Dota revision if known. Use synthetic IDs in examples.
     validations:
       required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log file
+      description: >-
+        Settings → Data → Open log folder, then attach ancient-lens.log (and ancient-lens.1.log if
+        the problem is older). The app removes IDs, tokens and your home folder name from it, but
+        read it before attaching and delete any line you do not want to share.
   - type: textarea
     id: evidence
     attributes:

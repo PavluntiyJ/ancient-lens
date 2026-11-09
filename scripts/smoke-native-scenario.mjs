@@ -432,6 +432,11 @@ try {
   assert.equal(info.runtime, 'Tauri + Rust');
   assert.equal(info.dataPath, directory);
   assert.ok(info.gsiPort > 0 && info.gsiPort !== 32123);
+  // The log file sits in the isolated data folder and never holds the GSI token.
+  assert.equal(info.logPath, join(directory, 'logs', 'ancient-lens.log'));
+  const log = await readFile(info.logPath, 'utf8');
+  assert.match(log, /Ancient Lens \S+ started on /);
+  assert.ok(!log.includes(token));
   const state = await call('getState');
   assert.equal(state.nativeRosterReader, 'off');
   assert.equal(state.notes[0].text, 'Keep this note');

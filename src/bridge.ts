@@ -93,6 +93,7 @@ if (isTauri()) {
       };
     },
     openRelease: () => call('release:open'),
+    openLogFolder: () => call('log:open'),
     setShortcuts: (shortcuts) => call('state:shortcuts', { shortcuts }),
     setAccount: (id) => call('state:account', { id }),
     getAccountState: (id) => call('state:profile-account', { id }),

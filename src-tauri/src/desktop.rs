@@ -136,7 +136,7 @@ fn portal_shortcut(app: tauri::AppHandle, keys: [String; 2]) {
     use crate::shortcut_portal::{Binding, MATCH_ID, PROFILE_ID};
     std::thread::spawn(move || match Binding::bind() {
         Ok(binding) => {
-            eprintln!("Shortcut: bound by the desktop as {:?}", binding.triggers);
+            crate::log_line!("Shortcut: bound by the desktop as {:?}", binding.triggers);
             let desktop = app.state::<Desktop>();
             for (id, bound, trigger) in [
                 (MATCH_ID, &desktop.shortcut, &desktop.shortcut_trigger),
@@ -160,10 +160,10 @@ fn portal_shortcut(app: tauri::AppHandle, keys: [String; 2]) {
                     let _ = toggle(&app, label);
                 });
             });
-            eprintln!("Shortcut: {}", ended.unwrap_err());
+            crate::log_line!("Shortcut: {}", ended.unwrap_err());
         }
         Err(error) => {
-            eprintln!("Shortcut: portal unavailable ({error}); using an X11 key grab");
+            crate::log_line!("Shortcut: portal unavailable ({error}); using an X11 key grab");
             let desktop = app.state::<Desktop>();
             for (key, bound) in keys
                 .iter()
@@ -600,7 +600,7 @@ async fn desktop_call(
         "app:info" => {
             let store = state.store.lock().await;
             Ok(
-                json!({"version":env!("CARGO_PKG_VERSION"),"platform":if cfg!(windows){"win32"}else{std::env::consts::OS},"runtime":"Tauri + Rust","wayland":std::env::var_os("WAYLAND_DISPLAY").is_some(),"shortcut":state.shortcut.load(Ordering::Relaxed),"shortcutKey":store.shortcuts()["global"],"shortcutTrigger":state.shortcut_trigger.lock().ok().and_then(|t| t.clone()),"profileShortcut":state.profile_shortcut.load(Ordering::Relaxed),"profileShortcutKey":store.shortcuts()["profile"],"profileShortcutTrigger":state.profile_trigger.lock().ok().and_then(|t| t.clone()),"overlay":overlay::passive(),"autoHide":crate::foreground::available(),"keysOverGame":crate::foreground::available() && state.keys_releasable.load(Ordering::Relaxed),"keysListening":!state.keys_released.load(Ordering::Relaxed),"window":window.label(),"tray":state.tray.load(Ordering::Relaxed),"dataPath":store.directory,"gsiPort":state.port.load(Ordering::Relaxed),"readerPrompt":reader_prompt()}),
+                json!({"version":env!("CARGO_PKG_VERSION"),"platform":if cfg!(windows){"win32"}else{std::env::consts::OS},"runtime":"Tauri + Rust","wayland":std::env::var_os("WAYLAND_DISPLAY").is_some(),"shortcut":state.shortcut.load(Ordering::Relaxed),"shortcutKey":store.shortcuts()["global"],"shortcutTrigger":state.shortcut_trigger.lock().ok().and_then(|t| t.clone()),"profileShortcut":state.profile_shortcut.load(Ordering::Relaxed),"profileShortcutKey":store.shortcuts()["profile"],"profileShortcutTrigger":state.profile_trigger.lock().ok().and_then(|t| t.clone()),"overlay":overlay::passive(),"autoHide":crate::foreground::available(),"keysOverGame":crate::foreground::available() && state.keys_releasable.load(Ordering::Relaxed),"keysListening":!state.keys_released.load(Ordering::Relaxed),"window":window.label(),"tray":state.tray.load(Ordering::Relaxed),"dataPath":store.directory,"logPath":crate::log::folder(&store.directory).join("ancient-lens.log"),"gsiPort":state.port.load(Ordering::Relaxed),"readerPrompt":reader_prompt()}),
             )
         }
         "player:site" => {
@@ -797,6 +797,16 @@ async fn desktop_call(
         }
         "release:get" => Ok(state.release_info().await),
         // Only the link of the last check is opened, never an address from the page.
+        "log:open" => {
+            let folder = crate::log::folder(&state.store.lock().await.directory);
+            let path = folder.to_string_lossy().into_owned();
+            if std::env::var_os("ANCIENT_TEST_DATA").is_none() {
+                crate::browser::open(&path)
+                    .await
+                    .map_err(|_| "Could not open the folder. Its path is shown above.")?;
+            }
+            Ok(json!(path))
+        }
         "release:open" => {
             let url = state
                 .release
@@ -1098,6 +1108,12 @@ pub fn run() {
                         .expect("User config directory")
                         .join("Ancient Lens")
                 });
+            crate::log::init(&directory);
+            crate::log_line!(
+                "Ancient Lens {} started on {}",
+                env!("CARGO_PKG_VERSION"),
+                std::env::consts::OS
+            );
             let store = Store::open(directory.clone()).map_err(std::io::Error::other)?;
             let token = store.token();
             let live = Arc::new(RwLock::new(json!({"status":"waiting","receivedAt":null})));
@@ -1141,7 +1157,7 @@ pub fn run() {
                                     let _ = handle.emit("state:update", store.public());
                                 }
                                 Ok(false) => {}
-                                Err(error) => eprintln!("Match journal: {error}"),
+                                Err(error) => crate::log_line!("Match journal: {error}"),
                             }
                         });
                     }
@@ -1213,7 +1229,9 @@ pub fn run() {
                         .watching
                         .store(true, Ordering::Relaxed),
                     Err(error) => {
-                        eprintln!("Active window: {error}; the windows stay up for other apps")
+                        crate::log_line!(
+                            "Active window: {error}; the windows stay up for other apps"
+                        )
                     }
                 }
             }
@@ -1263,7 +1281,7 @@ pub fn run() {
                             Ok(false) => {
                                 let _ = handle.emit("own:update", store.own_public());
                             }
-                            Err(error) => eprintln!("Own account update: {error}"),
+                            Err(error) => crate::log_line!("Own account update: {error}"),
                         }
                         drop(store);
                         tokio::time::sleep(std::time::Duration::from_secs(3)).await;
@@ -1393,7 +1411,7 @@ async fn match_details(handle: tauri::AppHandle) {
             if stratz {
                 match state.api().stratz_match(id).await {
                     Ok(value) => found.push(value),
-                    Err(error) => eprintln!("Match details {id}: {error}"),
+                    Err(error) => crate::log_line!("Match details {id}: {error}"),
                 }
             }
             let has_stats = record["details"].as_array().is_some_and(|s| !s.is_empty())
@@ -1403,7 +1421,7 @@ async fn match_details(handle: tauri::AppHandle) {
             if !has_stats {
                 match state.api().opendota_match(id).await {
                     Ok(value) => found.push(value),
-                    Err(error) => eprintln!("Match details {id}: {error}"),
+                    Err(error) => crate::log_line!("Match details {id}: {error}"),
                 }
             }
             let mut store = state.store.lock().await;
@@ -1412,7 +1430,7 @@ async fn match_details(handle: tauri::AppHandle) {
                     let _ = handle.emit("state:update", store.public());
                 }
                 Ok(false) => {}
-                Err(error) => eprintln!("Match details {id}: {error}"),
+                Err(error) => crate::log_line!("Match details {id}: {error}"),
             }
         }
     }

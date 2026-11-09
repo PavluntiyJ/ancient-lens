@@ -324,9 +324,8 @@ where
                 Err(_) => error_reads += 1,
             }
             if debug {
-                eprintln!(
-                    "{} Native roster attempt #{}: roster={} draft={} {}ms counts={{ok:{},waiting:{},retry:{},incomplete:{},mismatch:{},error:{},total:{}}}",
-                    chrono::Local::now().format("%H:%M:%S%.3f"),
+                crate::log_line!(
+                    "Native roster attempt #{}: roster={} draft={} {}ms counts={{ok:{},waiting:{},retry:{},incomplete:{},mismatch:{},error:{},total:{}}}",
                     attempts,
                     result.as_ref().map(|_| "ok").unwrap_or_else(|e| *e),
                     draft_result.as_ref().map(|_| "ok").unwrap_or_else(|e| *e),
@@ -402,18 +401,13 @@ where
             );
             let notes = picks::take_notes();
             if !notes.is_empty() && notes != last_notes {
-                eprintln!(
-                    "{} Native roster note: {}",
-                    chrono::Local::now().format("%H:%M:%S%.3f"),
-                    notes.join("; ")
-                );
+                crate::log_line!("Native roster note: {}", notes.join("; "));
             }
             last_notes = notes;
             if last_diagnostic.as_ref() != Some(&diagnostic) {
                 // Never log player IDs, names, GSI auth or API keys.
-                eprintln!(
-                    "{} Native roster: state={} status={} players={}/10 draft={}{} picks={}/10 data={} counts={{ok:{},waiting:{},retry:{},incomplete:{},mismatch:{},error:{},total:{}}}",
-                    chrono::Local::now().format("%H:%M:%S%.3f"),
+                crate::log_line!(
+                    "Native roster: state={} status={} players={}/10 draft={}{} picks={}/10 data={} counts={{ok:{},waiting:{},retry:{},incomplete:{},mismatch:{},error:{},total:{}}}",
                     diagnostic.5,
                     diagnostic.1,
                     diagnostic.2,

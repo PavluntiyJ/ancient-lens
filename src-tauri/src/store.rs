@@ -784,7 +784,7 @@ fn open_matches(path: &Path) -> Result<Vec<Value>> {
                 chrono::Utc::now().format("%Y%m%dT%H%M%S")
             ));
             std::fs::rename(path, &aside).map_err(|e| e.to_string())?;
-            eprintln!(
+            crate::log_line!(
                 "matches.json was unreadable and has been kept as {}",
                 aside.display()
             );

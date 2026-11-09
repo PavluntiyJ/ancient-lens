@@ -13,18 +13,14 @@ use std::{
 };
 use tokio::sync::{mpsc, oneshot, Mutex, Semaphore};
 
-/// One stderr line per outbound request: destination, size and outcome.
+/// One log line per outbound request: destination, duration and outcome.
 /// Account IDs, tokens and response bodies are never logged.
 pub(crate) fn net_log(target: &str, started: Instant, outcome: &Result<Value>) {
     let outcome = match outcome {
         Ok(_) => "ok".to_string(),
         Err(error) => format!("error: {error}"),
     };
-    eprintln!(
-        "{} net {target} {}ms {outcome}",
-        chrono::Local::now().format("%H:%M:%S%.3f"),
-        started.elapsed().as_millis()
-    );
+    crate::log_line!("net {target} {}ms {outcome}", started.elapsed().as_millis());
 }
 /// `players/123/recentMatches` -> `players/#/recentMatches`.
 fn endpoint_shape(endpoint: &str) -> String {
