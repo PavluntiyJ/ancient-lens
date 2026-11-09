@@ -18,7 +18,7 @@ export function ReaderSettings({
     setBusy(true);
     setError('');
     try {
-      update(await api.setNativeRosterReader!(enabled ? 'on' : 'off'));
+      update(await api.setNativeRosterReader(enabled ? 'on' : 'off'));
     } catch (e) {
       setError(errorMessage(e));
     } finally {

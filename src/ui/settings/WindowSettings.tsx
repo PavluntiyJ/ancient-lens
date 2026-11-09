@@ -58,9 +58,9 @@ export function WindowSettings({
           : 'Change the keys under Shortcuts above.'}{' '}
         Run the game in borderless windowed mode: exclusive fullscreen covers the windows.
       </p>
-      {api.setAutoHide && <AutoHideSetting local={local} update={update} available={!!info?.autoHide} />}
-      {api.setKeysOverGame && <KeysSetting local={local} update={update} info={info} />}
-      {api.setCloseToTray && <TraySetting local={local} update={update} available={!!info?.tray} />}
+      <AutoHideSetting local={local} update={update} available={!!info?.autoHide} />
+      <KeysSetting local={local} update={update} info={info} />
+      <TraySetting local={local} update={update} available={!!info?.tray} />
       <span className="badge">
         {info?.platform ?? 'Desktop'} · v{info?.version ?? '0.2.0'}
       </span>
@@ -87,7 +87,7 @@ function AutoHideSetting({
           checked={available && local.autoHide !== false}
           onChange={(event) => {
             setError('');
-            api.setAutoHide!(event.target.checked).then(update, (e) => setError(errorMessage(e)));
+            api.setAutoHide(event.target.checked).then(update, (e) => setError(errorMessage(e)));
           }}
         />
         Minimize when you switch to another app
@@ -114,7 +114,7 @@ function KeysSetting({ local, update, info }: { local: LocalState; update(value:
           checked={available && local.keysOverGame !== false}
           onChange={(event) => {
             setError('');
-            api.setKeysOverGame!(event.target.checked).then(update, (e) => setError(errorMessage(e)));
+            api.setKeysOverGame(event.target.checked).then(update, (e) => setError(errorMessage(e)));
           }}
         />
         Window keys only while Dota is in front
@@ -150,7 +150,7 @@ function TraySetting({
           checked={available && local.closeToTray !== false}
           onChange={(event) => {
             setError('');
-            api.setCloseToTray!(event.target.checked).then(update, (e) => setError(errorMessage(e)));
+            api.setCloseToTray(event.target.checked).then(update, (e) => setError(errorMessage(e)));
           }}
         />
         Closing a window keeps Ancient Lens in the tray

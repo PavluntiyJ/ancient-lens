@@ -367,7 +367,7 @@ function Dossier({
                       href={`https://stratz.com/matches/${match.matchId}`}
                       onClick={(event) => {
                         event.preventDefault();
-                        void api.openMatchSite?.(String(match.matchId), 'stratz').catch(() => {});
+                        void api.openMatchSite(String(match.matchId), 'stratz').catch(() => {});
                       }}
                     >
                       {own && <Portrait hero={own} />}

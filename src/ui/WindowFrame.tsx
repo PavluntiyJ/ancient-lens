@@ -22,7 +22,7 @@ export function TitleBar({
 }) {
   async function windowAction(action: 'drag' | 'minimize' | 'maximize' | 'close') {
     try {
-      await api.windowAction?.(action);
+      await api.windowAction(action);
     } catch (e) {
       onError(errorMessage(e));
     }
@@ -41,42 +41,40 @@ export function TitleBar({
       </div>
       {children}
       {info?.overlay && <KeyboardButton />}
-      {api.windowAction && (
-        <div className="window-controls">
-          <button aria-label="Minimize window" title="Minimize" onClick={() => void windowAction('minimize')}>
-            <Minus size={15} />
-          </button>
-          <button
-            aria-label="Maximize or restore window"
-            title="Maximize / restore"
-            onClick={() => void windowAction('maximize')}
-          >
-            <Square size={13} />
-          </button>
-          <button
-            className="window-close"
-            aria-label="Close window"
-            title="Hide this window"
-            onClick={() => void windowAction('close')}
-          >
-            <X size={16} />
-          </button>
-        </div>
-      )}
+
+      <div className="window-controls">
+        <button aria-label="Minimize window" title="Minimize" onClick={() => void windowAction('minimize')}>
+          <Minus size={15} />
+        </button>
+        <button
+          aria-label="Maximize or restore window"
+          title="Maximize / restore"
+          onClick={() => void windowAction('maximize')}
+        >
+          <Square size={13} />
+        </button>
+        <button
+          className="window-close"
+          aria-label="Close window"
+          title="Hide this window"
+          onClick={() => void windowAction('close')}
+        >
+          <X size={16} />
+        </button>
+      </div>
     </header>
   );
 }
 
 const edges: WindowEdge[] = ['North', 'South', 'East', 'West', 'NorthEast', 'NorthWest', 'SouthEast', 'SouthWest'];
 export function ResizeEdges({ onError }: { onError(message: string): void }) {
-  if (!api.resizeWindow) return null;
   return edges.map((edge) => (
     <div
       key={edge}
       className={`window-resize-edge edge-${edge.toLowerCase()}`}
       aria-hidden="true"
       onMouseDown={(event) => {
-        if (event.button === 0) void api.resizeWindow!(edge).catch((e) => onError(errorMessage(e)));
+        if (event.button === 0) void api.resizeWindow(edge).catch((e) => onError(errorMessage(e)));
       }}
     />
   ));
@@ -111,7 +109,7 @@ function KeyboardButton() {
           ? 'This window has the keyboard. Click the game to give it back.'
           : 'Give this window the keyboard, for the panel keys. The game goes to the background.'
       }
-      onClick={() => void api.setKeyboard?.(true).catch(() => {})}
+      onClick={() => void api.setKeyboard(true).catch(() => {})}
     >
       <Keyboard size={15} />
     </button>
@@ -132,12 +130,12 @@ export const typingTarget =
 export function useKeyboardOnDemand(info?: AppInfo) {
   const overlay = !!info?.overlay;
   useEffect(() => {
-    if (!overlay || !api.setKeyboard) return;
+    if (!overlay) return;
     const down = (event: PointerEvent) => {
       if (!(event.target instanceof Element)) return;
       const target = event.target.closest<HTMLElement>(typingTarget);
       if (!target) return;
-      void api.setKeyboard!(true).then(
+      void api.setKeyboard(true).then(
         () => {
           if (target.matches('input, textarea, [contenteditable]')) target.focus();
         },

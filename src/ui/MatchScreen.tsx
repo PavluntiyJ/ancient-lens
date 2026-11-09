@@ -159,7 +159,7 @@ export function Avatar({
 const noteDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 /** OpenDota country lookups by account, shared by every flag of that player. */
-const lookupCountry = countryCache((id) => api.getCountry?.(id) ?? Promise.resolve(null));
+const lookupCountry = countryCache((id) => api.getCountry(id) ?? Promise.resolve(null));
 /**
  * The Steam profile's country flag; nothing when the player set no location. `code` comes
  * with the loaded profile from `source`; with `id`, a profile without one falls back to the
@@ -344,7 +344,7 @@ export function MatchScreen({
       .then((info) => {
         if (!active) return;
         setStratzDraft(!!info.serviceConfigured);
-        setStratzConnectable(!!info.connectable && !!api.connectStratz);
+        setStratzConnectable(!!info.connectable);
       })
       .catch(() => {
         if (active) setStratzDraft(false);
@@ -485,10 +485,11 @@ export function MatchScreen({
         .getSummary(id, days, filter)
         .then((result) => {
           if (!active) return;
-          const totalsLoading = result.source === 'STRATZ' && !result.total && !!api.getTotals;
+          const totalsLoading = result.source === 'STRATZ' && !result.total;
           setEntries((previous) => ({ ...previous, [id]: { result, totalsLoading, loading: false, filterKey } }));
           if (totalsLoading)
-            void api.getTotals!(id)
+            void api
+              .getTotals(id)
               .then((totals) => {
                 if (active)
                   setEntries((previous) => ({
@@ -573,7 +574,7 @@ export function MatchScreen({
   // before STRATZ ranks the match.
   const medal = live.mode === 'player' ? matchMedalTier(matchTiers) : undefined;
   useEffect(() => {
-    if (match && medal) void api.setMedalRank?.(match, medal).catch(() => {});
+    if (match && medal) void api.setMedalRank(match, medal).catch(() => {});
   }, [match, medal]);
   const bracketFor = useRef<{ key: string; choice: BracketChoice }>(undefined);
   const bracketKey = `${match}-${bracketSetting}`;
@@ -604,7 +605,7 @@ export function MatchScreen({
         // Keep the service's ten-ID request limit; an empty request still brings positions.
         const batches = missingIds.length ? draftWarmBatches(missingIds.map((id) => ({ id }))) : [[]];
         void Promise.all(
-          batches.map((batch) => api.getDraftData!(batch, bracket).then((reply) => addDraft(scope, batch, reply))),
+          batches.map((batch) => api.getDraftData(batch, bracket).then((reply) => addDraft(scope, batch, reply))),
         )
           .catch((error) => {
             if (active) setDraftError(errorMessage(error));
@@ -629,7 +630,7 @@ export function MatchScreen({
     'DOTA_GAMERULES_STATE_STRATEGY_TIME',
   ].includes(phase ?? '');
   useEffect(() => {
-    if (!match || !drafting || !connected || !stratzDraft || !api.getDraftData || !heroes.length) return;
+    if (!match || !drafting || !connected || !stratzDraft || !heroes.length) return;
     if (warmedMatch.current === draftScope) return;
     warmedMatch.current = draftScope;
     const scope = draftScope;
@@ -637,7 +638,7 @@ export function MatchScreen({
       for (const batch of draftWarmBatches(heroes)) {
         if (warmedMatch.current !== scope) return;
         try {
-          addDraft(scope, batch, await api.getDraftData!(batch, bracket));
+          addDraft(scope, batch, await api.getDraftData(batch, bracket));
         } catch {
           // A quota or network error ends the warm-up; regular requests still run.
           return;
@@ -1161,7 +1162,7 @@ export function MatchScreen({
                                         hide();
                                         setSelected(player.accountId);
                                       }}
-                                      onMatch={(id) => void api.openMatchSite?.(String(id), 'stratz').catch(() => {})}
+                                      onMatch={(id) => void api.openMatchSite(String(id), 'stratz').catch(() => {})}
                                     />,
                                     true,
                                     true,

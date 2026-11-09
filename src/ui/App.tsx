@@ -93,7 +93,7 @@ export function App() {
   const display = useDisplaySettings();
   // The window cannot shrink below the size that shows the whole match screen at this scale.
   useEffect(() => {
-    void api.setWindowMinSize?.(display.scale).catch(() => {});
+    void api.setWindowMinSize(display.scale).catch(() => {});
   }, [display.scale]);
   const [local, setLocal] = useState<LocalState>({ accountId: '', notes: [], mmr: [] });
   const updateLocal = (value: LocalState | OwnUpdate) => setLocal((current) => applyStateUpdate(current, value));
@@ -114,7 +114,7 @@ export function App() {
   const open = (next: Page) => {
     // The profile has a window of its own.
     if (next === 'profile') {
-      void api.showWindow?.('profile').catch((e) => setError(errorMessage(e)));
+      void api.showWindow('profile').catch((e) => setError(errorMessage(e)));
       return;
     }
     setPage(next);
@@ -143,7 +143,7 @@ export function App() {
         setInfo(appInfo);
         setLive(current);
         setReady(true);
-        setAskReader(!!api.setNativeRosterReader && shouldAskReader(appInfo, state.nativeRosterReader, readerAsked()));
+        setAskReader(shouldAskReader(appInfo, state.nativeRosterReader, readerAsked()));
       })
       .catch((e) => {
         if (active) setError(errorMessage(e));
@@ -151,25 +151,25 @@ export function App() {
     const unsubscribe = api.onLive((value) => {
       if (active) setLive(value);
     });
-    const unsubscribeState = api.onState?.((value) => {
+    const unsubscribeState = api.onState((value) => {
       if (active) updateLocal(value);
     });
     // STRATZ connected or disconnected in the profile window.
-    const unsubscribeProvider = api.onProvider?.(() => {
+    const unsubscribeProvider = api.onProvider(() => {
       if (active) setProviderRevision((value) => value + 1);
     });
     // The check runs in the background; a failed one simply leaves no notice.
-    void api.getRelease?.().then(
+    void api.getRelease().then(
       (value) => {
         if (active) setRelease(value);
       },
       () => {},
     );
-    const unsubscribeRelease = api.onRelease?.((value) => {
+    const unsubscribeRelease = api.onRelease((value) => {
       if (active) setRelease(value);
     });
     // The match hotkey, tray and header icon land on the draft screen, not the last page.
-    const unsubscribeShown = api.onWindowShown?.(() => {
+    const unsubscribeShown = api.onWindowShown(() => {
       if (active) setPage('home');
     });
     const timer = setInterval(() => setNow(Date.now()), 1000);
@@ -190,7 +190,7 @@ export function App() {
     let active = true;
     void api.getProvider().then(
       (provider) => {
-        if (active && api.connectStratz && shouldAskStratz(info, provider, stratzAsked())) setStratzOpen('startup');
+        if (active && shouldAskStratz(info, provider, stratzAsked())) setStratzOpen('startup');
       },
       () => {},
     );
@@ -207,7 +207,7 @@ export function App() {
     if (!api?.getSteamSetup) return;
     let active = true;
     const check = () =>
-      api.getSteamSetup!().then(
+      api.getSteamSetup().then(
         (value) => {
           if (active) setSteamSetup(value);
         },
@@ -257,10 +257,10 @@ export function App() {
               <ReleaseNotice
                 release={newRelease}
                 current={release.current}
-                open={() => void api.openRelease?.().catch((e) => setError(errorMessage(e)))}
+                open={() => void api.openRelease().catch((e) => setError(errorMessage(e)))}
                 later={() => setReleaseLater(newRelease.version)}
                 skip={() =>
-                  void api.skipVersion?.(newRelease.version).then(updateLocal, (e) => setError(errorMessage(e)))
+                  void api.skipVersion(newRelease.version).then(updateLocal, (e) => setError(errorMessage(e)))
                 }
               />
             )}

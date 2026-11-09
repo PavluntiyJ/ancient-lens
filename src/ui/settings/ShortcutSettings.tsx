@@ -45,7 +45,7 @@ export function ShortcutSettings({
     setError('');
     setMessage('');
     try {
-      update(await api.setShortcuts!(next));
+      update(await api.setShortcuts(next));
       const global = !changed || shortcutNames.some((entry) => entry.name === changed && entry.global);
       setMessage(global ? 'Shortcut saved and registered.' : 'Shortcut saved. It works on the match screen.');
     } catch (e) {

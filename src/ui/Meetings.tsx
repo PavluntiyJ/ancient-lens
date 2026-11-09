@@ -78,7 +78,7 @@ export function MetBadge({ met, heroes }: { met: Meetings | null; heroes: Hero[]
               summary={summary}
               onOpen={(id) => {
                 setError('');
-                void api.openMatchSite?.(String(id), 'dotabuff').catch((e) => setError(errorMessage(e)));
+                void api.openMatchSite(String(id), 'dotabuff').catch((e) => setError(errorMessage(e)));
               }}
             />
             {error && (

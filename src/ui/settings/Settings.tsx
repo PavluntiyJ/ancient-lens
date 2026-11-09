@@ -64,7 +64,7 @@ export function Settings({
     };
   }, [providerRevision]);
   const suggestions = providerFailed ? false : provider && !!provider.serviceConfigured;
-  const reader = (info?.platform === 'linux' || info?.platform === 'win32') && !!api.setNativeRosterReader;
+  const reader = info?.platform === 'linux' || info?.platform === 'win32';
   const groups = settingsGroups.map((group) => ({
     ...group,
     sections: group.sections.filter(([id]) => id !== 'settings-reader' || reader),
