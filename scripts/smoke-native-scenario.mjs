@@ -579,10 +579,17 @@ try {
       'Last counter row cannot be reached',
     );
   };
+  // Positions in the page, not the viewport: clicking a paging button that is partly out of
+  // view lets WebDriver scroll it in, which moves every panel alike without any layout jump.
   const panelGeometry = () =>
     execute(`
     return [...document.querySelectorAll('.match-roster, .analysis-panel')].map(el => {
-      const r = el.getBoundingClientRect(); return [r.x, r.y, r.width, r.height];
+      let x = window.scrollX, y = window.scrollY;
+      for (let parent = el.parentElement; parent; parent = parent.parentElement) {
+        x += parent.scrollLeft;
+        y += parent.scrollTop;
+      }
+      const r = el.getBoundingClientRect(); return [r.x + x, r.y + y, r.width, r.height];
     });
   `);
   const stablePanels = await panelGeometry();
