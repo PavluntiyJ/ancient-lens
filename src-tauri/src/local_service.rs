@@ -516,7 +516,7 @@ mod tests {
                 .await
                 .err()
                 .unwrap();
-            assert!(error.contains("STRATZ token"), "{error}");
+            assert!(error.message().contains("STRATZ token"), "{error}");
         }
     }
 

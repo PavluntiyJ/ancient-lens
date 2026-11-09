@@ -51,7 +51,7 @@ fn party(row: &mut Map<String, Value>, id: &Value) {
 fn shape(id: u64, source: &str, mode: i64, lobby: i64, players: Vec<Value>) -> Result<Value> {
     // A match always has ten players; fewer means a partial or foreign response.
     if players.len() != 10 {
-        return Err(format!("{source}: incomplete match data"));
+        return Err(format!("{source}: incomplete match data").into());
     }
     let mut value = json!({"match_id":id,"source":source,"players":players});
     if mode >= 0 {

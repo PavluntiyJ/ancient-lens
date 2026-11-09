@@ -123,17 +123,17 @@ pub fn validate(data: &Value, hero: u64) -> Result<()> {
     let invalid = || "Invalid item statistics".to_string();
     let sample = data["sampleMatches"].as_u64().ok_or_else(invalid)?;
     if data["heroId"] != hero || sample > 2000 {
-        return Err(invalid());
+        return Err(invalid().into());
     }
     match (sample, data["oldest"].as_u64(), data["newest"].as_u64()) {
         (0, None, None) if data["oldest"].is_null() && data["newest"].is_null() => {}
         (1.., Some(a), Some(b)) if a > 0 && a <= b && b - a <= SAMPLE_DAYS * 86_400 => {}
-        _ => return Err(invalid()),
+        _ => return Err(invalid().into()),
     }
     let items = data["items"].as_array().ok_or_else(invalid)?;
     let pairs = data["pairs"].as_array().ok_or_else(invalid)?;
     if items.len() > 24 || pairs.len() > 48_000 || (sample == 0 && !items.is_empty()) {
-        return Err(invalid());
+        return Err(invalid().into());
     }
     let mut ids = HashSet::new();
     for item in items {
@@ -141,12 +141,12 @@ pub fn validate(data: &Value, hero: u64) -> Result<()> {
             || !ids.insert(item["itemId"].as_u64().unwrap())
             || !counts(item).is_some_and(|(g, _, _, _)| g == sample)
         {
-            return Err(invalid());
+            return Err(invalid().into());
         }
     }
     let standards = data["standardBuilds"].as_array().ok_or_else(invalid)?;
     if standards.len() > 3 || (sample == 0 && !standards.is_empty()) {
-        return Err(invalid());
+        return Err(invalid().into());
     }
     let mut seen = HashSet::new();
     let mut sum = 0;
@@ -161,7 +161,7 @@ pub fn validate(data: &Value, hero: u64) -> Result<()> {
         let mut ids = Vec::new();
         for item in items {
             if !valid_item(item) {
-                return Err(invalid());
+                return Err(invalid().into());
             }
             ids.push(item["itemId"].as_u64().unwrap());
         }
@@ -176,7 +176,7 @@ pub fn validate(data: &Value, hero: u64) -> Result<()> {
             || (index > 0 && games < 2)
             || sum > sample
         {
-            return Err(invalid());
+            return Err(invalid().into());
         }
         previous = games;
     }
@@ -197,7 +197,7 @@ pub fn validate(data: &Value, hero: u64) -> Result<()> {
             // The complementary group must also contain possible win/loss counts.
             || !valid_complement(tg, tw, tn, tk, g, w, n, k)
         {
-            return Err(invalid());
+            return Err(invalid().into());
         }
     }
     Ok(())

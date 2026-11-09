@@ -2,14 +2,14 @@
 use std::process::{Command, Stdio};
 use std::time::Duration;
 
-pub async fn open(url: &str) -> Result<(), String> {
+pub async fn open(url: &str) -> crate::error::Result<()> {
     let commands = open::commands(url);
     #[cfg(target_os = "linux")]
     let commands = without_appimage_libraries(commands);
     launch(commands).await
 }
 
-async fn launch(commands: Vec<Command>) -> Result<(), String> {
+async fn launch(commands: Vec<Command>) -> crate::error::Result<()> {
     for command in commands {
         let mut command = tokio::process::Command::from(command);
         command

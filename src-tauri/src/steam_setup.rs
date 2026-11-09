@@ -229,7 +229,7 @@ fn inspect_install(host: &impl Host, config: &str) -> (Status, Option<Install>) 
     };
     for path in &install.configs {
         match fs::read_to_string(path)
-            .map_err(|e| e.to_string())
+            .map_err(crate::error::Error::from)
             .and_then(|text| vdf::launch_options(&text))
         {
             Ok(Some(options)) if vdf::has_flag(&options) => {}
@@ -328,7 +328,8 @@ pub fn repair(host: &impl Host, config: &str, launch_game: bool) -> Result<Outco
         _ => {
             return Err(status
                 .detail
-                .unwrap_or_else(|| "Steam settings cannot be changed.".into()))
+                .unwrap_or_else(|| "Steam settings cannot be changed.".into())
+                .into())
         }
     };
     let mut outcome = Outcome {
@@ -569,7 +570,7 @@ mod tests {
         fake.stuck = true;
         *fake.steam.borrow_mut() = true;
         let error = repair(&fake, "cfg", true).unwrap_err();
-        assert!(error.contains("Steam is still running"));
+        assert!(error.message().contains("Steam is still running"));
         assert_eq!(options(&fake, "100").as_deref(), Some(""));
         // The game is not launched without the flag, but Steam is started again.
         assert_eq!(fake.log.borrow().last().unwrap(), "start steam game=false");

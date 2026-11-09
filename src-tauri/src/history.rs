@@ -30,7 +30,9 @@ pub fn page(row: &Value, request: &Request) -> Result<Value> {
         .as_deref()
         != Some(&request.id)
     {
-        return Err("upstream profile identity unavailable".into());
+        return Err(crate::error::Error::upstream(
+            "upstream profile identity unavailable",
+        ));
     }
     let raw = row["matches"].as_array();
     let private = row["steamAccount"]["isAnonymous"] == true;

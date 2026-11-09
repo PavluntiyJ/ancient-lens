@@ -2,7 +2,7 @@
 //! only the bytes it means to and leaves the rest of the file exactly as Steam left it.
 use std::ops::Range;
 
-pub type Result<T> = std::result::Result<T, String>;
+pub use crate::error::Result;
 
 pub struct Entry {
     pub key: String,
@@ -142,7 +142,11 @@ fn block(tokens: &[Token], at: &mut usize, nested: bool) -> Result<(Vec<Entry>, 
                 let (entries, close) = block(tokens, at, true)?;
                 Item::Block { entries, close }
             }
-            _ => return Err(format!("Key without value: {key}")),
+            _ => {
+                return Err(crate::error::Error::invalid(format!(
+                    "Key without value: {key}"
+                )))
+            }
         };
         entries.push(Entry { key, value });
     }

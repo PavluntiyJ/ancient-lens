@@ -1,5 +1,6 @@
 //! A bounded public-data API for an Ancient Lens deployment. The upstream token
 //! is server-only; clients cannot submit GraphQL, URLs or authorization headers.
+use crate::error::Error;
 use crate::{
     api::{client, read_response},
     stats::{self, Filter},
@@ -68,7 +69,11 @@ pub struct Broker {
 impl Broker {
     pub async fn history(&self, mut request: crate::history::Request) -> Result<Value> {
         request.validate()?;
-        let _permit = self.upstream.acquire().await.map_err(|_| "busy")?;
+        let _permit = self
+            .upstream
+            .acquire()
+            .await
+            .map_err(|_| Error::rate_limited("busy"))?;
         let key = format!("history-{}-{}", request.id, request.offset);
         if let Some((at, value)) = self.cache.lock().await.get(&key) {
             if at.elapsed() < Duration::from_secs(120) {
@@ -95,7 +100,11 @@ impl Broker {
     /// processes the match, so a later request must be able to see it.
     pub async fn match_details(&self, request: MatchRequest) -> Result<Value> {
         let id = crate::match_details::match_id(&request.id)?;
-        let _permit = self.upstream.acquire().await.map_err(|_| "busy")?;
+        let _permit = self
+            .upstream
+            .acquire()
+            .await
+            .map_err(|_| Error::rate_limited("busy"))?;
         let key = format!("match-{id}");
         if let Some((at, value)) = self.cache.lock().await.get(&key) {
             if at.elapsed() < Duration::from_secs(120) {
@@ -119,7 +128,7 @@ impl Broker {
                     .as_array()
                     .map_or(0, Vec::len);
                 eprintln!("STRATZ match: {error}; {players} players; errors {errors:?}");
-                "upstream match unavailable"
+                Error::upstream("upstream match unavailable")
             })?;
         let mut cache = self.cache.lock().await;
         cache.retain(|_, (at, _)| at.elapsed() < Duration::from_secs(120));
@@ -140,12 +149,16 @@ impl Broker {
                 return Ok(value.clone());
             }
         }
-        let _permit = self.upstream.acquire().await.map_err(|_| "busy")?;
+        let _permit = self
+            .upstream
+            .acquire()
+            .await
+            .map_err(|_| Error::rate_limited("busy"))?;
         let payload = self
             .graphql_partial(crate::parties::query(&request.ids), true)
             .await?;
         if !payload["data"].is_object() {
-            return Err("upstream parties unavailable".into());
+            return Err(Error::upstream("upstream parties unavailable"));
         }
         let value = crate::parties::reduce(
             &payload["data"],
@@ -204,7 +217,7 @@ impl Broker {
                 *budget = (Instant::now(), 0);
             }
             if budget.1 >= self.hourly_budget {
-                return Err("quota".into());
+                return Err(Error::rate_limited("quota"));
             }
             budget.1 += 1;
         }
@@ -217,15 +230,15 @@ impl Broker {
             .json(&json!({"query":query}))
             .send()
             .await
-            .map_err(|_| "upstream unavailable")?;
+            .map_err(|_| Error::upstream("upstream unavailable"))?;
         if response.status().as_u16() == 429 {
-            return Err("quota".into());
+            return Err(Error::rate_limited("quota"));
         }
         let value = read_response(response)
             .await
-            .map_err(|_| "upstream unavailable")?;
+            .map_err(|_| Error::upstream("upstream unavailable"))?;
         if !allow_partial && value["errors"].as_array().is_some_and(|e| !e.is_empty()) {
-            return Err("upstream schema/access error".into());
+            return Err(Error::upstream("upstream schema/access error"));
         }
         Ok(value)
     }
@@ -250,7 +263,7 @@ impl Broker {
             let mut cache = self.totals_cache.lock().await;
             for row in payload["data"]["players"]
                 .as_array()
-                .ok_or("upstream format")?
+                .ok_or(Error::upstream("upstream format"))?
             {
                 if let (Some(id), Some(games), Some(wins)) = (
                     row["steamAccountId"].as_u64(),
@@ -298,7 +311,7 @@ impl Broker {
                 .await?;
             let data = &payload["data"]["heroStats"];
             crate::draft::validate_data(data, &missing, positions_missing)
-                .map_err(|error| format!("upstream draft: {error}"))?;
+                .map_err(|error| Error::upstream(format!("upstream draft: {error}")))?;
             Some(payload)
         } else {
             None
@@ -320,7 +333,7 @@ impl Broker {
                 }
                 for row in data["matchups"]
                     .as_array()
-                    .ok_or("upstream matchups unavailable")?
+                    .ok_or(Error::upstream("upstream matchups unavailable"))?
                 {
                     if let Some(id) = row["heroId"].as_u64().filter(|id| missing.contains(id)) {
                         cache.insert(key(&id.to_string()), (at, fetched_at.clone(), row.clone()));
@@ -362,7 +375,7 @@ impl Broker {
                 .graphql(crate::averages::query(&missing, bracket))
                 .await?;
             let rows = crate::averages::parse(&payload["data"]["heroStats"], &missing)
-                .map_err(|error| format!("upstream averages: {error}"))?;
+                .map_err(|error| Error::upstream(format!("upstream averages: {error}")))?;
             let (at, fetched_at) = (Instant::now(), crate::store::now());
             let mut cache = self.averages_cache.lock().await;
             for id in &missing {
@@ -392,7 +405,10 @@ impl Broker {
     }
     pub async fn summaries(&self, mut request: Request) -> Result<Value> {
         request.validate()?;
-        let _permit = self.upstream.try_acquire().map_err(|_| "busy")?;
+        let _permit = self
+            .upstream
+            .try_acquire()
+            .map_err(|_| Error::rate_limited("busy"))?;
         let mut missing = vec![];
         let mut rows = HashMap::new();
         {
@@ -413,7 +429,7 @@ impl Broker {
                     *budget = (Instant::now(), 0);
                 }
                 if budget.1 >= self.hourly_budget {
-                    return Err("quota".into());
+                    return Err(Error::rate_limited("quota"));
                 }
                 budget.1 += 1;
             }
@@ -430,12 +446,12 @@ impl Broker {
                 Ok(response) if response.status().as_u16() != 429 => response,
                 other => {
                     let error = if other.is_ok() {
-                        "quota"
+                        Error::rate_limited("quota")
                     } else {
-                        "upstream unavailable"
+                        Error::upstream("upstream unavailable")
                     };
-                    crate::api::net_log("upstream STRATZ players", started, &Err(error.into()));
-                    return Err(error.into());
+                    crate::api::net_log("upstream STRATZ players", started, &Err(error.clone()));
+                    return Err(error);
                 }
             };
             let payload = read_response(response).await;
@@ -444,13 +460,13 @@ impl Broker {
                 started,
                 &payload,
             );
-            let payload = payload.map_err(|_| "upstream unavailable")?;
+            let payload = payload.map_err(|_| Error::upstream("upstream unavailable"))?;
             if payload["errors"].as_array().is_some_and(|e| !e.is_empty()) {
-                return Err("upstream schema/access error".into());
+                return Err(Error::upstream("upstream schema/access error"));
             }
             let players = payload["data"]["players"]
                 .as_array()
-                .ok_or("upstream format")?;
+                .ok_or(Error::upstream("upstream format"))?;
             let mut cache = self.cache.lock().await;
             if cache.len() > 5000 {
                 cache.clear();
@@ -496,18 +512,19 @@ async fn summaries(
             Json(json!({"error":"rate limited"})),
         ));
     }
-    broker.summaries(request).await.map(Json).map_err(|e|{
-        let status=if e=="quota"||e=="busy"{StatusCode::TOO_MANY_REQUESTS}else if e.starts_with("upstream")||e=="profile unavailable"{StatusCode::BAD_GATEWAY}else{StatusCode::BAD_REQUEST};
-        (status,Json(json!({"error":if status==StatusCode::BAD_REQUEST{"invalid request"}else{"statistics temporarily unavailable"}})))
-    })
+    broker
+        .summaries(request)
+        .await
+        .map(Json)
+        .map_err(service_error)
 }
-fn service_error(error: String) -> (StatusCode, Json<Value>) {
-    let status = if error == "quota" || error == "busy" {
-        StatusCode::TOO_MANY_REQUESTS
-    } else if error.starts_with("upstream") {
-        StatusCode::BAD_GATEWAY
-    } else {
-        StatusCode::BAD_REQUEST
+/// The HTTP status for a failed request, by the kind of failure; the body never repeats the
+/// upstream's message.
+fn service_error(error: Error) -> (StatusCode, Json<Value>) {
+    let status = match error {
+        Error::RateLimited(_) => StatusCode::TOO_MANY_REQUESTS,
+        Error::Upstream(_) => StatusCode::BAD_GATEWAY,
+        _ => StatusCode::BAD_REQUEST,
     };
     (
         status,
@@ -522,7 +539,7 @@ async fn totals(
     Json(request): Json<Request>,
 ) -> std::result::Result<Json<Value>, (StatusCode, Json<Value>)> {
     if !broker.permit(addr.ip()).await {
-        return Err(service_error("quota".into()));
+        return Err(service_error(Error::rate_limited("quota")));
     }
     broker
         .totals(request)
@@ -536,7 +553,7 @@ async fn draft(
     Json(request): Json<crate::draft::Request>,
 ) -> std::result::Result<Json<Value>, (StatusCode, Json<Value>)> {
     if !broker.permit(addr.ip()).await {
-        return Err(service_error("quota".into()));
+        return Err(service_error(Error::rate_limited("quota")));
     }
     broker.draft(request).await.map(Json).map_err(service_error)
 }
@@ -601,7 +618,7 @@ async fn history(
     Json(request): Json<crate::history::Request>,
 ) -> std::result::Result<Json<Value>, (StatusCode, Json<Value>)> {
     if !broker.permit(addr.ip()).await {
-        return Err(service_error("quota".into()));
+        return Err(service_error(Error::rate_limited("quota")));
     }
     broker
         .history(request)
@@ -615,7 +632,7 @@ async fn averages(
     Json(request): Json<crate::averages::Request>,
 ) -> std::result::Result<Json<Value>, (StatusCode, Json<Value>)> {
     if !broker.permit(addr.ip()).await {
-        return Err(service_error("quota".into()));
+        return Err(service_error(Error::rate_limited("quota")));
     }
     broker
         .averages(request)
@@ -629,7 +646,7 @@ async fn match_details(
     Json(request): Json<MatchRequest>,
 ) -> std::result::Result<Json<Value>, (StatusCode, Json<Value>)> {
     if !broker.permit(addr.ip()).await {
-        return Err(service_error("quota".into()));
+        return Err(service_error(Error::rate_limited("quota")));
     }
     broker
         .match_details(request)
@@ -643,7 +660,7 @@ async fn parties(
     Json(request): Json<crate::parties::Request>,
 ) -> std::result::Result<Json<Value>, (StatusCode, Json<Value>)> {
     if !broker.permit(addr.ip()).await {
-        return Err(service_error("quota".into()));
+        return Err(service_error(Error::rate_limited("quota")));
     }
     broker
         .parties(request)
@@ -654,6 +671,28 @@ async fn parties(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn the_status_follows_the_kind_of_failure_not_its_text() {
+        let status = |error: Error| service_error(error).0;
+        assert_eq!(
+            status(Error::rate_limited("quota")),
+            StatusCode::TOO_MANY_REQUESTS
+        );
+        assert_eq!(
+            status(Error::rate_limited("busy")),
+            StatusCode::TOO_MANY_REQUESTS
+        );
+        assert_eq!(
+            status(Error::upstream("upstream format")),
+            StatusCode::BAD_GATEWAY
+        );
+        // The same words without the kind are no longer read as one.
+        assert_eq!(status(Error::from("quota")), StatusCode::BAD_REQUEST);
+        assert_eq!(
+            status(Error::from("One to five accounts required")),
+            StatusCode::BAD_REQUEST
+        );
+    }
     #[tokio::test]
     async fn draft_rank_bracket_reaches_stratz_and_has_its_own_cache() {
         let queries = Arc::new(Mutex::new(Vec::<String>::new()));
@@ -1023,7 +1062,7 @@ mod tests {
         assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 1);
         // A match the upstream does not return is unavailable, not a client error.
         let error = broker.match_details(request("43")).await.unwrap_err();
-        assert!(error.starts_with("upstream"), "{error}");
+        assert!(error.message().starts_with("upstream"), "{error}");
         task.abort();
     }
     #[tokio::test]

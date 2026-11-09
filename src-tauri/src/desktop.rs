@@ -1,3 +1,4 @@
+use crate::error::Error;
 use crate::{
     api::Api,
     gsi, overlay,
@@ -720,9 +721,10 @@ async fn desktop_call(
                 Ok(_) if !recorded.is_empty() => {
                     Ok(crate::journal::merge(fallback(None), &recorded))
                 }
-                Err(error) if !recorded.is_empty() => {
-                    Ok(crate::journal::merge(fallback(Some(error)), &recorded))
-                }
+                Err(error) if !recorded.is_empty() => Ok(crate::journal::merge(
+                    fallback(Some(error.to_string())),
+                    &recorded,
+                )),
                 other => other,
             }
         }
@@ -909,7 +911,7 @@ async fn desktop_call(
             serde_json::to_value(steam_setup::Status::unavailable(
                 "Steam is not checked in isolated test sessions.",
             ))
-            .map_err(|e| e.to_string())
+            .map_err(Error::from)
         }
         "steam:status" => {
             let (config, memory) = {
@@ -922,7 +924,7 @@ async fn desktop_call(
             })
             .await
             .map_err(|e| e.to_string())?;
-            serde_json::to_value(status).map_err(|e| e.to_string())
+            serde_json::to_value(status).map_err(Error::from)
         }
         "steam:repair" => {
             let Ok(_running) = state.steam_repair.try_lock() else {
@@ -945,7 +947,7 @@ async fn desktop_call(
             })
             .await
             .map_err(|e| e.to_string())??;
-            serde_json::to_value(outcome).map_err(|e| e.to_string())
+            serde_json::to_value(outcome).map_err(Error::from)
         }
         "gsi:export" | "data:export" => {
             let is_gsi = command == "gsi:export";
@@ -1376,7 +1378,7 @@ async fn release_check(handle: tauri::AppHandle, fixture: Option<std::path::Path
                     .await
                     .ok()
                     .and_then(|bytes| serde_json::from_slice(&bytes).ok())
-                    .ok_or_else(|| "No release fixture".to_string()),
+                    .ok_or_else(|| Error::from("No release fixture")),
                 None => crate::releases::fetch(&client).await,
             };
             if let Ok(releases) = releases {
