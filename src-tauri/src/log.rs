@@ -184,7 +184,7 @@ mod tests {
              key 0123456789ABCDEF0123456789ABCDEF getter 0x7ff6a1b2c3d4 \
              gsi aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         );
-        for secret in [
+        for fragment in [
             "123456789",
             "76561198000000000",
             "7712345678",
@@ -193,7 +193,7 @@ mod tests {
             "7ff6a1b2c3d4",
             "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         ] {
-            assert!(!line.contains(secret), "{secret} leaked: {line}");
+            assert!(!line.contains(fragment), "not redacted: {line}");
         }
         assert!(line.contains("Own account update: account # steam # match #"));
         assert!(line.contains("token [redacted]"));
