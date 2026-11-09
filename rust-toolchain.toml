@@ -1,0 +1,6 @@
+# The one place that names the Rust version for local builds, CI and releases.
+# Dependabot proposes newer versions; see docs/dev/releases.md.
+[toolchain]
+channel = "1.99.1"
+components = ["rustfmt", "clippy"]
+profile = "minimal"

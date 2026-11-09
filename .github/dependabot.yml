@@ -32,6 +32,13 @@ updates:
       # plugin still pulls zbus 5; move together once Tauri's plugins use zbus 6.
       - dependency-name: zbus
         update-types: ['version-update:semver-major']
+  # Raises the pinned compiler in rust-toolchain.toml; CI then runs Clippy and the tests on it.
+  - package-ecosystem: rust-toolchain
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: 'chore(deps)'
   - package-ecosystem: github-actions
     directory: /
     schedule:
