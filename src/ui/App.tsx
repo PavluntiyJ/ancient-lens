@@ -41,9 +41,7 @@ declare global {
 }
 export const api = window.ancient;
 export function errorMessage(error: unknown) {
-  return error instanceof Error
-    ? error.message.replace(/^Error invoking remote method '[^']+': Error: /, '')
-    : 'Could not complete the action.';
+  return error instanceof Error ? error.message : 'Could not complete the action.';
 }
 export const number = (value: number | undefined | null) => (value == null ? '—' : value.toLocaleString('en-US'));
 export const date = (value: string | number) =>

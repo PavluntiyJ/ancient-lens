@@ -67,12 +67,14 @@ pub async fn read_response(mut response: reqwest::Response) -> Result<Value> {
     }
     serde_json::from_slice(&bytes).map_err(|_| "The API returned invalid JSON".into())
 }
+/// Names the app and the running release in every outbound request.
+pub const USER_AGENT: &str = concat!("AncientLens/", env!("CARGO_PKG_VERSION"));
 pub fn client() -> reqwest::Client {
     reqwest::Client::builder()
         .timeout(Duration::from_secs(20))
         .connect_timeout(Duration::from_secs(8))
         .redirect(reqwest::redirect::Policy::none())
-        .user_agent("AncientLens/0.4")
+        .user_agent(USER_AGENT)
         .build()
         .expect("TLS client")
 }
