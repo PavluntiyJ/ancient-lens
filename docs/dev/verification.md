@@ -73,6 +73,21 @@ started some other way, `node scripts/kde-desktop-guard.mjs repair` applies the 
 fixes; `check` only reports. `ANCIENT_GUARD_SCREEN=1024x768` reproduces the Windows CI
 screen.
 
+## Choosing a page test
+
+Page behaviour has three levels of test. Pick the cheapest one that can fail for the bug.
+
+| Level           | Use it for                                                                                                                                                      | How                                                                                                                      |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Static          | What a component shows for given props: labels, order, numbers, dashes for missing data                                                                         | `renderToStaticMarkup` and string checks; no effects run                                                                 |
+| DOM             | Clicks, typing, effects, and the order of answers: a call reaches the bridge with the right arguments, a late answer for a previous account or match is ignored | `// @vitest-environment happy-dom` at the top of the file, Testing Library, and the fake bridge in `tests/dom/bridge.ts` |
+| Native scenario | The real WebView, Rust IPC, windows, GSI and the files the app writes                                                                                           | `npm run test:native` with isolated data ([below](#native-coverage))                                                     |
+
+DOM tests run in `npm run check` beside the static ones and take milliseconds. Import
+`./dom/bridge` before any component: the page reads `window.ancient` when `App.tsx` loads.
+Every bridge method is a mock; `deferred()` gives a promise the test settles when it wants,
+so answers can arrive in any order. Call `cleanup()` and `resetBridge()` after each test.
+
 ## Native coverage
 
 - Ten player rows, shuffled provider responses correctly mapped by ID, two
