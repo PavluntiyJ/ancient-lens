@@ -12,6 +12,7 @@ echo "pre-push: running checks before pushing to main..."
 npm run format:check
 cargo fmt --manifest-path src-tauri/Cargo.toml --check
 npm run check
+npm run lint
 npm run check:public
 npm run test:rust
 cargo check --manifest-path src-tauri/Cargo.toml --no-default-features --bin stats-service

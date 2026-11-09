@@ -5,7 +5,6 @@ import { dayBands, nearestPoint } from '../../shared/mmr-chart';
 import { formatImp, impTier } from '../../shared/performance';
 import { Avatar, CountryFlag, ProBadge } from '../MatchScreen';
 import { OwnRating } from '../OwnRating';
-import { PlayerLinks } from '../PlayerLinks';
 import { hide as hideTip, show as showTip } from '../Tooltip';
 
 /** One measured match on the chart: MMR after it, its end time and result. */

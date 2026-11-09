@@ -1,0 +1,29 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  // The default plugins plus React. Correctness only: Prettier keeps formatting.
+  "plugins": ["typescript", "unicorn", "oxc", "react"],
+  "categories": {
+    "correctness": "warn"
+  },
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "error",
+    // Rest siblings drop fields on purpose (`const { source, ...raw } = data`); `_x` is unused by intent.
+    "no-unused-vars": ["warn", { "ignoreRestSiblings": true, "argsIgnorePattern": "^_" }],
+    // React Compiler rules. They flag the loading code's deliberate patterns (synchronous
+    // resets in effects, refs read during render); following them changes when data loads,
+    // which needs its own review. Off until then.
+    "react/set-state-in-effect": "off",
+    "react/refs": "off",
+    "react/purity": "off",
+    "react/immutability": "off",
+    "react/preserve-manual-memoization": "off"
+  },
+  "overrides": [
+    {
+      // The native drivers call `app.useWindow(name)`, a WebDriver helper, not a React hook.
+      "files": ["scripts/**"],
+      "rules": { "react/rules-of-hooks": "off" }
+    }
+  ]
+}

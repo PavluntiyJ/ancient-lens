@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { BadgeCheck, Bookmark, Lock, RefreshCw, Settings, Swords, UserPlus, UserRound } from 'lucide-react';
 import {
@@ -15,7 +15,6 @@ import {
   type StatsDays,
 } from '../shared/domain';
 import { api, errorMessage } from './App';
-import { PlayerLinks } from './PlayerLinks';
 import {
   AnalysisCarousel,
   DraftSuggestions,
@@ -516,7 +515,7 @@ export function MatchScreen({
     return () => {
       active = false;
     };
-  }, [ids, match, connected, revision, days, providerRevision, filter]);
+  }, [ids, match, connected, revision, days, providerRevision, filter, filterKey]);
   const heroOf = (player: LivePlayer) =>
     heroes.find((hero) => hero.id === player.heroId || (!!player.heroName && hero.name === player.heroName));
   // A note written in a card keeps the live match, the player's hero and side.
@@ -555,10 +554,13 @@ export function MatchScreen({
     .join(',');
   const radiantIds = picksFor('radiant').join(',');
   const direIds = picksFor('dire').join(',');
-  const idsOf = (team: 'radiant' | 'dire') => {
-    const list = team === 'radiant' ? radiantIds : direIds;
-    return list ? list.split(',').map(Number) : [];
-  };
+  const idsOf = useCallback(
+    (team: 'radiant' | 'dire') => {
+      const list = team === 'radiant' ? radiantIds : direIds;
+      return list ? list.split(',').map(Number) : [];
+    },
+    [radiantIds, direIds],
+  );
   const pickedIds = [...new Set([...picksFor('radiant'), ...picksFor('dire')])].sort((a, b) => a - b).join(',');
   // Hero statistics for the match's rank bracket. An automatic choice is kept for the match
   // once it rests on ranks, so profiles loading mid-draft do not refetch every table.
@@ -616,6 +618,7 @@ export function MatchScreen({
       active = false;
       window.clearTimeout(timer);
     };
+    // oxlint-disable-next-line react/exhaustive-deps -- draftNeeded stands for scope and missing IDs; bracket changes the scope.
   }, [draftNeeded, connected, revision, stratzDraft]);
   // Once per match, from loading on, every hero's matchups are fetched into the store (about
   // 13 requests, cached by the service for an hour): later hovers and picks need none.
@@ -641,6 +644,7 @@ export function MatchScreen({
         }
       }
     })();
+    // oxlint-disable-next-line react/exhaustive-deps -- bracket is part of draftScope; one warm-up per scope.
   }, [draftScope, match, drafting, connected, stratzDraft, heroes]);
   // Both sides are scored locally from the same draft data; switching panels never refetches.
   const recommendations = useMemo(() => {
@@ -658,7 +662,7 @@ export function MatchScreen({
         confirmed,
       );
     return { radiant: score('radiant'), dire: score('dire') };
-  }, [draftData, heroes, radiantIds, direIds, pickedIds, confirmedIds, banIds, synergyWeight]);
+  }, [draftData, heroes, idsOf, pickedIds, confirmedIds, banIds, synergyWeight]);
   // Counters against a side's heroes, for the other side to pick.
   const counters = useMemo(() => {
     const confirmed = confirmedIds ? confirmedIds.split(',').map(Number) : [];
@@ -667,7 +671,7 @@ export function MatchScreen({
       radiant: counterPicks(heroes, draftData, idsOf('radiant'), confirmed, bans),
       dire: counterPicks(heroes, draftData, idsOf('dire'), confirmed, bans),
     };
-  }, [heroes, draftData, radiantIds, direIds, confirmedIds, banIds]);
+  }, [heroes, draftData, idsOf, confirmedIds, banIds]);
   const meta = useMemo(
     () =>
       metaPicks(

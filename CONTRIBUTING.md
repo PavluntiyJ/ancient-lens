@@ -48,7 +48,7 @@ Start with the [installation guide](docs/guide/install.md), the
 
 | Change             | Run                                                                                                                                                             |
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Any                | `npm ci`, `npm run check`, `npm run format:check`, `npm run check:public`                                                                                       |
+| Any                | `npm ci`, `npm run check`, `npm run lint`, `npm run format:check`, `npm run check:public`                                                                       |
 | Rust               | `cargo fmt --manifest-path src-tauri/Cargo.toml --check`, `npm run test:rust`, `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings` |
 | Statistics service | `cargo check --manifest-path src-tauri/Cargo.toml --no-default-features --bin stats-service`, and the same with `cargo clippy … -- -D warnings`                 |
 | Launcher scripts   | `python3 -m unittest discover -s tests/python` (`py -3` on Windows)                                                                                             |

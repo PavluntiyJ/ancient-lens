@@ -1,7 +1,6 @@
 import { expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MmrPointTip } from '../src/ui/Tips';
-import { matchRanking } from '../src/shared/match-rank';
 import type { Hero, Match } from '../src/shared/domain';
 
 vi.mock('../src/ui/MatchScreen', () => ({ Portrait: () => <span className="portrait" /> }));
