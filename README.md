@@ -34,13 +34,6 @@
 - **Player cards and notes:** hover a player for recent matches, earlier games with or
   against you, your notes from earlier matches, and links to Dotabuff, OpenDota, STRATZ and Steam.
 
-In 0.9.0, a player can have several notes: a note written in a match card is added on top of
-the earlier ones and keeps that match, the player's hero and side. The **Notes** page shows each
-player's notes with their matches, how often you met them, and search and filters; existing
-notes are kept and linked to their recorded match. The profile ranks all ten players by IMP
-again, and hero names and portraits show at once after a restart. See the
-[changelog](CHANGELOG.md#090--november-6-2026).
-
 Screenshots use invented players. A tour of every panel and shortcut:
 [the match screen and profile](docs/guide/match-and-profile.md).
 
@@ -65,19 +58,22 @@ Details and troubleshooting: [setup and data](docs/guide/setup.md), and the
 
 ## What works on each platform
 
-| What you get                                                                      | Needs                                    | Windows                         | Linux                                                                                           |
-| --------------------------------------------------------------------------------- | ---------------------------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Public profiles, notes, manual draft, MMR journal, automatic account detection    | Nothing: works out of the box            | Yes                             | Yes                                                                                             |
-| Steam profile refresh, saved-MMR medal and saved-account menu                     | Public Steam profile / local readings    | Yes                             | Yes                                                                                             |
-| Historical item options for your hero against the known draft                     | Public OpenDota league sample            | Yes                             | Yes                                                                                             |
-| Match layout, player hover card and note controls                                 | Public statistics and your local history | Native fixtures checked         | Native fixtures checked                                                                         |
-| Ten-player roster and picks while spectating                                      | Dota GSI setup (Quick start above)       | Yes                             | Yes                                                                                             |
-| Matchups, position recommendations, meta and counter picks                        | Your STRATZ token and the local service  | Yes                             | Yes                                                                                             |
-| Ten-player roster, picks and bans in **your own** match; exact MMR and confidence | Optional memory reader, off by default   | Yes                             | Yes                                                                                             |
-| Match and profile windows above the game that leave it the keyboard (and sound)   | Borderless or windowed game              | Yes, sound not yet checked live | X11 only; on Wayland the desktop decides                                                        |
-| Windows minimize when you switch to another app, stay up when you click the game  | Nothing; can be turned off               | Yes                             | X11, not yet run on a desktop; not on Wayland                                                   |
-| The window keys work only over Dota and Ancient Lens                              | Nothing; can be turned off               | Yes                             | X11 key-grab fallback only, not yet run on a desktop; not with the desktop portal or on Wayland |
-| Native UI verification and failure diagnostics                                    | Isolated synthetic fixtures              | CI before packaging             | Local desktop check; no native CI job                                                           |
+| What you get                                             | Needs                     | Windows | Linux              |
+| -------------------------------------------------------- | ------------------------- | ------- | ------------------ |
+| Profiles, player cards, notes, manual draft, MMR journal | Nothing                   | Yes     | Yes                |
+| Own account detection, Steam profile refresh, MMR medal  | Steam; your saved MMR     | Yes     | Yes                |
+| Item options for your hero against the draft             | Nothing (OpenDota sample) | Yes     | Yes                |
+| Ten-player roster and picks while spectating             | GSI setup (Quick start)   | Yes     | Yes                |
+| Matchups, positions, meta and counter picks              | Your STRATZ token         | Yes     | Yes                |
+| Roster, picks and bans in **your own** match; exact MMR  | Memory reader (opt-in)    | Yes     | Yes                |
+| Windows above the game that leave it the keyboard        | Borderless game           | Yes     | [X11 only][limits] |
+| Windows minimize when you switch to another app          | Nothing; can be off       | Yes     | [X11 only][limits] |
+| Window keys work only over Dota and Ancient Lens         | Nothing; can be off       | Yes     | [X11 only][limits] |
+
+[limits]: docs/status.md#known-limitations
+
+What is unchecked or limited on each system, such as Wayland or a live game, is listed in
+[status](docs/status.md#known-limitations).
 
 In your own match Dota's GSI sends only your own player, on both systems. With the reader
 off, an empty enemy roster there is expected, not a failed installation. **Connect STRATZ**
@@ -126,7 +122,9 @@ Known limitations and plans: [status](docs/status.md). Changes: [changelog](CHAN
 Build from source with the [installation guide](docs/guide/install.md). Read
 [contributing](CONTRIBUTING.md) for the workflow and checks, the
 [architecture](docs/dev/architecture.md), [verification](docs/dev/verification.md) and the
-[native reader guide](docs/dev/native-reader.md). Report vulnerabilities as described in
+[native reader guide](docs/dev/native-reader.md). Native UI verification runs in CI on
+Windows before packaging; on Linux it needs a local desktop run
+([status](docs/status.md#known-limitations)). Report vulnerabilities as described in
 [SECURITY.md](SECURITY.md).
 
 ## License and attribution
