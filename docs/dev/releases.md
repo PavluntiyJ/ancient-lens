@@ -13,6 +13,12 @@ Use the same version in all six places:
 - `src-tauri/tauri.conf.json`;
 - the prototype version in `README.md`.
 
+The Rust version is set once, in `rust-toolchain.toml` at the repository root; local builds,
+CI and release builds all use it. Raise it by changing its `channel` line in its own pull
+request, which CI checks with the new compiler and Clippy. Dependabot opens that pull request
+monthly when a newer stable version exists; take it before preparing a release rather than in
+the release branch.
+
 Keep an empty `Unreleased` section in `CHANGELOG.md` and move the included changes under a
 dated version heading. Update the affected user guides and installation filename example.
 The workflow takes the release's changes from that changelog section and adds the common

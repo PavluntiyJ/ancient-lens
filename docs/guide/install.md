@@ -83,7 +83,9 @@ Data → Updates turns the check off; then watch the Releases page instead.
 
 Building Ancient Lens yourself needs:
 
-- Git, Node.js 22.12+, npm, and Rust stable installed through rustup.
+- Git, Node.js 22.12+, npm, and Rust installed through rustup. The repository's
+  `rust-toolchain.toml` names the exact Rust version; rustup installs it on the first
+  build in the folder.
 - Windows: MSVC C++ Build Tools with the Windows SDK, and Microsoft Edge WebView2
   Runtime. Use PowerShell or a developer terminal; do not build the Windows app in WSL.
 - Linux: a desktop session and WebKitGTK 4.1 development libraries.
