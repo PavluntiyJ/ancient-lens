@@ -29,14 +29,15 @@ Ancient Lens then checks the token with one STRATZ request for a public referenc
 profile (not your account), saves it in the system secret store and starts the
 statistics service with it. Windows uses Credential Manager under the target
 `Ancient Lens/STRATZ`; Linux uses the Secret Service (`secret-tool`, attributes
-`application org.ancientlens service stratz`). It is the same entry the Python
-launcher below uses, so both find each other's token. Afterwards the app starts the
+`application org.ancientlens service stratz`). A token saved by the Python launcher of
+earlier versions sits in the same entry and is found without entering it again.
+Afterwards the app starts the
 service at every launch and stops it when it quits. **Disconnect STRATZ** in
 Settings deletes the saved token and stops the service the app started.
 
 Connect reports a rejected token, a locked or missing keyring, a missing service
 binary and a service that does not start; a rejected or unchecked token is never
-saved. A service started outside the app (for example by the launcher below) keeps
+saved. A service started outside the app (for example from a terminal) keeps
 its own token until you restart it.
 
 The service ships beside the app: `stats-service.exe` next to `Ancient Lens.exe`
@@ -45,9 +46,10 @@ in the Windows installer and portable ZIP, `stats-service` next to `ancient-lens
 build. The release build checks that every package contains it. On Linux the
 Connect flow (keyring save and service start) was checked on a Fedora 44 KDE desktop.
 
-On Linux an installed `ancient-lens-stats` user unit
-([Fedora guide](fedora.md#personal-stratz-service)) is restarted after Connect and
-reads the new token from the keyring itself.
+A user unit named `ancient-lens-stats` that you wrote yourself is still used on Linux:
+the app starts it and restarts it after Connect. The unit the retired Python launcher
+installed is ignored once its script is gone; see
+[Fedora guide](fedora.md#from-the-python-launcher).
 
 ### After an update
 
@@ -62,7 +64,7 @@ older than itself, it handles it as follows:
   a different binary, Settings says so.
 - **Windows, and the service Ancient Lens starts itself:** the app stops its child when it
   quits and starts the new one at the next launch, so nothing is needed.
-- **A service started some other way** (the launcher below, a terminal, a process left
+- **A service started some other way** (a terminal, a process left
   from an earlier run) is never stopped by the app. **Settings → Connections → STRATZ**
   shows **Restart service** with both versions; stop it and start the new one, or restart
   Ancient Lens after stopping it so the app starts its own.
@@ -77,43 +79,34 @@ side, and the field is cleared at once. The page keeps no copy; the token is not
 stored in app state, settings, exports or logs and is never shown again. This is a
 deliberate trade-off so that release users need no source tree or terminal: while
 you paste, the token is in the webview's memory like any typed password. If you
-want the token never to enter the window, save it with the launcher below instead.
+want the token never to enter the window, run the service yourself as below.
 
 ## Run the service yourself (Linux or Windows)
 
-This is the path for source builds, other addresses and a token that never enters
-the window.
+This is the path for a terminal-only setup, other addresses and a token that never
+enters the window. Obtain your own token from
+[STRATZ My Tokens](https://stratz.com/api); do not put it in source files,
+screenshots, issue reports or shell history.
 
-1. Obtain your own token from [STRATZ My Tokens](https://stratz.com/api). Do not
-   put it in source files, screenshots, issue reports or shell commands.
-2. Install Python 3 if you want to use the hidden-input launcher below.
-3. Build the service without Tauri/GTK/WebView dependencies:
+Build the service without Tauri/GTK/WebView dependencies and start it with the token
+in its environment, typed at a hidden prompt:
 
 ```sh
 cargo build --release --locked --manifest-path src-tauri/Cargo.toml --no-default-features --bin stats-service
+read -rs STRATZ_API_TOKEN && export STRATZ_API_TOKEN
+./src-tauri/target/release/stats-service
 ```
 
-4. Save the token once. The launcher validates it against a known public
-   reference profile (not your account) and stores it in the platform secret
-   store:
+PowerShell 7:
 
-```sh
-py -3 scripts/start-personal-stratz.py --configure
+```powershell
+cargo build --release --locked --manifest-path src-tauri/Cargo.toml --no-default-features --bin stats-service
+$env:STRATZ_API_TOKEN = Read-Host -MaskInput 'STRATZ token'
+.\src-tauri\target\release\stats-service.exe
 ```
 
-On Linux the token goes to the Secret Service. On Windows it goes to Windows
-Credential Manager under the target `Ancient Lens/STRATZ`; no plaintext file is
-written. `--session-only` skips saving and starts the service for this terminal
-only.
-
-5. Start the service. On Linux, run the launcher directly (or install the Fedora
-   user service); on Windows, just start Ancient Lens. The launcher keeps
-   ownership of the Windows child and forwards Ctrl+C, so the terminal prompt
-   returns when the service stops:
-
-```sh
-py -3 scripts/start-personal-stratz.py --saved-token
-```
+The service runs until Ctrl+C. It does not check the token first; a rejected token
+shows when players load.
 
 Ancient Lens finds a compatible service already listening at
 `127.0.0.1:8787` on either platform. If no service is running, a Linux user unit is
@@ -122,7 +115,9 @@ sits beside the app (or at the path in `ANCIENT_STATS_SERVICE`), the app starts 
 as a hidden child and stops it when the app quits. The token travels only in the
 child's environment, never in a command line, application state or logs. Without
 the binary beside the app nothing is started and the keyring is not opened;
-discovery of an already running service still works.
+discovery of an already running service still works. A source build has both
+binaries in `src-tauri/target/release/` once both are built, so **Connect STRATZ**
+works there as in a package.
 
 For a service at another address (here a service bound with
 `ANCIENT_SERVICE_BIND=127.0.0.1:8788`), launch it from a separate terminal with
@@ -148,16 +143,14 @@ checks that access.
 
 Discovery runs once when the app starts, so start the service first or restart
 the app afterwards. An explicitly empty `ANCIENT_STATS_URL` disables discovery.
-On Linux, an installed but stopped user service is also started. To save a token
-securely and install a Fedora menu shortcut, see
-[the Fedora guide](fedora.md#personal-stratz-service).
+On Linux, an installed but stopped user service is also started.
 
 ## Limits and failure handling
 
 The service binds to `127.0.0.1:8787` by default. Do not expose this personal
 service on a public interface. `ANCIENT_SERVICE_BIND` changes the bind address;
 `ANCIENT_UPSTREAM_HOURLY_BUDGET` limits upstream requests (default 60/hour).
-The personal launcher uses these conservative defaults.
+The service the app starts uses these conservative defaults.
 
 Player requests are batched in groups of at most five, with two concurrent
 upstream requests. The server limits request bodies to 4 KiB, upstream responses
@@ -171,9 +164,8 @@ replaced with OpenDota data. Errors do not reveal upstream bodies or tokens.
 
 If port 8787 is already occupied, reuse the existing service or stop it first.
 If the token is rejected, replace it through My Tokens and connect again in
-Settings (or run `--configure` again). If a quota is exhausted, wait; restarting does not increase your upstream
-quota. `py -3 scripts/start-personal-stratz.py --forget` (or
-`python3 scripts/start-personal-stratz.py --forget`) removes the saved token.
+Settings. If a quota is exhausted, wait; restarting does not increase your upstream
+quota. **Disconnect STRATZ** in Settings removes the saved token.
 
 ## Shared deployment (advanced)
 

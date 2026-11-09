@@ -13,6 +13,14 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 - A log file for bug reports, `logs/ancient-lens.log` in the data folder, limited to 2 MB with
   IDs, tokens and your home folder name removed. **Settings → Data → Open log folder** opens it.
 
+### Changed
+
+- The Python launchers (`launch-fedora.py`, `start-personal-stratz.py`) are gone: **Connect
+  STRATZ** in Settings is the one way to connect, also in a source build. A token they saved
+  is still found, and the `ancient-lens-stats` unit they installed is ignored once its script
+  is missing; the [Fedora guide](docs/guide/fedora.md#from-the-python-launcher) shows how to
+  remove it and point the menu entry at the app.
+
 ### Fixed
 
 - All Random and Captains Draft matches from STRATZ are named instead of shown without a mode.

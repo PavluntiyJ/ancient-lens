@@ -48,72 +48,58 @@ GitHub login to download; they are not published release downloads.
 
 ## Personal STRATZ service
 
-For an unsaved token and no desktop integration, follow the
-[cross-platform service guide](stats-service.md). For a menu shortcut with secure
-credential storage, install these additional dependencies:
+Build the statistics service beside the app, then connect STRATZ in the app as in
+the [service guide](stats-service.md#connect-stratz-in-the-app):
 
 ```sh
-sudo dnf install python3 libsecret kdialog
+sudo dnf install libsecret
 cargo build --release --locked --manifest-path src-tauri/Cargo.toml --no-default-features --bin stats-service
-python3 scripts/launch-fedora.py --install
+./src-tauri/target/release/ancient-lens
 ```
 
-You need a working desktop Secret Service and user systemd session. Open
-**Ancient Lens** from the application menu, or run:
+**Settings → Connections → STRATZ → Connect STRATZ** checks your token, saves it in the
+desktop keyring through `secret-tool` and starts `stats-service` from
+`src-tauri/target/release/` as a hidden child that stops with the app. You need a
+working desktop Secret Service; there is no plaintext-file fallback. If the keyring
+is locked, unlock it using your desktop. The packages (`.rpm`, AppImage) carry the
+service already, so there nothing needs building.
 
-```sh
-python3 scripts/launch-fedora.py
+For a menu entry for a source build, create `~/.local/share/applications/ancient-lens.desktop`
+with your checkout's path:
+
+```ini
+[Desktop Entry]
+Type=Application
+Name=Ancient Lens
+Exec="/path/to/ancient-lens/src-tauri/target/release/ancient-lens"
+Icon=/path/to/ancient-lens/build/icon.svg
+Terminal=false
+Categories=Game;Utility;
 ```
 
-The first launch asks for your own STRATZ token from
-[My Tokens](https://stratz.com/api). New/replaced tokens are validated before being
-saved. The token goes to the system keyring through stdin; it is not written into
-the shortcut, systemd unit, or app configuration. The service receives it through
-its process environment. There is no plaintext-file fallback if the keyring is
-unavailable. If the keyring is locked, unlock it using your desktop.
-
-Subsequent launches reuse the stored token and running service. To replace the
-token, select **Configure STRATZ** from the shortcut menu, or run:
-
-```sh
-python3 scripts/launch-fedora.py --configure
-```
-
-The service starts on demand, not automatically at login, and remains running
-until logout. systemd restarts it after failures with a restart-rate limit. Its
-initial upstream budget is 60 requests/hour; check your current STRATZ quota.
-No separate token-validation request runs at each launch, allowing cached data
-to remain available offline.
-
-```sh
-systemctl --user stop ancient-lens-stats.service
-```
-
-The next app launch can start it again. To delete the stored token, stop the
-service first, then run:
-
-```sh
-secret-tool clear application org.ancientlens service stratz
-```
-
-For manual development, `python3 scripts/start-personal-stratz.py --dialog`
-validates and saves a token, then runs until Ctrl+C. `--session-only` disables
-storage; `--saved-token` requires an already-stored token. Do not run a manual
-and a systemd-managed service on the same port simultaneously.
-
-### Direct app launch
-
-The Linux app discovers a compatible service already running on `127.0.0.1:8787`.
-If the user service is installed but stopped, it starts it automatically. The
-menu launcher remains useful for first-time token setup. Explicit
-`ANCIENT_STATS_URL` takes precedence; an empty value disables discovery. The
+To run the service yourself with a token that never enters the window, see
+[Run the service yourself](stats-service.md#run-the-service-yourself-linux-or-windows).
+`ANCIENT_STATS_URL` takes precedence over discovery; an empty value disables it. The
 token is never passed into the desktop UI.
 
-The generated shortcut and service refer to the checkout's absolute path. If
-you move the repository, run `--install` again. To remove desktop integration,
-stop the service, remove its unit from `~/.config/systemd/user/` and the
-`ancient-lens.desktop` shortcut from `~/.local/share/applications/`, then run
-`systemctl --user daemon-reload`. Delete the keyring token separately if desired.
+### From the Python launcher
+
+Versions up to 0.9 shipped `scripts/launch-fedora.py`, which installed the
+`ancient-lens-stats` user unit and a menu entry that both ran Python scripts from the
+checkout. The scripts are gone; **the token it saved stays in the keyring** under the
+same entry, and the app finds it. The app ignores that unit once its script is
+missing and starts `stats-service` itself. To clean up the old integration:
+
+```sh
+systemctl --user disable --now ancient-lens-stats.service
+rm ~/.config/systemd/user/ancient-lens-stats.service
+systemctl --user daemon-reload
+```
+
+Then point `~/.local/share/applications/ancient-lens.desktop` at the binary as
+above. Live-test diagnostics that `--debug` switched on are environment variables
+of the app: `ANCIENT_DEBUG=1 ANCIENT_GSI_DRAFT_DIAGNOSTICS=1`. The app's own log is
+in the data folder (**Settings → Data → Open log folder**).
 
 ## Dota and the match window
 

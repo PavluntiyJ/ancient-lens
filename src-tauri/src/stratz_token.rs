@@ -7,21 +7,22 @@ use std::time::Duration;
 pub const GRAPHQL: &str = "https://api.stratz.com/graphql";
 /// Where STRATZ issues tokens (My Tokens, after signing in with Steam).
 pub const TOKENS_PAGE: &str = "https://stratz.com/api";
-/// The public reference profile the Python launcher checks too; not the player's account.
+/// A public reference profile, not the player's account.
 const PROBE: &str = "{ players(steamAccountIds:[87278757]) { steamAccountId matchCount } }";
-/// Matches `WINDOWS_TARGET` in scripts/stratz_credentials.py.
+/// Where Credential Manager keeps the token. The retired Python launcher saved under the same
+/// name, so a token it saved is still found.
 #[cfg_attr(not(windows), allow(dead_code))]
 const WINDOWS_TARGET: &str = "Ancient Lens/STRATZ";
-/// Matches `ATTRIBUTES` in scripts/stratz_credentials.py.
+/// The Secret Service attributes of the token, the same the retired Python launcher used.
 #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 const LINUX_ATTRIBUTES: [&str; 4] = ["application", "org.ancientlens", "service", "stratz"];
 
-/// The same rule as `valid_token` in the Python helper.
+/// One line of at most 4 KiB.
 pub fn valid(token: &str) -> bool {
     !token.is_empty() && token.len() <= 4096 && !token.contains(['\r', '\n', '\0'])
 }
 
-/// A pasted token loses surrounding whitespace, as with the launcher's hidden prompt.
+/// A pasted token loses surrounding whitespace.
 pub fn clean(token: &str) -> Result<String> {
     let token = token.trim();
     if token.is_empty() {
@@ -35,7 +36,7 @@ pub fn clean(token: &str) -> Result<String> {
     Ok(token.to_owned())
 }
 
-/// One player query against STRATZ, as `start-personal-stratz.py` does before saving.
+/// One player query against STRATZ before the token is saved.
 pub async fn probe(endpoint: &str, token: &str) -> Result<()> {
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(25))
@@ -84,7 +85,7 @@ pub async fn probe(endpoint: &str, token: &str) -> Result<()> {
     result.map(|_| ())
 }
 
-/// Windows Credential Manager stores the token as UTF-16LE, like the Python helper.
+/// Windows Credential Manager stores the token as UTF-16LE, as earlier versions saved it.
 #[cfg_attr(not(windows), allow(dead_code))]
 fn to_blob(token: &str) -> Vec<u8> {
     token.encode_utf16().flat_map(u16::to_le_bytes).collect()
@@ -350,18 +351,15 @@ mod tests {
         assert!(checked(Some("two\nlines".into())).is_err());
     }
 
-    /// The Rust app and the Python launcher must find each other's saved token.
+    /// Tokens saved by earlier versions, including the retired Python launcher, are found only
+    /// under these names; changing one would ask every player for their token again.
     #[test]
-    fn storage_names_match_the_python_helper() {
-        let helper = include_str!("../../scripts/stratz_credentials.py");
-        assert!(helper.contains(&format!("WINDOWS_TARGET = '{WINDOWS_TARGET}'")));
-        let attributes = LINUX_ATTRIBUTES
-            .iter()
-            .map(|value| format!("'{value}'"))
-            .collect::<Vec<_>>()
-            .join(", ");
-        assert!(helper.contains(&format!("ATTRIBUTES = [{attributes}]")));
-        assert!(include_str!("../../scripts/start-personal-stratz.py").contains(PROBE));
+    fn storage_names_stay_where_saved_tokens_are() {
+        assert_eq!(WINDOWS_TARGET, "Ancient Lens/STRATZ");
+        assert_eq!(
+            LINUX_ATTRIBUTES,
+            ["application", "org.ancientlens", "service", "stratz"]
+        );
     }
 
     /// A fake STRATZ GraphQL endpoint that answers only the expected probe request.

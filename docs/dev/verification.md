@@ -13,7 +13,6 @@ keys, local research archive, or running Dota game.
 | `cargo fmt --manifest-path src-tauri/Cargo.toml --check`                                     | Rust formatting                                                         |
 | `npm run test:rust`                                                                          | Store, GSI, filters, history, service, synthetic readers, confidence    |
 | `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings`             | Rust lints, warnings fail; also run for the service build               |
-| `python3 -m unittest discover -s tests/python` (`py -3` on Windows)                          | Launcher quoting and credential handling                                |
 | `cargo check --manifest-path src-tauri/Cargo.toml --no-default-features --bin stats-service` | Service without desktop dependencies                                    |
 | `npm run build`                                                                              | Optimized native desktop executable                                     |
 | `npm run test:native`                                                                        | Real platform WebView, Rust IPC, HTTP GSI, synthetic statistics         |
@@ -143,7 +142,7 @@ ordinary tests.
 
 ## CI
 
-`.github/workflows/build.yml` checks formatting, frontend, Rust, Python and the
+`.github/workflows/build.yml` checks formatting, frontend, Rust and the
 service on GitHub-hosted Ubuntu and Windows for every code change and pull
 request. After those checks, `native-build` builds the Windows application
 without installers and saves both executables with their source revision and
