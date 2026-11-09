@@ -114,6 +114,8 @@ const history = Array.from({ length: 30 }, (_, k) => {
     position: `POSITION_${1 + Math.floor(Math.abs(noise('pos', k)) * 5)}`,
     game_mode: turbo ? 23 : 22,
     lobby_type: turbo ? 0 : 7,
+    // Mostly solo, some duos and a trio; a few matches without a recorded party.
+    ...(k % 8 !== 6 && { party_size: k % 5 === 2 ? 2 : k % 9 === 4 ? 3 : 1 }),
     average_rank: k % 7 === 3 ? 80 : 73 + (k % 3),
   };
 });

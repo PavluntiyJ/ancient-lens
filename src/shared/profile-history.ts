@@ -1,5 +1,5 @@
 import { matchWon, type Match, type MmrEntry } from './domain';
-import { modeName } from './history';
+import { gameTypeKey } from './history';
 import { killParticipation, deathParticipation } from './match-stats';
 import { pointMatch } from './mmr-chart';
 import { matchPosition } from './roles';
@@ -45,7 +45,7 @@ export function sortProfileHistory(
       case 'hero':
         return heroName(m.hero_id);
       case 'mode':
-        return modeName(m);
+        return gameTypeKey(m);
       case 'position':
         return matchPosition(m) || undefined;
       case 'mmr':

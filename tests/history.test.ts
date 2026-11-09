@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { averageKda, currentStreak, filterHistory, streakRun } from '../src/shared/history';
-import type { Match } from '../src/shared/domain';
+import {
+  averageKda,
+  currentStreak,
+  filterHistory,
+  gameModeName,
+  gameTypeKey,
+  lobbyName,
+  modeName,
+  partySize,
+  streakRun,
+} from '../src/shared/history';
+import { matchSchema, type Match } from '../src/shared/domain';
+import { sortProfileHistory } from '../src/shared/profile-history';
 
 describe('personal history selection', () => {
   const now = 1700000000000;
@@ -109,4 +120,38 @@ it('does not call a recent-only provider sample complete history', async () => {
   expect(historyCoverage({ hasMore: true, limited: true })).toBe('incomplete');
   expect(historyCoverage({ hasMore: false, historyUnavailable: true })).toBe('incomplete');
   expect(historyCoverage({ hasMore: false, warning: 'cache' })).toBe('incomplete');
+});
+
+describe('game type', () => {
+  const base: Match = { match_id: 1, hero_id: 2, start_time: 100, duration: 1800, player_slot: 0 };
+  it('names lobby types by the Valve numbering', () => {
+    expect(lobbyName({ lobby_type: 0 })?.name).toBe('Unranked');
+    expect(lobbyName({ lobby_type: 1 })?.detail).toBe('Practice or custom lobby');
+    expect(lobbyName({ lobby_type: 2 })?.name).toBe('Tournament');
+    expect(lobbyName({ lobby_type: 7 })?.name).toBe('Ranked');
+    expect(lobbyName({ lobby_type: 9 })?.name).toBe('Battle Cup');
+    expect(lobbyName({ lobby_type: 13 })).toEqual({ name: 'Other', detail: 'Lobby type 13' });
+    expect(lobbyName({})).toBeUndefined();
+    expect(lobbyName({ lobby_type: -1 })).toBeUndefined();
+  });
+  it('keeps unmapped modes and impossible party sizes unknown', () => {
+    expect(gameModeName({ game_mode: 22 })).toBe('All Pick');
+    expect(gameModeName({ game_mode: -1 })).toBeUndefined();
+    expect(modeName({ ...base, game_mode: -1, lobby_type: 0 })).toBe('—');
+    expect(partySize({ party_size: 4 })).toBe(4);
+    for (const size of [0, 6, 2.5, undefined]) expect(partySize({ party_size: size })).toBeUndefined();
+    expect(matchSchema.parse({ ...base, party_size: 9 }).party_size).toBeUndefined();
+    expect(matchSchema.parse({ ...base, party_size: 2 }).party_size).toBe(2);
+  });
+  it('sorts by lobby, then mode, then party, unknown last', () => {
+    const rows: Match[] = [
+      { ...base, match_id: 1, lobby_type: 7, game_mode: 22, party_size: 2 },
+      { ...base, match_id: 2 },
+      { ...base, match_id: 3, lobby_type: 0, game_mode: 23 },
+      { ...base, match_id: 4, lobby_type: 7, game_mode: 22, party_size: 1 },
+    ];
+    const sorted = sortProfileHistory(rows, 'mode', 'asc', String, new Map());
+    expect(sorted.map((m) => m.match_id)).toEqual([4, 1, 3, 2]);
+    expect(gameTypeKey(rows[1]!)).toBeUndefined();
+  });
 });

@@ -147,9 +147,43 @@ const modes: Record<number, string> = {
   22: 'All Pick',
   23: 'Turbo',
 };
+/** The game mode's name; undefined when the source did not name it (negative: unmapped). */
+export function gameModeName(match: Pick<Match, 'game_mode'>): string | undefined {
+  if (match.game_mode === undefined || match.game_mode < 0) return undefined;
+  return modes[match.game_mode] ?? `Mode ${match.game_mode}`;
+}
 export function modeName(match: Match) {
+  const name = gameModeName(match);
   // A journal match with a rating change is ranked, but GSI never names its mode.
-  if (match.game_mode === undefined) return isRanked(match) ? 'Ranked' : '—';
-  const name = modes[match.game_mode] ?? `Mode ${match.game_mode}`;
+  if (name === undefined) return isRanked(match) ? 'Ranked' : '—';
   return isRanked(match) ? `R. ${name}` : name;
+}
+
+/** Valve lobby types (the numbering OpenDota uses; STRATZ names are mapped to it). Lobby type
+ * 1 is a practice or custom lobby, not a tournament: tournament lobbies are 2. */
+const lobbies: Record<number, { name: string; detail: string }> = {
+  0: { name: 'Unranked', detail: 'Unranked matchmaking' },
+  1: { name: 'Lobby', detail: 'Practice or custom lobby' },
+  2: { name: 'Tournament', detail: 'Tournament lobby' },
+  4: { name: 'Bots', detail: 'Co-op against bots' },
+  7: { name: 'Ranked', detail: 'Ranked matchmaking' },
+  8: { name: '1v1 Mid', detail: '1v1 mid matchmaking' },
+  9: { name: 'Battle Cup', detail: 'Battle Cup' },
+  12: { name: 'Event', detail: 'Event game' },
+};
+/** The lobby a match was played in; undefined when the source did not say. */
+export function lobbyName(match: Pick<Match, 'lobby_type'>): { name: string; detail: string } | undefined {
+  if (match.lobby_type === undefined || match.lobby_type < 0) return undefined;
+  return lobbies[match.lobby_type] ?? { name: 'Other', detail: `Lobby type ${match.lobby_type}` };
+}
+/** Players of the own team who queued together, the player included (1 is solo); undefined
+ * when the provider recorded no party. */
+export function partySize(match: Pick<Match, 'party_size'>): number | undefined {
+  const size = match.party_size;
+  return typeof size === 'number' && Number.isInteger(size) && size >= 1 && size <= 5 ? size : undefined;
+}
+/** Sort key of the game type: lobby, then mode, then party size; undefined when all are unknown. */
+export function gameTypeKey(match: Match): string | undefined {
+  const parts = [lobbyName(match)?.name, gameModeName(match), partySize(match)];
+  return parts.every((part) => part === undefined) ? undefined : parts.map((part) => part ?? '~').join(' ');
 }
