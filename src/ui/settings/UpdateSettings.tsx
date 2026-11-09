@@ -25,19 +25,19 @@ export function UpdateSettings({
         Shortly after start and every 12 hours, Ancient Lens asks GitHub for its list of releases and shows a notice
         above the match screen when a newer version is out. Nothing is downloaded or installed.
       </p>
-      {api.setUpdateCheck && (
-        <label>
-          <input
-            type="checkbox"
-            checked={on}
-            onChange={(event) => {
-              setError('');
-              api.setUpdateCheck!(event.target.checked).then(update, (e) => setError(errorMessage(e)));
-            }}
-          />
-          Tell me when a new version is released
-        </label>
-      )}
+
+      <label>
+        <input
+          type="checkbox"
+          checked={on}
+          onChange={(event) => {
+            setError('');
+            api.setUpdateCheck(event.target.checked).then(update, (e) => setError(errorMessage(e)));
+          }}
+        />
+        Tell me when a new version is released
+      </label>
+
       <p className="fine-print">
         The request contains no account, settings or app version; GitHub sees your IP address. Without a connection the
         check stays silent and is tried again later.
@@ -50,7 +50,7 @@ export function UpdateSettings({
             {latest.prerelease ? ' (prerelease)' : ''}.{' '}
             <button
               className="secondary"
-              onClick={() => void api.openRelease?.().catch((e) => setError(errorMessage(e)))}
+              onClick={() => void api.openRelease().catch((e) => setError(errorMessage(e)))}
             >
               What's new
             </button>

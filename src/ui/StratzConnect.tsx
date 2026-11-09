@@ -41,7 +41,6 @@ export function StratzConnectForm({
     setOpening(true);
     setError('');
     try {
-      if (!api.openStratzTokens) throw new Error('Browser opening is unavailable in this session.');
       await api.openStratzTokens();
     } catch (e) {
       setError(errorMessage(e));
@@ -57,7 +56,7 @@ export function StratzConnectForm({
     busyChanged?.(true);
     setError('');
     try {
-      connected(await api.connectStratz!(value));
+      connected(await api.connectStratz(value));
     } catch (e) {
       setError(errorMessage(e));
     } finally {

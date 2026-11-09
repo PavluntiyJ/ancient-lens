@@ -109,7 +109,7 @@ function OwnProfileContent({
   const loading = useRef(false);
 
   async function refreshIdentity(refresh = false) {
-    if (!local.accountId || !api.getSteamProfile) return;
+    if (!local.accountId) return;
     const token = ++identityGeneration.current;
     setIdentityBusy(true);
     setIdentityError('');
@@ -201,7 +201,7 @@ function OwnProfileContent({
       .getHeroes()
       .then((value) => active && setHeroes(value))
       .catch(() => {});
-    void (api.getPatches?.() ?? Promise.resolve([])).catch(() => []).then((rows) => active && setPatches(rows));
+    void (api.getPatches() ?? Promise.resolve([])).catch(() => []).then((rows) => active && setPatches(rows));
     return () => {
       active = false;
     };
@@ -299,12 +299,10 @@ function OwnProfileContent({
             add={async (id) => {
               // Never fall back to a full account switch; adding an alternate
               // account must leave the active account untouched.
-              if (!api.addProfileAccount) throw new Error('Adding profiles is unavailable in this version');
               update(await api.addProfileAccount(id));
               choose(id);
             }}
             remove={async (id) => {
-              if (!api.removeProfileAccount) throw new Error('Removing profiles is unavailable in this version');
               update(await api.removeProfileAccount(id));
               // A removed profile must not stay on screen; the game's account remains.
               if (id === local.accountId) choose(activeAccountId);

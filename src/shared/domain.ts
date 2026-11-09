@@ -540,70 +540,70 @@ export type SteamIdentity = {
 };
 export type DesktopApi = {
   /** Which window this page is in. */
-  windowName?: WindowName;
+  windowName: WindowName;
   /** Gives this window the keyboard, so typing reaches it (the game goes to the background). */
-  setKeyboard?(on: boolean): Promise<void>;
+  setKeyboard(on: boolean): Promise<void>;
   /** Brings a window up without taking the keyboard from the game. */
-  showWindow?(window: WindowName): Promise<boolean>;
+  showWindow(window: WindowName): Promise<boolean>;
   /** Called when STRATZ was connected or disconnected, in either window. */
-  onProvider?(callback: () => void): () => void;
-  resizeWindow?(edge: WindowEdge): Promise<void>;
-  windowAction?(action: 'drag' | 'minimize' | 'maximize' | 'close'): Promise<void>;
+  onProvider(callback: () => void): () => void;
+  resizeWindow(edge: WindowEdge): Promise<void>;
+  windowAction(action: 'drag' | 'minimize' | 'maximize' | 'close'): Promise<void>;
   /** Minimum window for an interface scale (percent), capped at the monitor's work area. */
-  setWindowMinSize?(scale: number): Promise<{ width: number; height: number }>;
+  setWindowMinSize(scale: number): Promise<{ width: number; height: number }>;
   getState(): Promise<LocalState>;
-  onState?(callback: (state: LocalState | OwnUpdate) => void): () => void;
+  onState(callback: (state: LocalState | OwnUpdate) => void): () => void;
   /** The match window was brought up; its last page is not restored. */
-  onWindowShown?(callback: () => void): () => void;
+  onWindowShown(callback: () => void): () => void;
   getInfo(): Promise<AppInfo>;
   setAccount(id: string): Promise<LocalState>;
-  getAccountState?(id: string): Promise<LocalState>;
-  addProfileAccount?(id: string): Promise<LocalState>;
-  removeProfileAccount?(id: string): Promise<LocalState>;
-  getSteamProfile?(id: string, refresh?: boolean): Promise<SteamIdentity>;
-  setNativeRosterReader?(value: 'off' | 'on'): Promise<LocalState>;
-  setCloseToTray?(value: boolean): Promise<LocalState>;
-  setAutoHide?(value: boolean): Promise<LocalState>;
-  setKeysOverGame?(value: boolean): Promise<LocalState>;
-  setUpdateCheck?(value: boolean): Promise<LocalState>;
-  skipVersion?(version: string): Promise<LocalState>;
+  getAccountState(id: string): Promise<LocalState>;
+  addProfileAccount(id: string): Promise<LocalState>;
+  removeProfileAccount(id: string): Promise<LocalState>;
+  getSteamProfile(id: string, refresh?: boolean): Promise<SteamIdentity>;
+  setNativeRosterReader(value: 'off' | 'on'): Promise<LocalState>;
+  setCloseToTray(value: boolean): Promise<LocalState>;
+  setAutoHide(value: boolean): Promise<LocalState>;
+  setKeysOverGame(value: boolean): Promise<LocalState>;
+  setUpdateCheck(value: boolean): Promise<LocalState>;
+  skipVersion(version: string): Promise<LocalState>;
   /** This version and the newest newer release the last check found. */
-  getRelease?(): Promise<ReleaseInfo>;
-  onRelease?(callback: (info: ReleaseInfo) => void): () => void;
+  getRelease(): Promise<ReleaseInfo>;
+  onRelease(callback: (info: ReleaseInfo) => void): () => void;
   /** Opens the page of the release the last check found. */
-  openRelease?(): Promise<string>;
-  openLogFolder?(): Promise<string>;
-  setShortcuts?(value: import('./shortcuts').Shortcuts): Promise<LocalState>;
+  openRelease(): Promise<string>;
+  openLogFolder(): Promise<string>;
+  setShortcuts(value: import('./shortcuts').Shortcuts): Promise<LocalState>;
   getPlayer(id: string): Promise<PlayerResult>;
   /** The median medal of the live match's players, kept with its journal record. */
-  setMedalRank?(matchId: string, tier: number): Promise<void>;
+  setMedalRank(matchId: string, tier: number): Promise<void>;
   /** `refresh` asks the provider even when the saved history is recent. */
   getHistory(id: string, offset?: number, cachedOnly?: boolean, refresh?: boolean): Promise<PlayerHistory | null>;
   openPlayerSite(id: string, site: import('./player-sites').ProfileSite): Promise<string>;
-  openMatchSite?(id: string, site: import('./player-sites').PlayerSite): Promise<string>;
+  openMatchSite(id: string, site: import('./player-sites').PlayerSite): Promise<string>;
   getHeroes(): Promise<Hero[]>;
-  getItemStats?(heroId: number): Promise<import('./item-build').ItemData>;
-  getPatches?(): Promise<import('./history').Patch[]>;
+  getItemStats(heroId: number): Promise<import('./item-build').ItemData>;
+  getPatches(): Promise<import('./history').Patch[]>;
   /** Steam profile country from OpenDota, for profiles whose provider did not send one. */
-  getCountry?(id: string): Promise<string | null>;
+  getCountry(id: string): Promise<string | null>;
   getDraft(input: DraftInput): Promise<DraftResult>;
   getMatchups(ids: number[]): Promise<MatchupRow[]>;
   getPeriodStats(id: string, days?: StatsDays): Promise<PeriodStats>;
   getSummary(id: string, days: StatsDays, filter?: StatsFilter): Promise<PlayerSummary>;
   /** Recent teammates of the roster accounts; null without a STRATZ service that knows parties. */
   getParties(ids: string[]): Promise<PartyHistory | null>;
-  getTotals?(id: string): Promise<{ total?: { games: number; wins: number }; fetchedAt: string }>;
-  getDraftData?(ids: number[], bracket?: RankBracket): Promise<DraftData>;
+  getTotals(id: string): Promise<{ total?: { games: number; wins: number }; fetchedAt: string }>;
+  getDraftData(ids: number[], bracket?: RankBracket): Promise<DraftData>;
   /** Average statistics of heroes by position and match duration in one rank bracket (STRATZ). */
-  getHeroAverages?(ids: number[], bracket: RankBracket): Promise<HeroAverages>;
+  getHeroAverages(ids: number[], bracket: RankBracket): Promise<HeroAverages>;
   getProvider(): Promise<ProviderInfo>;
   setProviderToken(token: string): Promise<ProviderInfo>;
   /** Check a STRATZ token, save it in the system secret store and start the service. */
-  connectStratz?(token: string): Promise<ProviderInfo>;
+  connectStratz(token: string): Promise<ProviderInfo>;
   /** Remove the saved STRATZ token and stop the service this app started. */
-  disconnectStratz?(): Promise<ProviderInfo>;
+  disconnectStratz(): Promise<ProviderInfo>;
   /** Open the STRATZ page that issues API tokens in the browser. */
-  openStratzTokens?(): Promise<string>;
+  openStratzTokens(): Promise<string>;
   addNote(note: NoteInput): Promise<LocalState>;
   editNote(accountId: string, entryId: string, text: string): Promise<LocalState>;
   deleteNoteEntry(accountId: string, entryId: string): Promise<LocalState>;
@@ -613,8 +613,8 @@ export type DesktopApi = {
   deleteMmr(id: string): Promise<LocalState>;
   getLive(): Promise<LiveState>;
   exportGsi(): Promise<string | null>;
-  getSteamSetup?(): Promise<import('./steam-setup').SteamSetup>;
-  repairSteamSetup?(launch: boolean): Promise<import('./steam-setup').SteamRepair>;
+  getSteamSetup(): Promise<import('./steam-setup').SteamSetup>;
+  repairSteamSetup(launch: boolean): Promise<import('./steam-setup').SteamRepair>;
   exportData(): Promise<string | null>;
   toggleWindow(window?: WindowName): Promise<boolean>;
   onLive(callback: (state: LiveState) => void): () => void;

@@ -29,18 +29,18 @@ export function DataSettings({ info }: { info?: AppInfo }) {
       <p className="muted">
         Connection outcomes and errors, without tokens, player or match IDs. Read it before you share it.
       </p>
-      {api.openLogFolder && (
-        <button
-          className="secondary"
-          onClick={() => {
-            setLogError('');
-            void api.openLogFolder!().catch((e) => setLogError(errorMessage(e)));
-          }}
-        >
-          <FolderOpen size={16} />
-          Open log folder
-        </button>
-      )}
+
+      <button
+        className="secondary"
+        onClick={() => {
+          setLogError('');
+          void api.openLogFolder().catch((e) => setLogError(errorMessage(e)));
+        }}
+      >
+        <FolderOpen size={16} />
+        Open log folder
+      </button>
+
       {logError && <Notice error>{logError}</Notice>}
     </section>
   );

@@ -49,7 +49,7 @@ export function ProviderSettings({ changed }: { changed(): void }) {
     setError('');
     setMessage('');
     try {
-      const result = await api.disconnectStratz!();
+      const result = await api.disconnectStratz();
       setInfo(result);
       setMessage(result.message ?? '');
       changed();
@@ -60,7 +60,7 @@ export function ProviderSettings({ changed }: { changed(): void }) {
     }
   }
   if (info.automatic) {
-    const connectable = !!info.connectable && !!api.connectStratz;
+    const connectable = !!info.connectable;
     return (
       <section className="panel provider-settings">
         <h2>{info.serviceConfigured ? 'STRATZ connection' : 'Connect STRATZ'}</h2>

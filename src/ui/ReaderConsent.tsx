@@ -49,7 +49,7 @@ export function ReaderConsentDialog({
     setBusy(true);
     setError('');
     try {
-      update(await api.setNativeRosterReader!('on'));
+      update(await api.setNativeRosterReader('on'));
       markAsked();
       close();
     } catch (e) {

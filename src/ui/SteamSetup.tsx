@@ -42,7 +42,7 @@ export function SteamSetupPanel({
     setError('');
     setMessage('');
     try {
-      const result = await api.repairSteamSetup!(launch);
+      const result = await api.repairSteamSetup(launch);
       setMessage(repairSummary(result));
       changed(result.status);
       setConfirming(false);
@@ -73,7 +73,7 @@ export function SteamSetupPanel({
           {setup.state === 'unavailable' && setup.detail && (
             <Notice error>{setup.detail} Use the manual setup below.</Notice>
           )}
-          {setup.state === 'repair' && api.repairSteamSetup && (
+          {setup.state === 'repair' && (
             <div className="steam-repair">
               {warning && <p className="muted">{warning}</p>}
               <label>

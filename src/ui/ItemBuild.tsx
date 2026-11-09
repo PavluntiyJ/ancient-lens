@@ -26,7 +26,7 @@ export function ItemBuild({
   const heroId = context?.heroId;
   useEffect(() => {
     let current = true;
-    if (!active || !heroId || !api.getItemStats) return;
+    if (!active || !heroId) return;
     // Cache per key so toggling between heroes doesn't refetch cached
     // samples; only show loading when this key has no data yet.
     // A previously stored sample is still shown; a failed retry keeps the last error until it clears.
@@ -68,7 +68,6 @@ export function ItemBuild({
     return (
       <p className="rail-empty">Waiting for your confirmed hero and team. Item options follow the player marked YOU.</p>
     );
-  if (!api.getItemStats) return <p className="rail-empty">Item statistics are unavailable in this version.</p>;
   return (
     <section className="item-build" aria-label="Item recommendations">
       <div className="item-build-heading">

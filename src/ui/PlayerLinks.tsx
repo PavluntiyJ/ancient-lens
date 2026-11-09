@@ -56,7 +56,7 @@ export function MatchLinks({ id }: { id: number }) {
           onClick={(event) => {
             event.preventDefault();
             setError('');
-            void api.openMatchSite?.(String(id), site.id).catch((e) => setError(errorMessage(e)));
+            void api.openMatchSite(String(id), site.id).catch((e) => setError(errorMessage(e)));
           }}
         >
           <img src={`./sites/${site.icon}`} width={14} height={14} alt="" aria-hidden="true" />

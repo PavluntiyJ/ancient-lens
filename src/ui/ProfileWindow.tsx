@@ -16,7 +16,7 @@ import { ResizeEdges, TitleBar, useFallbackShortcuts, useKeyboardOnDemand } from
 export function ProfileWindow() {
   const display = useDisplaySettings();
   useEffect(() => {
-    void api.setWindowMinSize?.(display.scale).catch(() => {});
+    void api.setWindowMinSize(display.scale).catch(() => {});
   }, [display.scale]);
   const [local, setLocal] = useState<LocalState>({ accountId: '', notes: [], mmr: [] });
   const updateLocal = (value: LocalState | OwnUpdate) => setLocal((current) => applyStateUpdate(current, value));
@@ -36,11 +36,11 @@ export function ProfileWindow() {
       .catch((e) => {
         if (active) setError(errorMessage(e));
       });
-    const unsubscribeState = api.onState?.((value) => {
+    const unsubscribeState = api.onState((value) => {
       if (active) updateLocal(value);
     });
     // Connecting STRATZ in the match window changes where the history comes from.
-    const unsubscribeProvider = api.onProvider?.(() => {
+    const unsubscribeProvider = api.onProvider(() => {
       if (active) setProviderRevision((value) => value + 1);
     });
     return () => {
