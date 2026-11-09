@@ -194,25 +194,27 @@ fn team_summary(value: &Value) -> Value {
     }
     out
 }
+/// Game states the summary names; anything else is reported as `unknown`.
+const KNOWN_PHASES: [&str; 13] = [
+    "DOTA_GAMERULES_STATE_INIT",
+    "DOTA_GAMERULES_STATE_WAIT_FOR_PLAYERS_TO_LOAD",
+    "DOTA_GAMERULES_STATE_HERO_SELECTION",
+    "DOTA_GAMERULES_STATE_STRATEGY_TIME",
+    "DOTA_GAMERULES_STATE_TEAM_SHOWCASE",
+    "DOTA_GAMERULES_STATE_PRE_GAME",
+    "DOTA_GAMERULES_STATE_GAME_IN_PROGRESS",
+    "DOTA_GAMERULES_STATE_POST_GAME",
+    "DOTA_GAMERULES_STATE_DISCONNECT",
+    "DOTA_GAMERULES_STATE_CUSTOM_GAME_SETUP",
+    "DOTA_GAMERULES_STATE_WAIT_FOR_MAP_TO_LOAD",
+    "DOTA_GAMERULES_STATE_SCENARIO_SETUP",
+    "DOTA_GAMERULES_STATE_PLAYER_DRAFT",
+];
 fn summary(packet: &Value, normalized: &Value) -> Value {
-    let phase = match normalized["gameState"].as_str() {
-        Some(
-            s @ ("DOTA_GAMERULES_STATE_INIT"
-            | "DOTA_GAMERULES_STATE_WAIT_FOR_PLAYERS_TO_LOAD"
-            | "DOTA_GAMERULES_STATE_HERO_SELECTION"
-            | "DOTA_GAMERULES_STATE_STRATEGY_TIME"
-            | "DOTA_GAMERULES_STATE_TEAM_SHOWCASE"
-            | "DOTA_GAMERULES_STATE_PRE_GAME"
-            | "DOTA_GAMERULES_STATE_GAME_IN_PROGRESS"
-            | "DOTA_GAMERULES_STATE_POST_GAME"
-            | "DOTA_GAMERULES_STATE_DISCONNECT"
-            | "DOTA_GAMERULES_STATE_CUSTOM_GAME_SETUP"
-            | "DOTA_GAMERULES_STATE_WAIT_FOR_MAP_TO_LOAD"
-            | "DOTA_GAMERULES_STATE_SCENARIO_SETUP"
-            | "DOTA_GAMERULES_STATE_PLAYER_DRAFT"),
-        ) => s,
-        _ => "unknown",
-    };
+    let phase = normalized["gameState"]
+        .as_str()
+        .filter(|s| KNOWN_PHASES.contains(s))
+        .unwrap_or("unknown");
     let draft = packet.get("draft");
     let mut teams = Map::new();
     for team in ["team2", "team3", "radiant", "dire"] {

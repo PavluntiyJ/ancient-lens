@@ -241,12 +241,11 @@ pub(super) fn finish_poll(
         Some(_) => return current,
         None => return current,
     }
-    let requested = Some(requested);
     match result {
-        Ok(snapshot) if snapshot.matches(requested.unwrap()) => {
+        Ok(snapshot) if snapshot.matches(requested) => {
             current["draftStatus"] = json!("ready");
             current["draft"] = json!({
-                "matchId": snapshot.match_id.to_string(), "gameState": requested.unwrap().phase,
+                "matchId": snapshot.match_id.to_string(), "gameState": requested.phase,
                 "source": "native", "observedAt": now_ms,
                 "picks": snapshot.picks.iter().map(|p| json!({
                     "slot":p.slot, "heroId":p.hero, "team":if p.team==2 {"radiant"} else {"dire"}
@@ -264,7 +263,7 @@ pub(super) fn finish_poll(
             });
         }
         Ok(snapshot) => {
-            if let Some(reason) = snapshot.mismatch(requested.unwrap()) {
+            if let Some(reason) = snapshot.mismatch(requested) {
                 incomplete(reason);
             }
             current["draftStatus"] = json!("incomplete");
