@@ -190,9 +190,18 @@ await scenario(
     }
     // Closing the profile window hides it; the match window and the app keep running.
     await useWindow('profile');
-    await clickButton('Close window');
+    if (platform === 'linux') {
+      // WebKit's native click can wait forever for input completion after its own window
+      // unmaps. Activate the same button from the page, then verify its effect from main.
+      console.log('Close profile: page click avoids waiting for native input on a hidden WebKit window.');
+      await execute('document.querySelector(arguments[0]).click()', ['button[aria-label="Close window"]']);
+      await waitFor(
+        () => execute('return document.visibilityState === "hidden"'),
+        'Close did not hide the profile WebView',
+      );
+    } else await clickButton('Close window');
     await useWindow('main');
-    await waitFor(async () => (await call('toggleWindow', 'profile')) === true, 'Close quit the profile window');
+    assert.equal(await call('toggleWindow', 'profile'), true, 'Close did not hide the profile window');
     assert.equal(await app.windowCount(), 2, 'Closing the profile window destroyed it');
     // X11 shows the windows without taking the keyboard; Wayland decides by itself.
     if (!info.wayland) assert.equal((await call('getInfo')).overlay, true);

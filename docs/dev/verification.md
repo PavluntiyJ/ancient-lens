@@ -88,8 +88,17 @@ scenario sets the window to that minimum.
 
 Hover checks move the real WebDriver pointer. WebKitWebDriver hangs on pointer
 actions while the window lacks keyboard focus (another application in front), so
-the smoke then dispatches the same pointer events and says so in its log. For a
-run that cannot be disturbed by the desktop, and does not disturb it, use the KDE guard:
+the smoke then dispatches the same pointer events and says so in its log.
+On a private display, `ANCIENT_NATIVE_FOCUS=1` instead gives the target window the
+keyboard before moving the real pointer and fails if it cannot obtain focus.
+Use this only on an isolated display: it deliberately changes the active window.
+On Linux the profile-close check activates the actual close button through a page
+click, since WebKit's native click can wait for input completion after the window
+has hidden. It waits for the WebView to become hidden, then checks from the match
+window that the same profile window can be shown again; this is logged explicitly.
+Windows uses the native click.
+
+For a run that cannot be disturbed by the desktop, and does not disturb it, use the KDE guard:
 
 ```sh
 npm run test:native:kde
@@ -195,15 +204,17 @@ of weeks.
 
 The CI display runs the X11 side of the checks that differ by session: the windows are shown
 without taking the keyboard (`overlay`), hiding for other programs and the first active window
-are checked, and the scenario reports `Wayland: false`. Wayland's side (portal shortcuts, focus
-left to the compositor) is covered only by local runs on a Wayland desktop, such as
+are checked, and the scenario reports `Wayland: false`. Hover checks explicitly obtain keyboard
+focus on this private display (`ANCIENT_NATIVE_FOCUS=1`) and use real pointer input.
+Wayland's side (portal shortcuts, focus left to the compositor) is covered only by local runs
+on a Wayland desktop, such as
 `npm run test:native:kde`. No check is skipped on the CI display.
 
 To reproduce the CI job locally without a GPU, build with `npm run build` on Fedora, then run the
 scenarios in the same container image:
 
 ```sh
-podman run --rm -v "$PWD:/work:Z" -w /work -e GDK_BACKEND=x11 registry.fedoraproject.org/fedora:45 sh -c '
+podman run --rm -v "$PWD:/work:Z" -w /work -e GDK_BACKEND=x11 -e ANCIENT_NATIVE_FOCUS=1 registry.fedoraproject.org/fedora:45 sh -c '
   dnf install -y --setopt=install_weak_deps=False nodejs npm webkit2gtk4.1 webkitgtk6.0 \
     libappindicator-gtk3 librsvg2 libxdo xorg-x11-server-Xvfb xorg-x11-xauth openbox \
     dbus-daemon dbus-tools mesa-dri-drivers which findutils >/dev/null &&

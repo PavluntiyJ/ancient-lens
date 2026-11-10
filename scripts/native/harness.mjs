@@ -41,6 +41,12 @@ export async function scenario(name, body) {
   let pointed = null;
   let syntheticPointer = false;
   async function pointAt(element) {
+    // A private CI display can give the target window the keyboard, so WebKit sends real
+    // pointer events. On a shared desktop retain the unfocused-window fallback below.
+    if (process.env.ANCIENT_NATIVE_FOCUS === '1') {
+      await call('setKeyboard', true);
+      await waitFor(() => app.realPointer(), 'The native pointer window did not receive focus');
+    }
     const [x, y] = element
       ? await execute(
           'const r=arguments[0].getBoundingClientRect(); return [Math.round(r.left+r.width/2), Math.round(r.top+r.height/2)]',
