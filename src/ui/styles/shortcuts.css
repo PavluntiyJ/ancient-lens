@@ -1,0 +1,89 @@
+/* Rebindable shortcuts in Settings. */
+
+/* Rebindable shortcuts: one row per action, keycaps before the change button. */
+.shortcut-list {
+  display: flex;
+  flex-direction: column;
+  margin-top: 6px;
+}
+.shortcut-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto auto;
+  align-items: center;
+  gap: 18px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.shortcut-row > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.shortcut-row .keycaps {
+  justify-self: end;
+}
+.shortcut-row .secondary {
+  min-width: 120px;
+  justify-content: center;
+}
+.shortcut-row > .fine-print {
+  grid-column: 1 / -1;
+  margin: -2px 0 0;
+}
+.shortcut-settings .button-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 14px;
+}
+.shortcut-settings .button-row .fine-print {
+  margin: 0;
+}
+.stratz-dialog {
+  width: min(560px, 92vw);
+  padding: 16px 20px 20px;
+  display: grid;
+  gap: 12px;
+}
+.stratz-dialog header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.stratz-dialog h2 {
+  margin: 0;
+}
+.selectable-url {
+  user-select: text;
+}
+.reader-consent {
+  width: min(560px, 92vw);
+  padding: 20px 22px 22px;
+}
+.reader-consent h2 {
+  margin: 0 0 10px;
+}
+.reader-consent p {
+  margin: 0 0 10px;
+}
+.reader-consent .button-row {
+  margin-top: 16px;
+}
+.stratz-connect ol {
+  margin: 0 0 10px;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+}
+.stratz-connect li .secondary {
+  margin-left: 6px;
+}
+.stratz-connect input {
+  flex: 1;
+  min-width: 200px;
+}
+.rail-empty .stratz-prompt {
+  display: block;
+  margin: 8px auto 0;
+  color: var(--accent);
+}

@@ -1,0 +1,528 @@
+/* Hover cards: the tooltip frame, player preview and statistic cards. */
+
+/* Hover cards (Tooltip.tsx): one app-styled card replaces every system tooltip. */
+.tooltip {
+  position: fixed;
+  z-index: 1000;
+  inset: auto;
+  margin: 0;
+  max-width: 320px;
+  padding: 9px 12px;
+  overflow: visible;
+  background: var(--tooltip-bg);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px var(--shadow);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--fs-md);
+  font-weight: 400;
+  line-height: 1.35;
+  text-align: left;
+  pointer-events: none;
+}
+.tooltip::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--tip-arrow) - 5px);
+  width: 10px;
+  height: 10px;
+  background: var(--elevated);
+  border: 1px solid var(--line-strong);
+  transform: rotate(45deg);
+}
+.tooltip.below::before {
+  top: -6px;
+  border-right: 0;
+  border-bottom: 0;
+}
+.tooltip.above::before {
+  bottom: -6px;
+  border-left: 0;
+  border-top: 0;
+}
+/* Beside the anchor: the arrow sits on the near side edge, --tip-arrow from the top. */
+.tooltip:is(.right, .left)::before {
+  top: calc(var(--tip-arrow) - 5px);
+}
+.tooltip.right::before {
+  left: -6px;
+  border-top: 0;
+  border-right: 0;
+}
+.tooltip.left::before {
+  left: auto;
+  right: -6px;
+  border-bottom: 0;
+  border-left: 0;
+}
+.tip-text {
+  white-space: pre-line;
+  color: var(--text-2);
+}
+.tip-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-lg);
+  font-weight: 600;
+}
+.tip-title .portrait {
+  width: 44px;
+  flex: none;
+}
+.tip-title .role-icon {
+  width: 22px;
+  height: 22px;
+}
+.tip-tag {
+  padding: 0 5px;
+  border-radius: 3px;
+  background: var(--accent-a20);
+  color: var(--accent);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+.tip-value {
+  margin-top: 4px;
+  color: var(--muted);
+}
+.tip-value b {
+  margin-right: 6px;
+  font-size: var(--fs-3xl);
+  font-weight: 700;
+}
+.tip-rows {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 2px 14px;
+  margin: 6px 0 0;
+  font-size: var(--fs-base);
+}
+.tip-rows dt {
+  color: var(--text-2);
+}
+.tip-rows dd {
+  margin: 0;
+  font-weight: 600;
+  text-align: right;
+}
+.tip-note {
+  margin-top: 7px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+/* Hover preview of a match player (PlayerPreview.tsx). */
+.tooltip.interactive {
+  pointer-events: auto;
+  cursor: pointer;
+}
+/* Player hover card: separate blocks (who, facts, note, site links) and the newest
+   matches in a column of their own. Labels muted, values white, colour only for meaning. */
+.tooltip:has(.player-preview) {
+  max-width: 1100px;
+  padding: 10px;
+  background: var(--preview-bg);
+}
+.player-preview {
+  display: grid;
+  grid-template-columns: minmax(340px, 380px);
+  gap: 8px;
+}
+.player-preview.with-matches {
+  grid-template-columns: minmax(340px, 380px) minmax(260px, 300px);
+}
+.player-preview.with-met {
+  grid-template-columns: minmax(340px, 380px) minmax(330px, 360px);
+}
+.player-preview.with-matches.with-met {
+  grid-template-columns: minmax(340px, 380px) minmax(260px, 300px) minmax(320px, 360px);
+}
+/* Matches together: their hero, my hero, then when and the result for me. */
+.preview-matches.preview-met-list li {
+  grid-template-columns: 44px minmax(0, 1fr) 44px minmax(0, 1fr) auto;
+}
+.preview-met-list .preview-kda small {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 400;
+}
+.preview-main {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  min-width: 0;
+}
+.preview-block {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  min-width: 0;
+}
+.preview-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.preview-head .player-avatar {
+  --avatar: 56px;
+}
+.preview-head .player-avatar .country-flag {
+  width: 20px;
+}
+.preview-who {
+  display: grid;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+.preview-who b {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-2xl);
+  font-weight: 600;
+  line-height: 1.15;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.preview-who small {
+  color: var(--text);
+  font-size: var(--fs-md);
+  font-weight: 500;
+}
+.preview-role {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.preview-role .role-icon,
+.preview-facts .role-icon {
+  width: 16px;
+  height: 16px;
+}
+.preview-head .rank-medal {
+  --medal: 46px;
+  flex: none;
+}
+.preview-error {
+  color: var(--loss);
+  font-size: var(--fs-base);
+  border-color: color-mix(in srgb, var(--loss) 35%, transparent);
+}
+.preview-hidden {
+  color: var(--muted);
+  font-size: var(--fs-base);
+  background: repeating-linear-gradient(135deg, var(--stripe-hidden) 0 8px, transparent 8px 16px), var(--surface);
+}
+.preview-hidden b {
+  display: block;
+  color: var(--text);
+  font-weight: 500;
+}
+.preview-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 14px;
+}
+.preview-facts div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.preview-facts dt {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+}
+.preview-facts dd {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  color: var(--text);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.preview-facts dd small {
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 400;
+}
+/* The note is the reason to hover a known player: gold edge, body-size text, and the whole
+   block opens the editor. */
+.preview-note {
+  padding: 0;
+  cursor: auto;
+  border-left: 3px solid var(--gold);
+  background: color-mix(in srgb, var(--gold) 5%, var(--surface));
+}
+.preview-note .player-note {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: var(--text);
+  font-size: var(--fs-lg);
+  line-height: 1.35;
+}
+.preview-note textarea {
+  font-size: var(--fs-lg);
+}
+.preview-actions {
+  display: grid;
+  gap: 10px;
+  cursor: auto;
+}
+/* Site tiles in the hover card: the name over a large icon, four in a row. */
+.player-sites.labelled {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+}
+.player-sites.labelled .player-site {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  width: auto;
+  height: auto;
+  padding: 7px 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--raised);
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 500;
+  text-decoration: none;
+}
+.player-sites.labelled .player-site:hover {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--raised));
+}
+.player-sites.labelled .player-site img {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+}
+/* Dotabuff has only a 16 px favicon: twice its size, pixel for pixel, rather than blurred. */
+.player-sites.labelled .site-dotabuff img {
+  image-rendering: pixelated;
+}
+.player-preview .tip-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 0 2px;
+}
+/* Match lists take the height of the main column and scroll; they never make the card taller. */
+.preview-recent {
+  display: flex;
+  flex-direction: column;
+  height: 0;
+  min-height: 100%;
+}
+.preview-recent .preview-matches {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  align-content: start;
+  /* Room for the scroll bar, so it never covers the result. */
+  padding-right: 8px;
+  scrollbar-width: thin;
+}
+.preview-recent h4 {
+  margin: 0 0 6px;
+  color: var(--accent-light);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-align: center;
+}
+.preview-matches {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.preview-matches li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 44px 16px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px 5px 10px;
+  border-top: 1px solid var(--line);
+  border-radius: 3px;
+}
+.preview-matches li:first-child {
+  border-top: 0;
+}
+/* A thin result edge on the left: green won, red lost. */
+.preview-matches li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 7px;
+  bottom: 7px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--line-strong);
+}
+.preview-matches li.won::before {
+  background: var(--win);
+}
+.preview-matches li.lost::before {
+  background: var(--loss);
+}
+.tooltip.interactive .preview-matches li:hover {
+  background: var(--raised);
+}
+.preview-matches .portrait {
+  width: 44px;
+}
+.preview-matches .role-icon {
+  width: 16px;
+  height: 16px;
+}
+.preview-kda {
+  display: grid;
+  color: var(--text);
+  font-size: 14.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.preview-with {
+  color: var(--accent-light);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+}
+.preview-when {
+  display: grid;
+  justify-items: end;
+  line-height: 1.2;
+}
+.preview-when b {
+  font-size: var(--fs-base);
+  font-weight: 600;
+}
+.preview-when small {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+/* Ten-player card of one statistic (MatchRankTip). */
+/* Profile hover cards (title with its value on the right), as one 300 px card: a line saying
+   why, then the ten players numbered by hero, the owner as "You". */
+.tooltip:has(.tip-title-value) {
+  width: 300px;
+  max-width: 300px;
+  padding: 10px 12px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.tip-card:has(.tip-title-value) .tip-title {
+  font-size: var(--fs-md);
+  color: var(--text);
+}
+.tip-title-value {
+  margin-left: auto;
+}
+.tip-card:has(.tip-title-value) .tip-verdict {
+  margin: 6px 0 2px;
+  line-height: 1.35;
+}
+.tip-card:has(.tip-title-value) .tip-note {
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: var(--faint);
+}
+.match-rank {
+  margin: 8px 0 0;
+  padding: 6px 0 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+.match-rank li {
+  display: grid;
+  grid-template-columns: 30px 16px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  height: 21px;
+}
+.match-rank .portrait {
+  width: 30px;
+  height: 17px;
+  border-radius: 2px;
+}
+.match-rank .role-icon,
+.match-rank svg {
+  width: 14px;
+  height: 14px;
+  opacity: 0.7;
+}
+.match-rank-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.match-rank b {
+  font-weight: 400;
+  text-align: right;
+  color: var(--text);
+}
+.match-rank li.own {
+  font-weight: 600;
+  color: var(--accent-light);
+}
+/* Header ⓘ (ColumnInfo.tsx): label and icon are one focus target. */
+.column-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border-radius: 3px;
+  cursor: default;
+}
+.column-info svg {
+  flex: none;
+  color: var(--muted);
+}
+.column-info:hover svg,
+.column-info:focus-visible svg {
+  color: var(--accent);
+}
+.column-info:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+}
+.tip-formula {
+  margin-top: 4px;
+  color: var(--text-2);
+  font-size: var(--fs-base);
+}
+.tip-source {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.tip-vs {
+  color: var(--muted);
+  font-weight: 400;
+}
+.tip-positive {
+  color: var(--win);
+}
+.tip-negative {
+  color: var(--loss);
+}

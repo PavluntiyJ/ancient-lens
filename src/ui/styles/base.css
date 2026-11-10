@@ -1,0 +1,331 @@
+/* Page base, win-rate and IMP tones, and controls (buttons, fields, checkboxes). */
+
+/* Base */
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+}
+body {
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--fs-md);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+button {
+  cursor: pointer;
+  border: 0;
+  background: none;
+  padding: 0;
+}
+button:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+h1 {
+  font-size: var(--fs-4xl);
+  font-weight: 600;
+  line-height: 1.2;
+}
+h2 {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  line-height: 1.3;
+}
+h3 {
+  font-size: var(--fs-base);
+  font-weight: 500;
+}
+small {
+  font-size: var(--fs-sm);
+}
+svg {
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+a {
+  color: inherit;
+}
+[hidden] {
+  display: none !important;
+}
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+::selection {
+  background: var(--accent-a33);
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 8px;
+  border: 2px solid var(--bg);
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.mono {
+  font-variant-numeric: tabular-nums;
+}
+.muted {
+  color: var(--muted);
+}
+.fine-print {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  line-height: 1.55;
+  margin-top: 12px;
+}
+/* Reference win-rate tones: vivid, moderate or plain white */
+.green,
+.win-rate.positive,
+.result.win {
+  color: var(--win);
+}
+.error-text,
+.win-rate.negative,
+.result.loss {
+  color: var(--loss);
+}
+.win-rate.positive.moderate {
+  color: var(--win-soft);
+}
+.win-rate.negative.moderate {
+  color: var(--loss-soft);
+}
+.win-rate.neutral {
+  color: var(--text);
+}
+.amber {
+  color: var(--warn);
+}
+/* STRATZ IMP in the seven XVM rating tones; the two extremes sit on a soft tint so a very
+   poor game cannot be mistaken for a poor one. Average is plain text, never yellow. */
+.imp {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.imp-0 {
+  color: var(--imp-0);
+  font-weight: 700;
+  background: var(--band-low-bg);
+  border-radius: 9px;
+  padding: 0 5px;
+}
+.imp-1 {
+  color: var(--imp-1);
+}
+.imp-2 {
+  color: var(--imp-2);
+}
+.imp-3 {
+  color: var(--text);
+}
+.imp-4 {
+  color: var(--imp-4);
+}
+.imp-5 {
+  color: var(--imp-5);
+}
+.imp-6 {
+  color: var(--imp-6);
+  font-weight: 700;
+  background: var(--band-top-bg);
+  border-radius: 9px;
+  padding: 0 5px;
+}
+.error-text {
+  overflow-wrap: anywhere;
+}
+/* Controls */
+input,
+select,
+textarea {
+  background: var(--sunken);
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  padding: 7px 10px;
+  min-width: 0;
+  font-size: var(--fs-base);
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--faint);
+}
+input:hover,
+select:hover,
+textarea:hover {
+  border-color: var(--input-hover-line);
+}
+textarea {
+  resize: vertical;
+}
+input[type='checkbox'] {
+  accent-color: var(--accent);
+  width: 15px;
+  height: 15px;
+  margin: 0;
+}
+input[type='range'] {
+  accent-color: var(--accent);
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.primary,
+.secondary,
+.text-button,
+.danger-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: var(--fs-base);
+  font-weight: 500;
+  white-space: nowrap;
+  transition:
+    background 0.12s,
+    border-color 0.12s,
+    color 0.12s;
+}
+.primary {
+  background: linear-gradient(180deg, var(--primary-top), var(--primary-bottom));
+  color: var(--on-colour);
+}
+.primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+.secondary {
+  background: var(--raised);
+  color: var(--text);
+  border: 1px solid var(--line-strong);
+}
+.secondary:hover:not(:disabled) {
+  border-color: var(--secondary-hover-line);
+  background: var(--secondary-hover-bg);
+}
+.text-button {
+  color: var(--text-2);
+  padding-inline: 4px;
+}
+.text-button:hover {
+  color: var(--accent);
+}
+.danger-button {
+  background: var(--danger-bg);
+  color: var(--danger-text);
+}
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  color: var(--text-2);
+}
+.icon-button:hover:not(:disabled) {
+  background: var(--raised);
+  color: var(--text);
+}
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.full-width,
+.full-input {
+  width: 100%;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line-strong);
+  color: var(--text-2);
+  background: var(--raised);
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-size: var(--fs-xs);
+}
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--faint);
+  display: inline-block;
+  flex-shrink: 0;
+}
+.dot.online {
+  background: var(--radiant);
+  box-shadow: 0 0 0 3px rgba(var(--radiant-rgb), 0.18);
+}
+.dot.red {
+  background: var(--dire);
+}
+.dot.reconnecting {
+  background: var(--warn);
+}
+code {
+  font-family: ui-monospace, 'Cascadia Mono', 'DejaVu Sans Mono', monospace;
+  font-size: var(--fs-sm);
+  background: var(--sunken);
+  border: 1px solid var(--line);
+  color: var(--text-2);
+  padding: 1px 5px;
+  border-radius: 3px;
+  overflow-wrap: anywhere;
+}
+code.path {
+  display: block;
+  margin: 6px 0 14px;
+  padding: 8px 10px;
+}
+progress {
+  accent-color: var(--radiant);
+  height: 6px;
+  width: 100%;
+  display: block;
+  margin-top: 6px;
+}
+.mana progress {
+  accent-color: var(--mana);
+}
+details > summary {
+  cursor: pointer;
+  color: var(--text-2);
+}
