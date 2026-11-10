@@ -21,12 +21,25 @@ const report = {
   binarySha256: null,
   scenarios: [],
 };
-const scenarios = [
-  ['shared', 'scripts/smoke-native-scenario.mjs'],
+// Each scenario starts the app on its own fresh data; see scripts/native/harness.mjs.
+const allScenarios = [
+  ...['table', 'draft-panels', 'player-mode', 'settings', 'profile', 'anonymous-draft', 'hover-draft'].map((name) => [
+    name,
+    `scripts/native/${name}.mjs`,
+  ]),
+  ['reader-player', 'scripts/native/reader-player.mjs'],
+  ['release-windows', 'scripts/native/release-windows.mjs'],
   ['items', 'scripts/item-drafts.mjs'],
   ...(process.platform === 'win32' ? [['reader', 'scripts/smoke-roster-windows.mjs']] : []),
   ['onboarding', 'scripts/smoke-onboarding.mjs'],
 ];
+// `npm run test:native -- profile hover-draft` (or ANCIENT_NATIVE_ONLY=profile,hover-draft)
+// runs only the named scenarios.
+const only = [...process.argv.slice(2), ...(process.env.ANCIENT_NATIVE_ONLY?.split(',') ?? [])].filter(Boolean);
+const unknown = only.filter((name) => !allScenarios.some(([known]) => known === name));
+if (unknown.length)
+  throw new Error(`Unknown native scenario: ${unknown.join(', ')}. Known: ${allScenarios.map(([n]) => n).join(', ')}`);
+const scenarios = only.length ? allScenarios.filter(([name]) => only.includes(name)) : allScenarios;
 try {
   report.binarySha256 = createHash('sha256')
     .update(await readFile(binary))
@@ -83,10 +96,8 @@ try {
       seconds: (Date.now() - started) / 1000,
       error,
     });
-    if (code !== 0) {
-      process.exitCode = 1;
-      break;
-    }
+    // A failed scenario does not stop the others: each starts from its own data.
+    if (code !== 0) process.exitCode = 1;
   }
 } catch (error) {
   await writeFile(join(directory, 'runner-error.txt'), redactNativeLog(error.stack));

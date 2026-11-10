@@ -45,9 +45,18 @@ later cannot enable a test command. The caller/window check still runs before di
 | First-run dialogs                  | Suppressed unless `ANCIENT_READER_PROMPT=1`.                                                                                                                                    |
 | Windows debugging                  | `ANCIENT_WEBVIEW_DEBUG_PORT` enables debugging only in isolated mode.                                                                                                           |
 
-One scenario, `scripts/smoke-native-scenario.mjs`, runs on both systems through the driver in
+The native scenarios in `scripts/native/` run on both systems through the driver in
 `scripts/native-capture.mjs`: `WebKitWebDriver` on Linux (needs a desktop session), Playwright
-over the WebView2 debugging protocol on Windows. Both give the scenario element references,
+over the WebView2 debugging protocol on Windows. Each scenario is a file of its own and starts
+the app on fresh isolated data through `scripts/native/harness.mjs`, which holds the startup and
+the shared helpers; `scripts/native/fixtures.mjs` holds the data folder and the fake statistics
+service with the switches a scenario flips (a refused warm-up, slow or malformed draft data, a
+failing or private history). The scenarios: `table`, `draft-panels`, `player-mode`, `settings`
+(with window sizes), `profile`, `anonymous-draft`, `hover-draft`, `reader-player` and
+`release-windows`, then `items`, the Windows `reader` and `onboarding`. A new check goes into
+the scenario of its screen; one that needs another scenario's state sets that state itself.
+`npm run test:native -- profile hover-draft` (or `ANCIENT_NATIVE_ONLY=profile,hover-draft`)
+runs only the named ones. Both drivers give the scenario element references,
 real pointer and keyboard input, and the native window size; on Windows the size comes from an
 isolated-only `window:test-size` command. Build first and close competing Ancient Lens windows.
 The optional `ANCIENT_NATIVE_BINARY` selects an alternate executable.
@@ -59,13 +68,13 @@ driver captures the isolated match and profile windows before cleanup, with
 `application.log`. Geometry records viewport, DPI, window and panel bounds; it
 does not export saved state, local storage or credentials. An unavailable or
 hidden renderer can prevent a screenshot; capture errors are recorded without
-replacing the original failure. The runner stops on the first failed scenario
-and returns a failing exit status, without retrying it.
+replacing the original failure. A failed scenario does not stop the others: the
+runner reports every result and returns a failing exit status, without retrying.
 
 To exercise diagnostics deliberately, run the same built executable with
 `ANCIENT_NATIVE_DIAGNOSTIC_FAILURE=1 npm run test:native` on Linux; on Windows set
 `$env:ANCIENT_NATIVE_DIAGNOSTIC_FAILURE='1'` before the command and remove it
-afterwards. This throws after the synthetic match loads and must fail. Keep the
+afterwards. This throws in the `table` scenario after the synthetic match loads and must fail. Keep the
 failure output before starting another run: the runner clears its own
 `test-results/native/` directory at startup. A normal run against the same
 executable should report the same executable SHA-256. Never set this flag in
@@ -142,7 +151,7 @@ avoid the window-resize edge. A fixture test is not proof that a participating
 Dota client exposes the same fields in every game mode.
 
 On Windows, `scripts/smoke-roster-windows.mjs` adds the memory-reader consent and the isolated
-reader worker after the shared scenario.
+reader worker.
 
 ## Live evidence
 
