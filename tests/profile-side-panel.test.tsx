@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { LineupEntry, Match } from '../src/shared/domain';
 import { HeroesPanel, MatchDetails } from '../src/ui/profile/ProfileSidePanel';
 
-vi.mock('../src/ui/MatchScreen', () => ({ Portrait: () => <span className="portrait" /> }));
+vi.mock('../src/ui/Portrait', () => ({ Portrait: () => <span className="portrait" /> }));
 vi.mock('../src/ui/App', () => ({ api: {}, errorMessage: String }));
 
 const text = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');

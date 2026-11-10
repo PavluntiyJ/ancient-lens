@@ -6,7 +6,7 @@ import { formatImp, impTier } from '../../shared/performance';
 import type { MatchRating } from '../../shared/rating-history';
 import { matchPosition, rankedRoles } from '../../shared/roles';
 import { profileWinRateTone } from '../../shared/stat-bands';
-import { Portrait } from '../MatchScreen';
+import { Portrait } from '../Portrait';
 import { MatchLinks } from '../PlayerLinks';
 
 const Imp = ({ value }: { value?: number | null }) =>

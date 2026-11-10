@@ -4,7 +4,7 @@ import type { Match } from '../src/shared/domain';
 import { ColourLegend, FilterBar, MoreFilters, PositionCards } from '../src/ui/profile/ProfileFilters';
 import { defaultProfileView } from '../src/ui/profile/profile-view';
 
-vi.mock('../src/ui/MatchScreen', () => ({ Portrait: () => <span className="portrait" /> }));
+vi.mock('../src/ui/Portrait', () => ({ Portrait: () => <span className="portrait" /> }));
 vi.mock('../src/ui/ProfileMenu', () => ({ ProfileMenu: ({ label }: { label: string }) => <button>{label}</button> }));
 
 const view = defaultProfileView({ mode: 'normal', rankedOnly: true });

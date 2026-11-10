@@ -5,7 +5,7 @@ import { meetings } from '../src/shared/meetings';
 import type { Match } from '../src/shared/domain';
 
 vi.mock('../src/ui/App', () => ({ api: {}, errorMessage: String }));
-vi.mock('../src/ui/MatchScreen', () => ({ Portrait: () => null }));
+vi.mock('../src/ui/Portrait', () => ({ Portrait: () => null }));
 
 const game = (id: number, radiant_win: boolean | null, side: 'allies' | 'enemies'): Match => ({
   match_id: id,

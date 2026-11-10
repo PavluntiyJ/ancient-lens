@@ -8,7 +8,7 @@ import type { MetaPick } from '../shared/meta-picks';
 import type { RoleGuess } from '../shared/role-guess';
 import { matchPosition, rankedRoles, type Position } from '../shared/roles';
 import { statBandLabels, type StatBand } from '../shared/stat-bands';
-import { Portrait } from './MatchScreen';
+import { Portrait } from './Portrait';
 import { RoleIcon } from './Roles';
 import { TipCard } from './Tooltip';
 

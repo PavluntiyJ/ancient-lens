@@ -2,7 +2,7 @@ import { expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { DraftSuggestions } from '../src/ui/DraftPanels';
 
-vi.mock('../src/ui/MatchScreen', () => ({ Portrait: () => <span className="portrait" /> }));
+vi.mock('../src/ui/Portrait', () => ({ Portrait: () => <span className="portrait" /> }));
 
 const suggestions = (connect?: () => void) =>
   renderToStaticMarkup(

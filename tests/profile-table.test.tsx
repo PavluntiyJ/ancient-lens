@@ -6,9 +6,7 @@ import { ProfileTable } from '../src/ui/profile/ProfileTable';
 import { defaultProfileView } from '../src/ui/profile/profile-view';
 import { StatCard } from '../src/ui/Tips';
 
-vi.mock('../src/ui/MatchScreen', () => ({
-  Portrait: () => <span className="portrait" />,
-}));
+vi.mock('../src/ui/Portrait', () => ({ Portrait: () => <span className="portrait" /> }));
 
 const text = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
 const heroes = [{ id: 33, localized_name: 'Enigma', primary_attr: 'int', attack_type: 'Ranged', roles: [] }];

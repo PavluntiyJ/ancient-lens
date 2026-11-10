@@ -2,8 +2,8 @@ import { expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MmrChart, ScoreCard } from '../src/ui/profile/ProfileHeader';
 
-vi.mock('../src/ui/MatchScreen', () => ({
-  Portrait: () => <span className="portrait" />,
+vi.mock('../src/ui/Portrait', () => ({ Portrait: () => <span className="portrait" /> }));
+vi.mock('../src/ui/PlayerIdentity', () => ({
   Avatar: ({ url }: { url?: string }) => <img alt="Player avatar" src={url} />,
   CountryFlag: () => null,
   RankMedal: () => <span className="medal" />,

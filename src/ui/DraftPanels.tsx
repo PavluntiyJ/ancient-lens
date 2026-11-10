@@ -15,7 +15,7 @@ import {
 import { formatDecimal, type Hero } from '../shared/domain';
 import { rankedRoles } from '../shared/roles';
 import { RoleIcon, RoleLabel, LaneIcon } from './Roles';
-import { Portrait } from './MatchScreen';
+import { Portrait } from './Portrait';
 import { LaneTip, MatchupTip, SuggestionTip } from './Tips';
 import type { LaneHero, LaneSummary } from '../shared/lane-summary';
 import { tip } from './Tooltip';

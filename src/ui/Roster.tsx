@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Users } from 'lucide-react';
-import { CountryFlag } from './MatchScreen';
+import { CountryFlag } from './PlayerIdentity';
 import { PlayerLinks } from './PlayerLinks';
 import { accountId, formatDecimal, rankName, type Note, type PlayerResult } from '../shared/domain';
 import { api, errorMessage, Notice, number, PageHeading } from './App';

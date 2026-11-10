@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { CounterTip, FrequentHeroTip, MatchupTip, MetaTip, RoleTip, SuggestionTip } from '../src/ui/Tips';
 import type { Hero } from '../src/shared/domain';
 
-vi.mock('../src/ui/MatchScreen', () => ({ Portrait: () => <span className="portrait" /> }));
+vi.mock('../src/ui/Portrait', () => ({ Portrait: () => <span className="portrait" /> }));
 const hero = (id: number, name: string): Hero => ({
   id,
   localized_name: name,

@@ -1,6 +1,6 @@
 import { expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { Avatar } from '../src/ui/MatchScreen';
+import { Avatar } from '../src/ui/PlayerIdentity';
 
 vi.mock('../src/ui/App', () => ({ api: {}, errorMessage: String }));
 it('accepts current Steam Fastly avatar URLs and rejects unrelated image hosts', () => {

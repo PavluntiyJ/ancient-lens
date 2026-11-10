@@ -3,7 +3,7 @@ import { RefreshCw } from 'lucide-react';
 import type { LocalState, PlayerHistory, SteamIdentity } from '../../shared/domain';
 import { dayBands, nearestPoint } from '../../shared/mmr-chart';
 import { formatImp, impTier } from '../../shared/performance';
-import { Avatar, CountryFlag, ProBadge } from '../MatchScreen';
+import { Avatar, CountryFlag, ProBadge } from '../PlayerIdentity';
 import { OwnRating } from '../OwnRating';
 import { hide as hideTip, show as showTip } from '../Tooltip';
 

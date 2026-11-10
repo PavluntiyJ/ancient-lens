@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { BadgeCheck, Bookmark, Lock, RefreshCw, Settings, Swords, UserPlus, UserRound } from 'lucide-react';
+import { Bookmark, Lock, RefreshCw, Settings, UserPlus } from 'lucide-react';
 import {
-  rankName,
   winRateTone,
   type Hero,
   type LivePlayer,
   type LiveState,
-  type PartyHistory,
   type Match,
   type ReaderStatus,
   type Note,
@@ -28,9 +26,12 @@ import { slotColour } from '../shared/slot-colour';
 import { hasNativeReader, readerRisk, readerRiskWindows, showReaderNotice } from '../shared/reader-notice';
 import { isSmurf, medianMatches, smurfExplanation } from '../shared/smurf';
 import { meetings } from '../shared/meetings';
-import { country } from '../shared/country';
-import { countryCache } from '../shared/country-cache';
 import { MetBadge } from './Meetings';
+import { Avatar, CountryFlag, ProBadge, RankMedal } from './PlayerIdentity';
+import { Portrait } from './Portrait';
+import { useOwnHistory } from './match/useOwnHistory';
+import { usePartyHistory } from './match/usePartyHistory';
+import { useStratzProvider } from './match/useStratzProvider';
 import { heroPool, poolExplanation, type PoolTag } from '../shared/hero-pool';
 import { counterPicks } from '../shared/counter-picks';
 import { metaPicks } from '../shared/meta-picks';
@@ -65,7 +66,6 @@ import type { NoteContext } from './NoteEditor';
 import { noteCount } from '../shared/notes';
 import { PartyBracket } from './PartyBracket';
 import { bracketPieces, findParties, partyTip } from '../shared/parties';
-import { PartyLoader } from '../shared/party-loader';
 import { FrequentHeroTip } from './Tips';
 import { StratzPrompt } from './StratzPrompt';
 import { InfoHeader, rosterColumns } from './ColumnInfo';
@@ -123,121 +123,8 @@ const THIN_SAMPLE = 5;
  * each panel then still gets its full content width (440px, plus 84px of arrows and
  * padding, and two 12px gaps). Narrower, two panels show larger tiles than three would. */
 const WIDE_STRIP = 3 * (440 + 84) + 2 * 12;
-/** `frame` is the in-game slot colour, drawn only when the slot order is known. */
-export function Avatar({
-  url,
-  frame,
-  children,
-}: {
-  url?: string;
-  frame?: { name: string; hex: string; index: number };
-  /** Drawn over the picture's corner, such as the country flag. */
-  children?: ReactNode;
-}) {
-  const [failed, setFailed] = useState(false);
-  useEffect(() => setFailed(false), [url]);
-  const allowed =
-    url &&
-    /^https:\/\/(avatars\.(?:steamstatic\.com|fastly\.steamstatic\.com|akamai\.steamstatic\.com|cloudflare\.steamstatic\.com|steamcommunity\.com))\/[a-f0-9]+(?:_full|_medium)?\.(?:jpg|png)$/i.test(
-      url,
-    );
-  return (
-    <span
-      className={`player-avatar${frame ? ' slot-frame' : ''}`}
-      style={frame && ({ '--slot-colour': frame.hex } as CSSProperties)}
-      title={frame && `${frame.name}: player slot ${frame.index + 1} in the game`}
-    >
-      {allowed && !failed ? (
-        <img src={url} alt="Player avatar" referrerPolicy="no-referrer" onError={() => setFailed(true)} />
-      ) : (
-        <UserRound size={22} />
-      )}
-      {children}
-    </span>
-  );
-}
 const noteDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-/** OpenDota country lookups by account, shared by every flag of that player. */
-const lookupCountry = countryCache((id) => api.getCountry(id) ?? Promise.resolve(null));
-/**
- * The Steam profile's country flag; nothing when the player set no location. `code` comes
- * with the loaded profile from `source`; with `id`, a profile without one falls back to the
- * account's OpenDota profile (STRATZ often lacks the country).
- */
-export function CountryFlag({ code, source, id }: { code?: string | null; source?: string; id?: string }) {
-  const [found, setFound] = useState<{ id: string; code: string | null }>();
-  const [failed, setFailed] = useState(false);
-  const own = country(code);
-  const lookup = !own && id ? id : undefined;
-  useEffect(() => {
-    if (!lookup) return;
-    let active = true;
-    void lookupCountry(lookup).then((value) => active && setFound({ id: lookup, code: value }));
-    return () => {
-      active = false;
-    };
-  }, [lookup]);
-  const fallback = found && found.id === lookup ? country(found.code) : undefined;
-  const known = own ?? fallback;
-  useEffect(() => setFailed(false), [known?.code]);
-  if (!known || failed) return null;
-  const via = own ? source : 'OpenDota';
-  const label = `Country: ${known.name} · Steam profile${via ? ` via ${via}` : ''}`;
-  return (
-    <img
-      className="country-flag"
-      src={known.flag}
-      alt={known.name}
-      title={label}
-      aria-label={label}
-      onError={() => setFailed(true)}
-    />
-  );
-}
-/** The check after a professional player's name. STRATZ links the name to the account; the
- * app never guesses a professional from a nickname. */
-export function ProBadge({ name }: { name: string }) {
-  const label = `Professional player ${name} · name from STRATZ`;
-  return (
-    <span className="pro-badge" title={label} aria-label={label} role="img">
-      <BadgeCheck size={15} aria-hidden />
-    </span>
-  );
-}
-export function RankMedal({ tier, leaderboard }: { tier?: number | null; leaderboard?: number | null }) {
-  const medal = tier && tier >= 10 && tier <= 80 ? Math.floor(tier / 10) : 0;
-  const stars = medal > 0 && medal < 8 ? Math.min(5, tier! % 10) : 0;
-  const variant = medal === 8 && leaderboard && leaderboard <= 100 ? (leaderboard <= 10 ? '8c' : '8b') : String(medal);
-  const label = rankName(tier) + (leaderboard ? ` · #${leaderboard}` : '');
-  return (
-    <span className="rank-medal" title={label} role="img" aria-label={label}>
-      <img src={`./ranks/rank_icon_${variant}.png`} alt="" />
-      {stars > 0 && <img className="rank-stars" src={`./ranks/rank_star_${stars}.png`} alt="" />}
-      {medal === 8 && leaderboard ? <b>{leaderboard}</b> : null}
-    </span>
-  );
-}
-export function Portrait({ hero, fallback }: { hero?: Hero; fallback?: string }) {
-  const [failedSource, setFailedSource] = useState<string>();
-  const name = hero?.name ?? fallback;
-  const slug = name?.replace(/^npc_dota_hero_/, '');
-  return (
-    <span className="portrait">
-      {slug && slug !== failedSource && /^[a-z0-9_]+$/.test(slug) ? (
-        <img
-          src={`https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/${slug}.png`}
-          alt=""
-          onError={() => setFailedSource(slug)}
-        />
-      ) : hero ? (
-        <span className="portrait-fallback">{hero.localized_name}</span>
-      ) : (
-        <Swords size={16} />
-      )}
-    </span>
-  );
-}
 
 export function MatchScreen({
   ownAccountId,
@@ -288,27 +175,7 @@ export function MatchScreen({
   );
   heldMatch.current = continuity.held;
   const live = continuity.view;
-  // Own saved history (provider cache plus match journal) for "already met"; never fetched
-  // from the provider here, so a match screen does not spend the history quota.
-  const [ownHistory, setOwnHistory] = useState<Match[]>([]);
-  const [ownTier, setOwnTier] = useState<number | null>();
-  useEffect(() => {
-    let current = true;
-    setOwnHistory([]);
-    if (!ownAccountId) return;
-    void api
-      .getHistory(ownAccountId, 0, true)
-      .then((value) => {
-        if (current && value?.accountId === ownAccountId) {
-          setOwnHistory(value.matches);
-          setOwnTier(value.profile.rank_tier);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      current = false;
-    };
-  }, [ownAccountId, recordedMatches, live.matchId]);
+  const { ownHistory, ownTier } = useOwnHistory(ownAccountId, recordedMatches, live.matchId);
   const lingering = continuity.lingering;
   const connected = connectedInput || continuity.suspended || lingering;
   // A frozen snapshot is shown as of its own moment, so the live 15 s freshness rule
@@ -335,24 +202,7 @@ export function MatchScreen({
   const entriesMatch = useRef('');
   const synergyWeight = useSynergyWeight();
   const minWinRate = useMinWinRate();
-  const [stratzDraft, setStratzDraft] = useState<boolean>();
-  const [stratzConnectable, setStratzConnectable] = useState(false);
-  useEffect(() => {
-    let active = true;
-    void api
-      .getProvider()
-      .then((info) => {
-        if (!active) return;
-        setStratzDraft(!!info.serviceConfigured);
-        setStratzConnectable(!!info.connectable);
-      })
-      .catch(() => {
-        if (active) setStratzDraft(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [providerRevision]);
+  const { stratzDraft, stratzConnectable } = useStratzProvider(providerRevision);
   const [selected, setSelected] = useState<string>();
   const [heroes, setHeroes] = useState<Hero[]>([]);
   const [entries, setEntries] = useState<Record<string, Entry>>({});
@@ -396,24 +246,12 @@ export function MatchScreen({
   const [titleBar, setTitleBar] = useState<HTMLElement | null>(null);
   useEffect(() => setTitleBar(document.getElementById('titlebar-match')), []);
   // Parties, once identities are shown: from the roster's recent public history (STRATZ service).
-  const [partyHistory, setPartyHistory] = useState<{ match: string; history: PartyHistory | null }>();
-  const partyLoader = useRef<PartyLoader>(undefined);
-  useEffect(() => {
-    const loader = new PartyLoader(
-      (list) => api.getParties(list),
-      (matchId, history) => setPartyHistory({ match: matchId, history }),
-    );
-    partyLoader.current = loader;
-    return () => loader.stop();
-  }, []);
-  useEffect(() => {
-    partyLoader.current?.request(match, connected ? ids.split(',').filter(Boolean) : []);
-  }, [match, ids, connected]);
+  const partyHistory = usePartyHistory(match, ids, connected);
   const parties =
-    partyHistory?.match === match
+    partyHistory !== undefined
       ? findParties(
           players.flatMap((player) => (player.accountId ? [{ accountId: player.accountId, team: player.team }] : [])),
-          partyHistory.history,
+          partyHistory,
           match,
         )
       : [];

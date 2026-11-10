@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MmrPointTip } from '../src/ui/Tips';
 import type { Hero, Match } from '../src/shared/domain';
 
-vi.mock('../src/ui/MatchScreen', () => ({ Portrait: () => <span className="portrait" /> }));
+vi.mock('../src/ui/Portrait', () => ({ Portrait: () => <span className="portrait" /> }));
 const lich: Hero = { id: 31, localized_name: 'Lich', primary_attr: 'int', attack_type: 'Ranged', roles: [] };
 
 it('shows a rating measurement with its change, source and match', () => {

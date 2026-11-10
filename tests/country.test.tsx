@@ -3,7 +3,7 @@ import { expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { country } from '../src/shared/country';
 import { profileSchema } from '../src/shared/domain';
-import { CountryFlag } from '../src/ui/MatchScreen';
+import { CountryFlag } from '../src/ui/PlayerIdentity';
 
 vi.mock('../src/ui/App', () => ({ api: {}, errorMessage: String }));
 

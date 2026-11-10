@@ -1,5 +1,5 @@
 import { rankName, type LocalState } from '../shared/domain';
-import { RankMedal } from './MatchScreen';
+import { RankMedal } from './PlayerIdentity';
 
 const statusText: Record<string, string> = {
   'waiting-account': 'Sign in to Steam and start Dota 2 from it to identify your account automatically.',

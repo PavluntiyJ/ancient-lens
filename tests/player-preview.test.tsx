@@ -5,12 +5,14 @@ import { meetings } from '../src/shared/meetings';
 import type { Hero, Match, PlayerSummary } from '../src/shared/domain';
 
 vi.mock('../src/ui/App', () => ({ api: {}, errorMessage: String }));
-vi.mock('../src/ui/MatchScreen', () => ({
+vi.mock('../src/ui/PlayerIdentity', () => ({
   Avatar: () => <span className="avatar" />,
   CountryFlag: () => null,
   RankMedal: ({ tier }: { tier?: number | null }) => <span data-tier={tier} />,
-  Portrait: ({ hero }: { hero?: { id: number } }) => <i data-hero={hero?.id} />,
   ProBadge: ({ name }: { name: string }) => <span className="pro-badge" data-pro={name} />,
+}));
+vi.mock('../src/ui/Portrait', () => ({
+  Portrait: ({ hero }: { hero?: { id: number } }) => <i data-hero={hero?.id} />,
 }));
 const heroes: Hero[] = [5, 14].map((id) => ({
   id,

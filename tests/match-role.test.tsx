@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { vi } from 'vitest';
 import { MatchRole } from '../src/ui/Roles';
 
-vi.mock('../src/ui/MatchScreen', () => ({ Portrait: () => <span className="portrait" /> }));
+vi.mock('../src/ui/Portrait', () => ({ Portrait: () => <span className="portrait" /> }));
 
 it('marks a guessed role as likely and explains it', () => {
   const html = renderToStaticMarkup(

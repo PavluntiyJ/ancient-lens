@@ -11,7 +11,7 @@ import {
 import { meetings, type Meetings } from '../shared/meetings';
 import { filterNotes, noteCount, noteFilters, noteMatch, type NoteFilter } from '../shared/notes';
 import { api, errorMessage, Notice } from './App';
-import { Portrait } from './MatchScreen';
+import { Portrait } from './Portrait';
 import { PlayerLinks } from './PlayerLinks';
 
 type LocalProps = { local: LocalState; update(state: LocalState): void };

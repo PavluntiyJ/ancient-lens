@@ -3,7 +3,7 @@ import { formatDecimal, winRateTone } from '../shared/domain';
 import type { MetaPick } from '../shared/meta-picks';
 import { rankedRoles, type Position } from '../shared/roles';
 import { RoleIcon } from './Roles';
-import { Portrait } from './MatchScreen';
+import { Portrait } from './Portrait';
 import { MetaTip } from './Tips';
 import { tip } from './Tooltip';
 

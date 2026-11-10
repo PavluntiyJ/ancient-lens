@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { formatDecimal } from '../shared/domain';
 import type { EnemyCounters } from '../shared/counter-picks';
-import { Portrait } from './MatchScreen';
+import { Portrait } from './Portrait';
 import { CounterTip } from './Tips';
 import { tip } from './Tooltip';
 
