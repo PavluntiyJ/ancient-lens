@@ -173,6 +173,73 @@ jobs:
             echo 'For a native-only investigation, choose **Run workflow** and fill the three native source fields above. This skips compilation and packaging. Ordinary job reruns reuse the build too, but GitHub also reruns dependent packaging jobs on tag/full manual runs. Artifacts expire after seven days; after expiry a new build is required.'
           } >> "$GITHUB_STEP_SUMMARY"
 
+  # The Linux native scenarios on a virtual X11 screen (Xvfb) with a small window manager, in a
+  # Fedora container: the WebKitGTK of a current Linux desktop, rendered in software (the runner
+  # has no GPU, and Wayland compositors stall without one). Local KDE runs cover Wayland; see
+  # docs/dev/verification.md. Built and tested in one job: a rerun rebuilds, which the Rust
+  # cache keeps short. Not blocking until it has been stable for a couple of weeks (#165).
+  native-linux:
+    needs: check
+    continue-on-error: true
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    container:
+      image: registry.fedoraproject.org/fedora:45
+    steps:
+      - name: Fedora packages
+        run: >-
+          dnf install -y --setopt=install_weak_deps=False
+          git gcc gcc-c++ make perl findutils which tar xz
+          webkit2gtk4.1-devel openssl-devel libappindicator-gtk3-devel librsvg2-devel libxdo-devel
+          webkitgtk6.0 xorg-x11-server-Xvfb xorg-x11-xauth openbox dbus-daemon dbus-tools mesa-dri-drivers
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      # Installs rustup, then the version and components named in rust-toolchain.toml.
+      - name: Rust toolchain
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          "$HOME/.cargo/bin/rustup" toolchain install --no-self-update
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: src-tauri
+      - run: npm ci
+      - name: Build Linux application without packages
+        run: npm run build
+      - name: Native UI scenarios
+        env:
+          GDK_BACKEND: x11
+          ANCIENT_NATIVE_FOCUS: '1'
+        run: |
+          export XDG_RUNTIME_DIR="$RUNNER_TEMP/xdg"
+          mkdir -m 700 -p "$XDG_RUNTIME_DIR"
+          xvfb-run -a -s '-screen 0 2560x1600x24' dbus-run-session -- \
+            sh -c 'openbox & sleep 1; npm run test:native'
+      - name: Save native diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        id: diagnostics
+        with:
+          name: native-diagnostics-Linux-${{ github.run_attempt }}
+          path: test-results/native/
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Link diagnostics
+        if: always()
+        env:
+          DIAGNOSTICS_URL: ${{ steps.diagnostics.outputs.artifact-url }}
+        run: |
+          if [ -n "$DIAGNOSTICS_URL" ]; then
+            printf '\n[Download Linux native diagnostics](%s)\n' "$DIAGNOSTICS_URL" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'No Linux native diagnostics were produced; check the build or setup step.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   # Distributables only on tags/manual runs. The Linux packages need only the checks, so they
   # build while the Windows native jobs run; the release job still waits for both.
   dist-linux:

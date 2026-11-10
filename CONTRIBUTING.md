@@ -57,6 +57,8 @@ Start with the [installation guide](docs/guide/install.md), the
 
 `npm run test:rust` builds the web assets first, because Tauri embeds them when the crate
 compiles; a direct `cargo test` or `cargo clippy` needs an earlier `npm run build:web`.
+It also runs the saved-state contract test, which checks the core's state output against the
+page's schemas with Node, so it needs `npm ci` first.
 Clippy warnings fail CI; a lint that is wrong for one case gets an `#[allow(...)]` with a
 one-line reason, never a crate-wide allow.
 `npm run format` and `cargo fmt --manifest-path src-tauri/Cargo.toml` format your changes.

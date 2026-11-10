@@ -245,6 +245,16 @@ export async function nativeDriver(directory, extraEnv = {}) {
       };
     }
     await driver.useWindow('main');
+    // React mounts the match DOM before its initial state/info/live requests complete.
+    // A fixture delivered during that gap can be lost to the startup live snapshot or an
+    // unregistered listener. Return only once the workspace and subscription are ready.
+    await waitFor(
+      () =>
+        driver.execute(
+          'return !!window.ancient && !!document.querySelector(".analysis-panel") && !document.body.innerText.includes("Opening workspace…") && Object.getOwnPropertyNames(window.__internal_unstable_listeners_object_id__?.["live:update"] ?? {}).length > 0',
+        ),
+      'Native workspace did not finish opening',
+    );
     const wrapped = Object.fromEntries(
       Object.entries(driver).map(([name, action]) => [
         name,
