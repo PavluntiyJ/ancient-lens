@@ -1,3 +1,4 @@
+import { stateResultSchema, ownUpdateSchema, validateStateResult } from './shared/state-schema';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -19,7 +20,7 @@ import {
 if (isTauri()) {
   async function call<T>(command: string, args: Record<string, unknown> = {}): Promise<T> {
     try {
-      return await invoke<T>('desktop_call', { command, args });
+      return validateStateResult(command, await invoke<unknown>('desktop_call', { command, args })) as T;
     } catch (error) {
       throw new Error(typeof error === 'string' ? error : String(error));
     }
@@ -47,10 +48,10 @@ if (isTauri()) {
       let disposed = false;
       const pending = Promise.all([
         listen<LocalState>('state:update', (event) => {
-          if (!disposed) callback(event.payload);
+          if (!disposed) callback(stateResultSchema.parse(event.payload));
         }),
         listen<OwnUpdate>('own:update', (event) => {
-          if (!disposed) callback(event.payload);
+          if (!disposed) callback(ownUpdateSchema.parse(event.payload));
         }),
       ]);
       // Refresh after registration to cover the initial get/listen race.
