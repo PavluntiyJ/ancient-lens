@@ -11,7 +11,7 @@ import {
   type Note,
   type StatsDays,
 } from '../shared/domain';
-import { api, errorMessage } from './App';
+import { api } from './App';
 import { AnalysisCarousel, DraftSuggestions, HeroMatchups, LaneSummaryPanel, type AnalysisPage } from './DraftPanels';
 import { laneSummary, type LaneHero } from '../shared/lane-summary';
 import { slotColour } from '../shared/slot-colour';
@@ -25,6 +25,8 @@ import { useOwnHistory } from './match/useOwnHistory';
 import { usePartyHistory } from './match/usePartyHistory';
 import { useStratzProvider } from './match/useStratzProvider';
 import { useBracketChoice } from './match/useBracketChoice';
+import { useDraftData } from './match/useDraftData';
+import { useHeroes } from './match/useHeroes';
 import { useLaneChoice } from './match/useLaneChoice';
 import { usePlayerEntries } from './match/usePlayerEntries';
 import { heroPool, poolExplanation, type PoolTag } from '../shared/hero-pool';
@@ -58,15 +60,7 @@ import { StratzPrompt } from './StratzPrompt';
 import { InfoHeader, rosterColumns } from './ColumnInfo';
 import { hide, tip } from './Tooltip';
 import { guessTeamRoles, type RoleGuess } from '../shared/role-guess';
-import {
-  draftDataNote,
-  draftWarmBatches,
-  scorePositions,
-  mergeDraft,
-  missingDraftIds,
-  type DraftData,
-  type DraftStore,
-} from '../shared/draft';
+import { draftDataNote, scorePositions } from '../shared/draft';
 import { holdMatch, type HeldMatch } from '../shared/match-session';
 import { connectionHint, type SteamSetup } from '../shared/steam-setup';
 import type { SettingsSection } from './settings/sections';
@@ -178,12 +172,9 @@ export function MatchScreen({
   const minWinRate = useMinWinRate();
   const { stratzDraft, stratzConnectable } = useStratzProvider(providerRevision);
   const [selected, setSelected] = useState<string>();
-  const [heroes, setHeroes] = useState<Hero[]>([]);
   const [revision, setRevision] = useState(0);
-  const [draftStore, setDraftStore] = useState<DraftStore>();
-  const draftScopeRef = useRef('');
+  // Shown by the draft panels; the hero list and the draft requests both report into it.
   const [draftError, setDraftError] = useState('');
-  const [draftBusy, setDraftBusy] = useState(false);
   const nativeDraftEnabled =
     hasNativeReader(platform) &&
     live.rosterStatus !== 'disabled' &&
@@ -225,21 +216,7 @@ export function MatchScreen({
     const kind = announcer.current.next(match, list, notedPlayers(list, ownAccountId, notes));
     if (kind && encounterSound) playChime(kind);
   }, [connectedInput, lingering, match, ids, ownAccountId, notes, encounterSound]);
-  useEffect(() => {
-    if (!connected) return;
-    let active = true;
-    void api
-      .getHeroes()
-      .then((value) => {
-        if (active) setHeroes(value);
-      })
-      .catch((error) => {
-        if (active) setDraftError(errorMessage(error));
-      });
-    return () => {
-      active = false;
-    };
-  }, [connected, revision]);
+  const heroes = useHeroes(connected, revision, setDraftError);
   // A new roster, match, period, provider or refresh closes the open player card.
   useEffect(() => setSelected(undefined), [ids, match, connected, revision, days, providerRevision, filter, filterKey]);
   const entries = usePlayerEntries({ ids, match, connected, revision, days, filter, providerRevision });
@@ -295,72 +272,19 @@ export function MatchScreen({
     ownTier,
     ownMmr,
   });
-  const draftScope = `${match}-${providerRevision}-${bracket}`;
-  draftScopeRef.current = draftScope;
-  // A late reply (warm-up or request) from another match or provider is dropped.
-  const addDraft = (scope: string, ids: number[], reply: DraftData) =>
-    setDraftStore((previous) => (scope === draftScopeRef.current ? mergeDraft(previous, scope, ids, reply) : previous));
-  const missingIds = missingDraftIds(draftStore, draftScope, pickedIds ? pickedIds.split(',').map(Number) : []);
-  // Only heroes this match has not asked for yet are requested; until they arrive the
-  // panels keep the match's data. Another match, provider or a failed request hides it.
-  const draftNeeded =
-    draftStore?.scope !== draftScope || missingIds.length > 0 ? `${draftScope}-${missingIds.join(',')}` : '';
-  const draftData =
-    connected && stratzDraft && draftStore?.scope === draftScope && !draftError ? draftStore.data : undefined;
-  useEffect(() => {
-    let active = true;
-    setDraftError('');
-    setDraftBusy(false);
-    if (!connected || stratzDraft === undefined || !draftNeeded) return;
-    setDraftBusy(true);
-    const scope = draftScope;
-    const timer = window.setTimeout(() => {
-      if (stratzDraft && api.getDraftData) {
-        // Keep the service's ten-ID request limit; an empty request still brings positions.
-        const batches = missingIds.length ? draftWarmBatches(missingIds.map((id) => ({ id }))) : [[]];
-        void Promise.all(
-          batches.map((batch) => api.getDraftData(batch, bracket).then((reply) => addDraft(scope, batch, reply))),
-        )
-          .catch((error) => {
-            if (active) setDraftError(errorMessage(error));
-          })
-          .finally(() => {
-            if (active) setDraftBusy(false);
-          });
-      } else setDraftBusy(false);
-    }, 100);
-    return () => {
-      active = false;
-      window.clearTimeout(timer);
-    };
-    // oxlint-disable-next-line react/exhaustive-deps -- draftNeeded stands for scope and missing IDs; bracket changes the scope.
-  }, [draftNeeded, connected, revision, stratzDraft]);
-  // Once per match, from loading on, every hero's matchups are fetched into the store (about
-  // 13 requests, cached by the service for an hour): later hovers and picks need none.
-  const warmedMatch = useRef('');
-  const drafting = [
-    'DOTA_GAMERULES_STATE_WAIT_FOR_PLAYERS_TO_LOAD',
-    'DOTA_GAMERULES_STATE_HERO_SELECTION',
-    'DOTA_GAMERULES_STATE_STRATEGY_TIME',
-  ].includes(phase ?? '');
-  useEffect(() => {
-    if (!match || !drafting || !connected || !stratzDraft || !heroes.length) return;
-    if (warmedMatch.current === draftScope) return;
-    warmedMatch.current = draftScope;
-    const scope = draftScope;
-    void (async () => {
-      for (const batch of draftWarmBatches(heroes)) {
-        if (warmedMatch.current !== scope) return;
-        try {
-          addDraft(scope, batch, await api.getDraftData(batch, bracket));
-        } catch {
-          // A quota or network error ends the warm-up; regular requests still run.
-          return;
-        }
-      }
-    })();
-    // oxlint-disable-next-line react/exhaustive-deps -- bracket is part of draftScope; one warm-up per scope.
-  }, [draftScope, match, drafting, connected, stratzDraft, heroes]);
+  const { draftData, draftBusy } = useDraftData({
+    match,
+    providerRevision,
+    bracket,
+    pickedIds,
+    heroes,
+    phase,
+    connected,
+    revision,
+    stratzDraft,
+    error: draftError,
+    setError: setDraftError,
+  });
   // Both sides are scored locally from the same draft data; switching panels never refetches.
   const recommendations = useMemo(() => {
     if (!draftData || !pickedIds) return undefined;
