@@ -1,32 +1,11 @@
-/* Notes: the match status in the title bar, note markers, notes in a card and the Notes page. */
+/* Notes: note markers in the player row, notes in a card and the Notes page. */
 
-/* The match status in the window's title bar: one row less above the table. */
-.titlebar-match {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  padding: 0 12px;
-}
-.titlebar-match .match-toolbar {
-  height: 100%;
-  gap: 24px;
-}
-.titlebar-match .match-toolbar strong {
-  font-size: var(--fs-base);
-}
-.titlebar-match .match-toolbar select {
-  padding: 0 6px;
-  font-size: var(--fs-sm);
-}
-.titlebar-match .roster-status,
-.titlebar-match .match-id {
-  font-size: var(--fs-sm);
-  white-space: nowrap;
-}
 /* Note marker in the player row: the newest note, the count and its date in its title. */
 .note-marker {
   display: inline-flex;
   flex-shrink: 0;
+  color: var(--gold);
+  margin-left: 4px;
 }
 
 .profile-table th[data-column='gold_per_min'] button {
