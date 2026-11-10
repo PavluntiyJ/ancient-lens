@@ -27,9 +27,10 @@ or unverified, and what is planned.
   by frequency, in an observed purchase order, across all roles. There is no live inventory or
   economic/timing model, and the completed-item ID filter needs maintenance for new items.
 - **Native CI coverage:** Windows runs the native UI scenarios before packaging
-  and preserves reusable executables and failure diagnostics. Linux shares the
-  diagnostic capture but still needs a local desktop run; its ordinary checks
-  and distributions run in CI. See [verification](dev/verification.md#ci).
+  and preserves reusable executables and failure diagnostics. Linux runs the same
+  scenarios on a virtual X11 screen in a Fedora container, not yet as a required
+  check; the Wayland side of session-dependent checks still needs a local Wayland
+  desktop run. See [verification](dev/verification.md#ci).
 - **Own account on Linux:** Steam's files say which account Steam signs in to, not whether
   it is signed in now. While Steam runs at its login screen, Linux keeps naming the last
   automatic login; Windows reads the signed-in user and names none.
