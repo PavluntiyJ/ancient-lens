@@ -39,6 +39,7 @@ a token from Windows Credential Manager on Windows), or uses `ANCIENT_STATS_URL`
 | Module                                                                  | Responsibility                                                                                        |
 | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | `desktop.rs`                                                            | Tauri setup: match and profile windows, tray, shortcuts, single instance, the `desktop_call` command  |
+| `desktop/commands/`                                                     | One module per command group, with its typed arguments (`args.rs`); test-only commands in `test.rs`   |
 | `overlay.rs`                                                            | Shows the windows above the game without taking its keyboard (Windows, X11); keyboard on demand       |
 | `gsi.rs`, `gsi/diagnostics.rs`                                          | GSI HTTP server: token check, normalization into the live state, optional structure-only diagnostics  |
 | `roster.rs`, `roster/`                                                  | Optional roster and draft reader (see below)                                                          |
@@ -46,7 +47,7 @@ a token from Windows Credential Manager on Windows), or uses `ANCIENT_STATS_URL`
 | `api.rs`                                                                | Provider requests, caching, the OpenDota rate limit, batching to the service                          |
 | `stats.rs`, `history.rs`, `averages.rs`, `match_details.rs`, `draft.rs` | Shaping provider data: summaries, paged history, hero averages, one match, draft tables               |
 | `journal.rs`                                                            | Records own matches from GSI at post-game into `matches.json`; completes them later from the match ID |
-| `item_stats.rs`                                                         | Fixed OpenDota Explorer purchase query, count validation and league-sample limits |
+| `item_stats.rs`                                                         | Fixed OpenDota Explorer purchase query, count validation and league-sample limits                     |
 | `store.rs`                                                              | `state.json`: account, notes, rating journal, settings; atomic writes and migration                   |
 | `steam_setup.rs`, `steam_setup/`                                        | Finds Steam and Dota, installs the GSI file and the launch option                                     |
 | `local_service.rs`                                                      | Discovers or starts the statistics service                                                            |
@@ -68,10 +69,14 @@ a token from Windows Credential Manager on Windows), or uses `ANCIENT_STATS_URL`
 
 ## IPC and events
 
-The page calls one Tauri command, `desktop_call(command, args)`. Commands are grouped by
-prefix: `state:*` (settings and notes), `live:get`, `player:*`, `summary:get`, `totals:get`,
-`history:get`, `averages:get`, `draft:data`, `heroes:get`, `steam:*`, `window:*`, `gsi:export`,
-`release:*`. The core pushes `live:update` (GSI plus reader results), `state:update` (saved
+The page calls one Tauri command, `desktop_call(command, args)`. It checks the calling window,
+then routes by the prefix before the colon to a module in `desktop/commands/`: `window:*`;
+`state:*`, `note:*`, `mmr:*` and `journal:medal` (saved state); `provider:*` and `stratz:*`;
+statistics (`live:get`, `player:*`, `summary:get`, `history:get`, `draft:data`, `heroes:get`,
+…); `steam:*`; `app:info`, `release:*` and `log:open`; `gsi:export` and `data:export`. Each
+command reads its arguments into a small struct; a missing or mistyped field keeps the
+command's own default or error message. A new command goes into its group's module, and a new
+group needs one line in the router. The core pushes `live:update` (GSI plus reader results), `state:update` (saved
 state) and `release:update` (a newer release was found) as events. The page never receives the GSI token, provider tokens or memory addresses.
 
 `items:get(heroId)` loads a validated historical purchase sample from OpenDota Explorer.
