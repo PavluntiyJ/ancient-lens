@@ -1,6 +1,6 @@
 import { expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { ProBadge } from '../src/ui/MatchScreen';
+import { ProBadge } from '../src/ui/PlayerIdentity';
 import { profileSchema } from '../src/shared/domain';
 
 vi.mock('../src/ui/App', () => ({ api: {}, errorMessage: String }));

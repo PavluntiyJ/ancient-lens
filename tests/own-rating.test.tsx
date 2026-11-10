@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { OwnRating } from '../src/ui/OwnRating';
 import type { LocalState } from '../src/shared/domain';
 
-vi.mock('../src/ui/MatchScreen', () => ({ RankMedal: () => <span className="medal" /> }));
+vi.mock('../src/ui/PlayerIdentity', () => ({ RankMedal: () => <span className="medal" /> }));
 const rank = { tier: 80, leaderboard: null, source: 'test' };
 const snapshot = {
   mmr: 6315,

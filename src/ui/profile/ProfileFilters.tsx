@@ -5,7 +5,7 @@ import { roleHeroes, roleHistory } from '../../shared/profile-history';
 import type { MatchRating } from '../../shared/rating-history';
 import { rankedRoles, type Position } from '../../shared/roles';
 import { profileWinRateTone } from '../../shared/stat-bands';
-import { Portrait } from '../MatchScreen';
+import { Portrait } from '../Portrait';
 import { ProfileMenu } from '../ProfileMenu';
 import { RoleIcon } from '../Roles';
 import { tip, TipCard } from '../Tooltip';

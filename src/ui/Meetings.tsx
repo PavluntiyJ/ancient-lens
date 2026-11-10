@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { winRateTone, type Hero, type Participant } from '../shared/domain';
 import type { Meeting, Meetings } from '../shared/meetings';
 import { api, errorMessage } from './App';
-import { Portrait } from './MatchScreen';
+import { Portrait } from './Portrait';
 
 const kda = (p: Pick<Participant, 'kills' | 'deaths' | 'assists'>) =>
   [p.kills, p.deaths, p.assists].every((value) => typeof value === 'number')

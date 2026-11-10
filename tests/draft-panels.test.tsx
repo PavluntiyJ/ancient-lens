@@ -5,7 +5,7 @@ import { visibleDraftSlots } from '../src/shared/live-draft';
 import type { LiveState } from '../src/shared/domain';
 import type { DraftData } from '../src/shared/draft';
 
-vi.mock('../src/ui/MatchScreen', () => ({ Portrait: () => <span className="portrait" /> }));
+vi.mock('../src/ui/Portrait', () => ({ Portrait: () => <span className="portrait" /> }));
 const phase = 'DOTA_GAMERULES_STATE_HERO_SELECTION';
 const live: LiveState = {
   status: 'connected',

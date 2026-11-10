@@ -4,7 +4,7 @@ import { MeetingList } from '../src/ui/Meetings';
 import { meetings } from '../src/shared/meetings';
 import type { Match } from '../src/shared/domain';
 
-vi.mock('../src/ui/MatchScreen', () => ({
+vi.mock('../src/ui/Portrait', () => ({
   Portrait: ({ hero }: { hero?: { id: number } }) => <i data-hero={hero?.id} />,
 }));
 vi.mock('../src/ui/App', () => ({ api: {}, errorMessage: String }));

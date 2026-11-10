@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { cardStats, MatchTeams } from '../src/ui/PlayerCard';
 import type { Hero, Match } from '../src/shared/domain';
 
-vi.mock('../src/ui/MatchScreen', () => ({ Portrait: () => <span className="portrait" /> }));
+vi.mock('../src/ui/Portrait', () => ({ Portrait: () => <span className="portrait" /> }));
 vi.mock('../src/ui/App', () => ({ api: {}, errorMessage: String }));
 const heroes: Hero[] = [14, 31, 60].map((id) => ({
   id,

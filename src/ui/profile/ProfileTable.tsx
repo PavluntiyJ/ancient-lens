@@ -16,7 +16,7 @@ import type { RankBracket } from '../../shared/rank-bracket';
 import type { MatchRating } from '../../shared/rating-history';
 import { matchPosition, rankedRoles } from '../../shared/roles';
 import { expectedValue, matchBracket, ownValue, statBand, type StatKey } from '../../shared/stat-bands';
-import { Portrait } from '../MatchScreen';
+import { Portrait } from '../Portrait';
 import { RoleIcon } from '../Roles';
 import { RankList, StatCard } from '../Tips';
 import { tip, TipCard } from '../Tooltip';

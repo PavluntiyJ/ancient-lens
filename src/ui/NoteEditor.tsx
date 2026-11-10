@@ -3,7 +3,7 @@ import { Plus } from 'lucide-react';
 import type { Hero, LocalState, Match, Note } from '../shared/domain';
 import { noteCount, noteMatch, noteWhen } from '../shared/notes';
 import { api, errorMessage } from './App';
-import { Portrait } from './MatchScreen';
+import { Portrait } from './Portrait';
 
 /** Why there is no note about the player's own account; the store refuses one too. */
 export const SELF_NOTE = 'Why would you need a note about yourself? Everybody knows you are the best.';

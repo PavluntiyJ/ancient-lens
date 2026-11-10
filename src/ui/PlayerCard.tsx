@@ -12,7 +12,8 @@ import {
 import { averageKda, modeName } from '../shared/history';
 import { mainPosition, matchPosition } from '../shared/roles';
 import { api, errorMessage } from './App';
-import { Avatar, CountryFlag, Portrait, RankMedal } from './MatchScreen';
+import { Avatar, CountryFlag, RankMedal } from './PlayerIdentity';
+import { Portrait } from './Portrait';
 import { MatchLinks, PlayerLinks } from './PlayerLinks';
 import { RoleIcon } from './Roles';
 import { NoteEditor, type NoteContext } from './NoteEditor';
