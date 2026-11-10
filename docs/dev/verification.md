@@ -47,7 +47,10 @@ later cannot enable a test command. The caller/window check still runs before di
 
 The native scenarios in `scripts/native/` run on both systems through the driver in
 `scripts/native-capture.mjs`: `WebKitWebDriver` on Linux (needs a desktop session), Playwright
-over the WebView2 debugging protocol on Windows. Each scenario is a file of its own and starts
+over the WebView2 debugging protocol on Windows. Before returning the driver waits for the
+initial workspace load and live-event subscription, so a synthetic draft cannot be overwritten
+by the initial live snapshot or delivered before its listener exists.
+Each scenario is a file of its own and starts
 the app on fresh isolated data through `scripts/native/harness.mjs`, which holds the startup and
 the shared helpers; `scripts/native/fixtures.mjs` holds the data folder and the fake statistics
 service with the switches a scenario flips (a refused warm-up, slow or malformed draft data, a
