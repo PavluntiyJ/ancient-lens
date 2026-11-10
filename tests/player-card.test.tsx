@@ -60,7 +60,7 @@ it('lists both teams of a match with the player first and others as links', () =
 // The card sits inside the zoomed match view (--zoom = interface scale × fit); viewport units
 // there are multiplied by the zoom, so the limits divide it back out.
 it('keeps the card inside the window at any zoom', () => {
-  const css = readFileSync(new URL('../src/ui/styles.css', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../src/ui/styles/player-card.css', import.meta.url), 'utf8');
   const rule = (selector: string) =>
     css.match(new RegExp(`\\n${selector.replace('.', '\\.')} \\{([^}]*)\\}`))?.[1] ?? '';
   expect(rule('.quick-dialog')).toContain('max-height: calc(90vh / var(--zoom, 1))');
@@ -69,6 +69,6 @@ it('keeps the card inside the window at any zoom', () => {
 
 // The notes sit inside the card's padding like the other blocks.
 it('keeps the notes inside the card padding', () => {
-  const css = readFileSync(new URL('../src/ui/styles.css', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../src/ui/styles/player-card.css', import.meta.url), 'utf8');
   expect(css).toMatch(/\n\.player-card > \.note-thread,\n\.player-card > \.error-text \{[^}]*margin: 10px 16px 0;/);
 });

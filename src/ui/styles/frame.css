@@ -1,0 +1,191 @@
+/* The window frame: title bar, sections, tools and window controls. */
+
+/* Shell: a single 32px title bar with sections, tools and window controls */
+.app-shell {
+  height: calc(100dvh / var(--ui-scale, 1));
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  container: app-layout / inline-size;
+}
+.app-shell > main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+.app-toolbar {
+  position: relative;
+  z-index: 50;
+  flex-shrink: 0;
+  display: flex;
+  align-items: stretch;
+  height: 32px;
+  padding-left: 10px;
+  background: var(--sunken);
+  border-bottom: 1px solid var(--line);
+}
+.titlebar-drag {
+  flex: 1;
+  min-width: 120px;
+  display: flex;
+  align-items: center;
+  user-select: none;
+  cursor: default;
+}
+.compact-brand {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  pointer-events: none;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.compact-brand b {
+  color: var(--text);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+.app-toolbar nav {
+  display: flex;
+  gap: 1px;
+}
+.app-toolbar nav button {
+  width: 36px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+}
+.app-toolbar nav button:hover {
+  color: var(--text);
+  background: var(--surface);
+}
+.app-toolbar nav button.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.app-toolbar > .icon-button {
+  align-self: center;
+  width: 30px;
+  height: 28px;
+}
+/* Lit while the window has the keyboard; otherwise the game keeps it. */
+.keyboard-button {
+  width: 36px;
+  display: grid;
+  place-items: center;
+  margin-left: 4px;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+}
+.keyboard-button:hover {
+  color: var(--text);
+  background: var(--surface);
+}
+.keyboard-button.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.window-controls {
+  display: flex;
+  margin-left: 4px;
+  border-left: 1px solid var(--line);
+}
+.window-controls button {
+  width: 40px;
+  display: grid;
+  place-items: center;
+  color: var(--text-2);
+}
+.window-controls button:hover {
+  background: var(--raised);
+  color: var(--text);
+}
+.window-controls .window-close:hover {
+  background: var(--close-hover);
+  color: var(--on-colour);
+}
+.app-toolbar button:focus-visible,
+.app-toolbar summary:focus-visible {
+  outline-offset: -2px;
+}
+.window-resize-edge {
+  position: fixed;
+  z-index: 100;
+}
+.edge-north,
+.edge-south {
+  left: 8px;
+  right: 8px;
+  height: 3px;
+  cursor: ns-resize;
+}
+.edge-north {
+  top: 0;
+}
+.edge-south {
+  bottom: 0;
+}
+.edge-east,
+.edge-west {
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  cursor: ew-resize;
+}
+.edge-east {
+  right: 0;
+}
+.edge-west {
+  left: 0;
+}
+.edge-northeast,
+.edge-northwest,
+.edge-southeast,
+.edge-southwest {
+  width: 8px;
+  height: 8px;
+}
+.edge-northeast {
+  top: 0;
+  right: 0;
+  cursor: nesw-resize;
+}
+.edge-northwest {
+  top: 0;
+  left: 0;
+  cursor: nwse-resize;
+}
+.edge-southeast {
+  bottom: 0;
+  right: 0;
+  cursor: nwse-resize;
+}
+.edge-southwest {
+  bottom: 0;
+  left: 0;
+  cursor: nesw-resize;
+}
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 18px 24px 24px;
+}
+.content:not(.match-content) {
+  width: 100%;
+  max-width: 1280px;
+  margin-inline: auto;
+}
+/* The profile window is the profile alone, so its table may use the window's width. */
+.profile-shell .content {
+  max-width: 1680px;
+}
+.match-content {
+  min-height: 0;
+  padding: 0 14px 12px;
+}

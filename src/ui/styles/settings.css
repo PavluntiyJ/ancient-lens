@@ -1,0 +1,392 @@
+/* Settings. */
+
+/* Settings */
+.display-settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 20px;
+  margin-bottom: 12px;
+}
+.display-settings h2 {
+  flex-basis: 100%;
+  margin-bottom: 0 !important;
+}
+.display-settings label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.display-settings fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 0;
+  padding: 8px 12px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+}
+.display-settings legend {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  padding: 0 4px;
+}
+.scale-setting {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  flex-basis: 100%;
+  color: var(--text-2);
+}
+.scale-options {
+  display: flex;
+  gap: 4px;
+  padding: 2px;
+  background: var(--sunken);
+  border-radius: 5px;
+}
+.scale-options button {
+  min-width: 56px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  color: var(--muted);
+  font-size: var(--fs-base);
+}
+.scale-options button[aria-pressed='true'] {
+  background: var(--raised);
+  color: var(--text);
+  box-shadow: inset 0 -2px var(--accent);
+}
+.provider-settings,
+.reader-settings,
+.stats-preferences {
+  margin-bottom: 12px;
+}
+.provider-settings .muted,
+.reader-settings .muted {
+  max-width: 80ch;
+}
+.provider-settings form {
+  margin-top: 10px;
+}
+.provider-settings input {
+  flex: 1;
+  min-width: 200px;
+}
+.reader-settings label,
+.stats-preferences label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+/* Settings: connection overview, grouped section list (a side column on wide windows, a wrapped
+   row on narrow ones), consequence lines right under their option, labelled slider stops. */
+.connections-overview {
+  margin-bottom: 16px;
+}
+.connections-overview ul {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.connection-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 132px 96px;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  background: var(--elevated);
+}
+.connection-icon {
+  display: inline-flex;
+  padding: 6px;
+  border-radius: 6px;
+  color: var(--accent);
+  background: var(--accent-a15);
+}
+.connection-text b {
+  display: block;
+  font-weight: 500;
+}
+.connection-text small {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.connection-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-2);
+  font-size: var(--fs-base);
+}
+.connection-state.on {
+  color: var(--radiant);
+}
+.connection-state.on .dot {
+  background: var(--radiant);
+}
+.connection-state.setup {
+  color: var(--warn);
+}
+.connection-state.setup .dot {
+  background: var(--warn);
+}
+.connection-row button {
+  justify-self: end;
+  min-width: 88px;
+}
+.settings-layout {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.settings-sections {
+  position: sticky;
+  top: 0;
+  display: grid;
+  gap: 14px;
+  font-size: var(--fs-base);
+}
+.settings-nav-group {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+}
+.settings-nav-label {
+  margin-bottom: 2px;
+  color: var(--faint);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.settings-sections .link-button {
+  width: 100%;
+  padding: 4px 10px;
+  border-left: 2px solid var(--line);
+  color: var(--text-2);
+  text-align: left;
+}
+.settings-sections .link-button:hover {
+  color: var(--text);
+}
+.settings-sections .link-button.active {
+  border-left-color: var(--accent);
+  color: var(--accent);
+}
+.settings-body {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+}
+.settings-group {
+  display: grid;
+  gap: 12px;
+}
+.settings-group-title {
+  color: var(--faint);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.settings-group > .panel,
+.settings-group > div > .panel {
+  margin-bottom: 0;
+}
+.settings-group [id^='settings-'] {
+  scroll-margin-top: 12px;
+}
+.diagnostics-link {
+  margin-top: 12px;
+}
+.diagnostics-link .link-button,
+.match-tools .link-button {
+  color: var(--accent);
+}
+.diagnostics-link .link-button:hover,
+.match-tools .link-button:hover {
+  text-decoration: underline;
+}
+@container app-layout (max-width: 900px) {
+  .settings-layout {
+    grid-template-columns: 1fr;
+  }
+  .settings-sections {
+    position: static;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 20px;
+  }
+  .settings-nav-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 12px;
+  }
+  .settings-sections .link-button {
+    width: auto;
+    padding: 0;
+    border-left: 0;
+  }
+  .connection-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .connection-row button {
+    grid-column: 2 / -1;
+    justify-self: start;
+  }
+}
+.stats-preferences .fine-print,
+.display-settings .fine-print,
+#settings-window .fine-print {
+  margin-top: 2px;
+}
+.synergy-setting {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+  margin-top: 12px;
+}
+.synergy-setting label {
+  margin-top: 0;
+}
+.synergy-setting input[type='range'] {
+  width: 260px;
+  margin: 0;
+}
+.range-stops {
+  display: flex;
+  justify-content: space-between;
+  width: 260px;
+}
+.range-stops button {
+  width: 34px;
+  margin: 0 -10px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  text-align: center;
+  cursor: pointer;
+}
+.range-stops button.active {
+  color: var(--accent);
+  font-weight: 600;
+}
+.synergy-setting.disabled > label,
+.synergy-setting.disabled .range-stops,
+.range-stops.off,
+label.disabled {
+  opacity: 0.5;
+}
+.synergy-setting.disabled .range-stops button,
+.range-stops.off button,
+label.disabled {
+  cursor: not-allowed;
+}
+/* An option this system cannot offer: only its box looks disabled; the label and the reason
+   under it stay readable. */
+label.unavailable > input {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.fine-print.reason {
+  color: var(--text-2);
+}
+.keycaps {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-right: 3px;
+  color: var(--muted);
+}
+kbd {
+  display: inline-block;
+  min-width: 22px;
+  padding: 1px 6px;
+  border: 1px solid var(--line-strong);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--raised);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+}
+.setup-steps {
+  padding-left: 18px;
+  margin: 10px 0 14px;
+  color: var(--text-2);
+}
+.setup-steps li {
+  margin-bottom: 12px;
+  padding-left: 4px;
+}
+.setup-steps b {
+  color: var(--text);
+  font-weight: 500;
+}
+.setup-steps p {
+  color: var(--muted);
+  font-size: var(--fs-base);
+  margin: 3px 0;
+}
+
+.setup-checks {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 14px;
+  display: grid;
+  gap: 6px;
+}
+.setup-checks li {
+  display: grid;
+  grid-template-columns: 18px 110px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-base);
+}
+.setup-checks li.ok svg {
+  color: var(--win);
+}
+.setup-checks li.missing svg {
+  color: var(--warn);
+}
+.setup-checks b {
+  color: var(--text);
+  font-weight: 500;
+}
+.setup-checks span {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.steam-repair {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.steam-repair p {
+  margin: 0;
+}
+.steam-repair-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.manual-setup {
+  margin-top: 6px;
+}
+.manual-setup > summary {
+  color: var(--text-2);
+  font-size: var(--fs-base);
+}

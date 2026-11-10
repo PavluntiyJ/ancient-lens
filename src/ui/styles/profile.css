@@ -1,0 +1,577 @@
+/* Profile: header band, rating, MMR chart and the period summary. */
+
+/* My profile: header band (identity and rating, a small MMR chart, the period summary),
+   position cards, one sticky filter bar, the history list beside the Heroes panel or one
+   match's details. Below a 1240 px shell the side panel becomes a drawer. */
+.content:has(> .own-profile) {
+  max-width: none;
+  padding: 12px 16px 24px;
+}
+.own-profile {
+  --profile-bar: 44px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.profile-band {
+  display: grid;
+  grid-template-columns: 480px minmax(0, 1fr) 400px;
+  gap: 16px;
+  align-items: stretch;
+}
+/* Avatar over two rows; name and update time, then medal, MMR and rank; meters on the right. */
+.profile-who {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 150px;
+  grid-template-rows: auto auto;
+  gap: 4px 12px;
+  align-items: center;
+  --avatar: 52px;
+}
+.profile-who > .player-avatar {
+  grid-row: 1 / span 2;
+  border: 1px solid var(--accent);
+  border-radius: 50%;
+}
+.profile-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--fs-4xl);
+  font-weight: 600;
+  line-height: 1.1;
+}
+.profile-name-text {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.profile-identity {
+  min-width: 0;
+  align-self: center;
+}
+.profile-identity-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+.profile-name .profile-menu-trigger {
+  font: inherit;
+  height: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  min-width: 0;
+  max-width: 100%;
+  text-align: left;
+  white-space: normal;
+}
+.profile-name .profile-menu-trigger svg {
+  align-self: center;
+  flex: none;
+}
+.profile-account-list {
+  display: grid;
+  gap: 4px;
+  min-width: 240px;
+}
+.profile-account-entry {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 5px;
+}
+.profile-account-entry:hover,
+.profile-account-entry.selected {
+  background: var(--raised);
+}
+.profile-account-pick {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 9px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.profile-account-pick small {
+  display: block;
+  color: var(--muted);
+}
+.profile-account-remove {
+  flex: none;
+  margin-right: 6px;
+}
+.profile-account-add {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  margin-top: 8px;
+}
+.profile-account-add input {
+  min-width: 0;
+  width: 100%;
+}
+
+.profile-updated {
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  color: var(--faint);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.profile-name .icon-button {
+  width: 20px;
+  height: 20px;
+  margin-left: -4px;
+}
+/* The rating section only groups its parts; they sit in the grid above. */
+.profile-who .own-rating {
+  display: contents;
+}
+.own-rankline {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.own-profile-rank {
+  display: inline-flex;
+  flex: none;
+  margin: -6px -2px -6px -4px;
+  --medal: 40px;
+}
+.own-mmr {
+  color: var(--text);
+  font-size: var(--fs-5xl);
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.own-mmr.uncalibrated {
+  color: var(--uncalibrated);
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.own-rank-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 11.5px;
+  line-height: 1.25;
+  color: var(--muted);
+}
+.own-rating-problem {
+  font-size: var(--fs-xs);
+  color: var(--warn);
+}
+.own-meters {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.own-meter {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 6px;
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+.own-meter > span {
+  overflow: hidden;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.own-meter > strong {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.own-meter progress {
+  grid-column: 1 / -1;
+  display: block;
+  width: 100%;
+  height: 4px;
+  margin: 0;
+  appearance: none;
+  border: 0;
+  border-radius: 2px;
+  background: var(--line-strong);
+  overflow: hidden;
+}
+.own-meter progress::-webkit-progress-bar {
+  background: var(--line-strong);
+}
+.own-meter progress::-webkit-progress-value {
+  background: var(--gold);
+  border-radius: 2px;
+}
+.own-meter progress::-moz-progress-bar {
+  background: var(--gold);
+  border-radius: 2px;
+}
+.own-meter.conduct progress::-webkit-progress-value {
+  background: var(--win);
+}
+.own-meter.conduct progress::-moz-progress-bar {
+  background: var(--win);
+}
+/* A saved reading stays readable but visibly not live. */
+.own-rating.saved .own-meters {
+  opacity: 0.6;
+}
+.mmr-chart {
+  display: flex;
+  flex-direction: column;
+  min-height: 132px;
+  padding: 8px 10px 4px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.mmr-chart.empty > small {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  font-size: var(--fs-sm);
+  color: var(--faint);
+}
+.mmr-chart-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.mmr-chart-head b {
+  font-size: var(--fs-base);
+  font-weight: 500;
+  color: var(--text);
+}
+.mmr-legend {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+}
+.mmr-legend i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 4px;
+  border-radius: 50%;
+}
+.mmr-legend i.up {
+  background: var(--win);
+}
+.mmr-legend i.down {
+  background: var(--loss);
+}
+.mmr-plot {
+  position: relative;
+  flex: 1;
+  min-height: 84px;
+  margin-top: 2px;
+  cursor: crosshair;
+  outline: none;
+}
+.mmr-plot:focus-visible {
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.mmr-plot svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.mmr-day rect {
+  fill: transparent;
+}
+.mmr-day.odd rect {
+  fill: var(--overlay-faint);
+}
+.mmr-days {
+  position: absolute;
+  inset: auto 0 0;
+  height: 14px;
+}
+.mmr-days span {
+  position: absolute;
+  bottom: 0;
+  overflow: hidden;
+  font-size: var(--fs-2xs);
+  color: var(--faint);
+  text-align: center;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.mmr-area {
+  fill: var(--mmr-area);
+}
+.mmr-line {
+  fill: none;
+  stroke: var(--mmr-line);
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+}
+.mmr-plot circle {
+  stroke: var(--bg);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.mmr-plot circle.selected {
+  stroke: var(--on-colour);
+  stroke-width: 2;
+}
+.mmr-plot circle.up {
+  fill: var(--win);
+}
+.mmr-plot circle.down {
+  fill: var(--loss);
+}
+.mmr-plot circle.unknown {
+  fill: var(--faint);
+}
+.mmr-ring {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border: 2px solid var(--text);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.profile-score {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.profile-score-caption,
+.profile-score-cells dt {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.profile-score-caption {
+  display: flex;
+  justify-content: space-between;
+}
+.profile-score-record {
+  display: flex;
+  align-items: baseline;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1;
+}
+.profile-score-dash {
+  margin: 0 5px;
+  color: var(--faint);
+  font-weight: 400;
+}
+.profile-score-rate {
+  margin-left: auto;
+  font-size: var(--fs-4xl);
+}
+.profile-score-bar {
+  display: flex;
+  gap: 2px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--overlay);
+}
+.profile-score-bar b {
+  background: var(--win);
+}
+.profile-score-bar i {
+  background: var(--loss);
+}
+.profile-score-cells {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.profile-score-cells > div {
+  padding-left: 12px;
+  border-left: 1px solid var(--line);
+}
+.profile-score-cells > div:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+.profile-score-cells dd {
+  margin: 0;
+  font-size: var(--fs-3xl);
+  font-weight: 600;
+  line-height: 1.2;
+}
+.profile-positions {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+.profile-position {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 2px 9px;
+  align-items: center;
+  padding: 8px 10px;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.profile-position:hover {
+  border-color: var(--line-strong);
+}
+.profile-position[aria-pressed='true'] {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.profile-position[data-empty] {
+  opacity: 0.55;
+}
+.profile-position .role-icon {
+  grid-row: span 2;
+  width: 22px;
+  height: 22px;
+}
+.profile-position-name,
+.profile-position-sub {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.profile-position-name {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+/* The big number, labelled underneath: MMR change, or win rate without measurements. */
+.profile-position-head {
+  grid-row: span 2;
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1;
+  text-align: right;
+}
+.profile-position-head small {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--fs-2xs);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.profile-position-sub {
+  grid-column: 2;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.profile-position-sub b {
+  font-weight: 600;
+}
+.profile-position-heroes {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 7px;
+  margin-top: 5px;
+}
+.profile-position-hero {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 6px 2px 2px;
+  font-size: var(--fs-sm);
+  background: var(--overlay-faint);
+  border-radius: 4px;
+}
+.profile-position-hero b {
+  font-weight: 600;
+}
+.profile-position-hero .portrait {
+  width: 30px;
+  height: 17px;
+  border-radius: 2px;
+}
+.wr-good {
+  color: var(--win);
+}
+.wr-bad {
+  color: var(--loss);
+}
+.wr-few {
+  color: var(--muted);
+}
+.profile-bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--profile-bar);
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+.profile-segments {
+  display: inline-flex;
+  height: 30px;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+}
+.profile-segments button {
+  padding: 0 10px;
+  font-size: var(--fs-base);
+  color: var(--muted);
+  border-right: 1px solid var(--line);
+}
+.profile-segments button:last-child {
+  border-right: 0;
+}
+.profile-segments button[aria-pressed='true'] {
+  color: var(--text);
+  background: var(--raised);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+.profile-control,
+.profile-bar .profile-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  font-size: var(--fs-base);
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+}

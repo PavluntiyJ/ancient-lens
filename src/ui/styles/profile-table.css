@@ -1,0 +1,767 @@
+/* Profile: menus, filters, the match table, statistic bands and the side panel. */
+
+/* More and Columns (ProfileMenu.tsx): a panel on document.body, placed by script under its
+   button and kept inside the window. Without position: fixed it falls into the page flow below
+   the window and only adds a scrollbar. */
+.profile-menu {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  min-width: 240px;
+  overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px var(--shadow);
+  color: var(--text);
+}
+.profile-menu > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 6px 6px 12px;
+  border-bottom: 1px solid var(--line);
+  font-size: var(--fs-base);
+}
+.profile-menu-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 12px;
+}
+.profile-menu-fields label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-base);
+  white-space: nowrap;
+}
+.profile-menu-fields select {
+  margin-left: auto;
+  width: 190px;
+  height: 30px;
+  padding: 0 8px;
+}
+.profile-info {
+  padding: 0 8px;
+  color: var(--text);
+}
+/* Ranked and Turbo read as checkboxes: a square that fills when on. */
+.profile-toggle {
+  color: var(--muted);
+}
+.profile-toggle::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--muted);
+  border-radius: 3px;
+}
+.profile-toggle[aria-pressed='true'] {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.profile-toggle[aria-pressed='true']::before {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.profile-chips {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+}
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 4px 0 9px;
+  font-size: 12.5px;
+  white-space: nowrap;
+  background: var(--selected);
+  border: 1px solid var(--accent-a33);
+  border-radius: 13px;
+}
+.filter-chip .icon-button {
+  width: 18px;
+  height: 18px;
+}
+.profile-count {
+  margin-left: auto;
+  font-size: 12.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.profile-legend {
+  width: 420px;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.profile-legend p {
+  margin: 6px 0 2px;
+}
+.profile-legend-scale {
+  display: flex;
+  gap: 4px;
+}
+.profile-legend-scale span {
+  flex: 1;
+  padding: 2px 0;
+  text-align: center;
+  background: var(--overlay-faint);
+  border-radius: 4px;
+}
+.profile-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 14px;
+  align-items: start;
+}
+/* Every number with a hover card shows it can be hovered. */
+.own-profile [data-tip] {
+  cursor: help;
+  border-radius: 4px;
+}
+.own-profile [data-tip]:hover {
+  background: var(--overlay);
+}
+.profile-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+.profile-table th {
+  position: sticky;
+  top: var(--profile-bar);
+  z-index: 4;
+  padding: 6px 4px;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--muted);
+  text-align: center;
+  white-space: nowrap;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line-strong);
+}
+.profile-table th[aria-sort] button {
+  color: var(--accent-light);
+}
+.profile-table th button {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.profile-table th[data-column='date'],
+.profile-table th[data-column='hero'] {
+  text-align: left;
+}
+.profile-table th[data-column='date'] {
+  width: 84px;
+}
+.profile-table th[data-column='hero'] {
+  width: 210px;
+}
+.profile-table th[data-column='kda'] {
+  width: 112px;
+}
+.profile-table th[data-column='mmr'] {
+  width: 120px;
+}
+.profile-table td {
+  height: 38px;
+  padding: 0 4px;
+  text-align: center;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--line);
+}
+.profile-table tbody tr {
+  cursor: pointer;
+}
+.profile-table tbody tr:hover td {
+  background: var(--overlay-faint);
+}
+.profile-table tbody tr.selected td {
+  background: var(--selected);
+}
+.profile-table td[data-column='date'] {
+  text-align: left;
+  box-shadow: inset 3px 0 0 var(--faint);
+  padding-left: 10px;
+}
+.profile-table tr.win td[data-column='date'] {
+  box-shadow: inset 3px 0 0 var(--win);
+}
+.profile-table tr.loss td[data-column='date'] {
+  box-shadow: inset 3px 0 0 var(--loss);
+}
+.profile-table td[data-column='date'] small {
+  display: block;
+  font-size: var(--fs-xs);
+  color: var(--faint);
+  line-height: 1.1;
+}
+.profile-table td[data-column='hero'] {
+  text-align: left;
+}
+.profile-hero {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.profile-hero .portrait {
+  width: 46px;
+  height: 26px;
+  flex: none;
+}
+.profile-hero-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.profile-hero .role-icon {
+  width: 16px;
+  height: 16px;
+  opacity: 0.75;
+}
+.profile-sep {
+  color: var(--faint);
+}
+.profile-table th[data-column='type'] {
+  width: 112px;
+}
+.profile-type {
+  display: inline-block;
+  max-width: 100%;
+  line-height: 1.15;
+}
+.profile-type-main {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.profile-type small {
+  display: block;
+  font-size: var(--fs-xs);
+  color: var(--faint);
+}
+.profile-party {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--muted);
+}
+.profile-table td small {
+  display: inline;
+  color: var(--muted);
+}
+.profile-table .profile-mmr-change {
+  font-size: var(--fs-sm);
+  color: var(--faint);
+}
+/* Statistics against the bracket average: shades of red and green; the extremes on a soft tint. */
+.stat-band-0 {
+  color: var(--band-0);
+  font-weight: 700;
+  background: var(--band-low-bg);
+  border-radius: 9px;
+  padding: 0 5px;
+}
+.stat-band-1 {
+  color: var(--loss);
+}
+.stat-band-2 {
+  color: var(--band-2);
+}
+.stat-band-4 {
+  color: var(--band-4);
+}
+.stat-band-5 {
+  color: var(--win);
+  font-weight: 600;
+}
+.stat-band-6 {
+  color: var(--band-6);
+  font-weight: 700;
+  background: var(--band-top-bg);
+  border-radius: 9px;
+  padding: 0 5px;
+}
+.tip-verdict {
+  margin: 4px 0 6px;
+}
+.profile-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 14px 0;
+}
+.profile-aside {
+  position: sticky;
+  top: calc(var(--profile-bar) + 8px);
+}
+.profile-side {
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.profile-side h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px 8px;
+  font-size: var(--fs-md);
+  border-bottom: 1px solid var(--line);
+}
+.profile-side h3 small {
+  font-weight: 400;
+  color: var(--faint);
+}
+.profile-side h3 .icon-button {
+  margin-left: auto;
+}
+.profile-heroes-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 22px 44px 40px 46px;
+  gap: 5px;
+  align-items: center;
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  font-size: var(--fs-base);
+  text-align: right;
+  border-bottom: 1px solid var(--line-faint);
+}
+.profile-heroes-row.head {
+  height: 26px;
+  font-size: var(--fs-xs);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--faint);
+  border-bottom-color: var(--line);
+}
+.profile-heroes-row > span:first-child {
+  text-align: left;
+}
+button.profile-heroes-row:hover {
+  background: var(--overlay-faint);
+}
+.profile-heroes-row.selected {
+  background: var(--selected);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.profile-heroes-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  white-space: nowrap;
+}
+.profile-heroes-name > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.profile-heroes-name .portrait {
+  width: 42px;
+  height: 24px;
+  flex: none;
+}
+.profile-match-head {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.profile-match-head .portrait {
+  width: 64px;
+  height: 36px;
+}
+.profile-match-head small {
+  display: block;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.profile-match-result {
+  font-weight: 600;
+  text-align: right;
+}
+.profile-match-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin: 0;
+  border-bottom: 1px solid var(--line);
+}
+.profile-match-stats > div {
+  padding: 6px 10px;
+  border-right: 1px solid var(--line);
+}
+.profile-match-stats > div:last-child {
+  border-right: 0;
+}
+.profile-match-stats dt {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+.profile-match-stats dd {
+  margin: 0;
+  font-size: var(--fs-lg);
+  font-weight: 600;
+}
+.profile-team h4 {
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+  padding: 6px 12px 2px;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.profile-player {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 60px 40px 40px 36px;
+  gap: 6px;
+  align-items: center;
+  height: 26px;
+  padding: 2px 12px;
+  font-size: 12.5px;
+}
+.profile-player > span:not(.profile-player-name) {
+  text-align: right;
+}
+.profile-player .portrait {
+  width: 34px;
+  height: 19px;
+}
+.profile-player.head {
+  height: 18px;
+  font-size: 10.5px;
+  color: var(--faint);
+}
+.profile-player.own {
+  background: var(--selected);
+}
+.profile-player.own .profile-player-name {
+  font-weight: 600;
+  color: var(--accent-light);
+}
+.profile-player-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.profile-match-links {
+  padding: 8px 12px;
+  border-top: 1px solid var(--line);
+}
+.match-links {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  white-space: nowrap;
+}
+.match-links .match-copy {
+  width: 20px;
+  height: 20px;
+}
+/* A wide window (the owner's 1891 px overlay) spends its room on reading size rather than on
+   empty space: about 15% larger text, rows, portraits and cards than the 1600 px design. */
+@container app-layout (min-width: 1700px) {
+  .content:has(> .own-profile) {
+    padding: 14px 20px 28px;
+  }
+  .own-profile {
+    --profile-bar: 50px;
+    gap: 12px;
+  }
+  .profile-band {
+    grid-template-columns: 540px minmax(0, 1fr) 440px;
+    gap: 18px;
+  }
+  .profile-who {
+    grid-template-columns: auto minmax(0, 1fr) 180px;
+    gap: 6px 14px;
+    --avatar: 62px;
+  }
+  .profile-name {
+    font-size: var(--fs-5xl);
+  }
+  .profile-updated {
+    font-size: var(--fs-base);
+  }
+  .own-profile-rank {
+    --medal: 48px;
+  }
+  .own-mmr {
+    font-size: 30px;
+  }
+  .own-mmr.uncalibrated {
+    font-size: var(--fs-2xl);
+  }
+  .own-rank-meta {
+    font-size: var(--fs-base);
+  }
+  .own-meters {
+    gap: 7px;
+  }
+  .own-meter {
+    font-size: 11.5px;
+  }
+  .own-meter > strong {
+    font-size: 13.5px;
+  }
+  .own-meter progress {
+    height: 5px;
+  }
+  .mmr-chart {
+    min-height: 156px;
+  }
+  .mmr-chart-head {
+    font-size: var(--fs-base);
+  }
+  .mmr-chart-head b {
+    font-size: 14.5px;
+  }
+  .mmr-days span {
+    font-size: var(--fs-xs);
+  }
+  .profile-score {
+    padding: 12px 16px;
+  }
+  .profile-score-caption,
+  .profile-score-cells dt {
+    font-size: var(--fs-sm);
+  }
+  .profile-score-record {
+    font-size: 36px;
+  }
+  .profile-score-rate {
+    font-size: var(--fs-5xl);
+  }
+  .profile-score-cells dd {
+    font-size: 23px;
+  }
+  .profile-positions {
+    gap: 10px;
+  }
+  .profile-position {
+    padding: 10px 12px;
+    gap: 2px 10px;
+  }
+  .profile-position .role-icon {
+    width: 26px;
+    height: 26px;
+  }
+  .profile-position-name {
+    font-size: var(--fs-lg);
+  }
+  .profile-position-head {
+    font-size: var(--fs-4xl);
+  }
+  .profile-position-head small {
+    font-size: var(--fs-xs);
+  }
+  .profile-position-sub {
+    font-size: var(--fs-base);
+  }
+  .profile-position-heroes {
+    gap: 8px;
+    margin-top: 6px;
+  }
+  .profile-position-hero {
+    padding-right: 7px;
+    font-size: var(--fs-base);
+  }
+  .profile-position-hero .portrait {
+    width: 36px;
+    height: 20px;
+  }
+  .profile-segments,
+  .profile-control,
+  .profile-bar .profile-menu-trigger,
+  .profile-bar select {
+    height: 34px;
+    font-size: 14.5px;
+  }
+  .profile-segments button {
+    padding: 0 12px;
+    font-size: 14.5px;
+  }
+  .profile-count {
+    font-size: 13.5px;
+  }
+  .profile-main {
+    grid-template-columns: minmax(0, 1fr) 410px;
+    gap: 16px;
+  }
+  .profile-table {
+    font-size: 15.5px;
+  }
+  .profile-table th {
+    font-size: 13.5px;
+    padding: 8px 4px;
+  }
+  .profile-table td {
+    height: 44px;
+  }
+  .profile-table th[data-column='date'] {
+    width: 96px;
+  }
+  .profile-table th[data-column='hero'] {
+    width: 250px;
+  }
+  .profile-table th[data-column='kda'] {
+    width: 130px;
+  }
+  .profile-table th[data-column='mmr'] {
+    width: 140px;
+  }
+  .profile-table td[data-column='date'] small {
+    font-size: 12.5px;
+  }
+  .profile-hero .portrait {
+    width: 54px;
+    height: 30px;
+  }
+  .profile-hero .role-icon {
+    width: 18px;
+    height: 18px;
+  }
+  .profile-side h3 {
+    font-size: var(--fs-xl);
+  }
+  .profile-heroes-row {
+    grid-template-columns: minmax(0, 1fr) 26px 52px 46px 52px;
+    height: 42px;
+    font-size: var(--fs-lg);
+  }
+  .profile-heroes-row.head {
+    height: 30px;
+    font-size: var(--fs-sm);
+  }
+  .profile-heroes-name .portrait {
+    width: 50px;
+    height: 28px;
+  }
+}
+/* Beside the side panel twelve columns get tight: narrower fixed columns and panel. */
+@container app-layout (max-width: 1480px) {
+  .profile-main {
+    grid-template-columns: minmax(0, 1fr) 330px;
+  }
+  .profile-table th[data-column='date'] {
+    width: 76px;
+  }
+  .profile-table th[data-column='hero'] {
+    width: 170px;
+  }
+  .profile-table th[data-column='kda'] {
+    width: 100px;
+  }
+  .profile-table th[data-column='mmr'] {
+    width: 104px;
+  }
+}
+@container app-layout (max-width: 1240px) {
+  /* The wider gap absorbs WebKit drawing zoomed text a few pixels past its box. */
+  .profile-band {
+    grid-template-columns: 300px minmax(0, 1fr) 300px;
+    gap: 14px;
+  }
+  .profile-score-record {
+    font-size: var(--fs-4xl);
+  }
+  .profile-score-rate {
+    font-size: 17px;
+  }
+  .profile-score-cells dd {
+    font-size: var(--fs-lg);
+  }
+  .profile-positions {
+    gap: 6px;
+  }
+  .profile-position {
+    padding: 6px 8px;
+  }
+  .profile-position-head {
+    font-size: 17px;
+  }
+  .profile-position-hero:nth-child(3) {
+    display: none;
+  }
+  .own-rank-meta {
+    display: none;
+  }
+  .profile-who {
+    grid-template-columns: auto minmax(0, 1fr) 120px;
+    gap: 2px 8px;
+    --avatar: 40px;
+  }
+  .profile-name {
+    font-size: var(--fs-2xl);
+  }
+  .content:has(> .own-profile) {
+    padding: 8px 12px 16px;
+  }
+  .profile-updated {
+    font-size: var(--fs-xs);
+  }
+  .mmr-chart {
+    min-height: 104px;
+    padding: 6px 8px 2px;
+  }
+  .mmr-plot {
+    min-height: 70px;
+  }
+  .mmr-legend {
+    display: none;
+  }
+  .own-mmr {
+    font-size: var(--fs-4xl);
+  }
+  .own-profile-rank {
+    --medal: 34px;
+  }
+  .own-meter > strong {
+    font-size: var(--fs-xs);
+  }
+  .profile-wide,
+  .profile-table [data-column='xp_per_min'],
+  .profile-table [data-column='hero_damage'] {
+    display: none;
+  }
+  .profile-table th[data-column='hero'] {
+    width: 175px;
+  }
+  .profile-table td {
+    height: 34px;
+  }
+  .profile-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .profile-aside {
+    display: none;
+  }
+  .profile-aside.open {
+    position: fixed;
+    top: calc(32px * var(--ui-scale, 1));
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+    display: block;
+    width: 360px;
+    overflow: auto;
+    background: var(--surface);
+    box-shadow: -12px 0 30px var(--shadow);
+  }
+}

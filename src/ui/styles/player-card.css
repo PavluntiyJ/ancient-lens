@@ -1,0 +1,267 @@
+/* Quick player card, roles and lanes. */
+
+/* Quick player card */
+.quick-dialog {
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  /* Inside the zoomed match view viewport units grow with the zoom; divide it back out. */
+  max-width: calc(95vw / var(--zoom, 1));
+  max-height: calc(90vh / var(--zoom, 1));
+  box-shadow: 0 24px 80px var(--scrim-strong);
+}
+.quick-dialog::backdrop {
+  background: var(--scrim);
+}
+.player-card {
+  width: min(760px, calc(95vw / var(--zoom, 1)));
+  max-height: calc(90vh / var(--zoom, 1));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, var(--raised), var(--surface));
+  border-bottom: 1px solid var(--line);
+  --avatar: 52px;
+  --medal: 48px;
+}
+.card-who {
+  flex: 1;
+  min-width: 0;
+}
+.card-who h2 {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-4xl);
+  font-weight: 600;
+}
+.card-who small {
+  color: var(--muted);
+  font-size: var(--fs-base);
+}
+.card-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-bottom: 1px solid var(--line);
+}
+.card-stats > div {
+  padding: 9px 16px;
+  border-right: 1px solid var(--line);
+}
+.card-stats > div:last-child {
+  border-right: 0;
+}
+.card-stats b {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 19px;
+  font-weight: 600;
+}
+.card-stats b small {
+  font-size: var(--fs-md);
+  font-weight: 500;
+}
+.card-stats span {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.player-card > .note-thread,
+.player-card > .error-text {
+  margin: 10px 16px 0;
+}
+.card-list-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 12px 16px 6px;
+  color: var(--text-2);
+  font-size: var(--fs-base);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+.card-list-head small {
+  color: var(--muted);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.card-matches {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.card-matches > .muted {
+  padding: 10px 16px;
+}
+.card-match-row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) 30px 86px 24px auto;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 16px;
+  border-top: 1px solid var(--line);
+  font-size: var(--fs-lg);
+  cursor: pointer;
+}
+.card-match-row:hover,
+.card-match.open .card-match-row {
+  background: var(--card-row);
+}
+.card-match-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.card-match-row .portrait {
+  width: 64px;
+}
+.card-hero {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.card-hero small {
+  display: block;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  font-weight: 400;
+}
+.card-result {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 22px;
+  border-radius: 4px;
+  color: var(--muted);
+  font-size: var(--fs-base);
+  font-weight: 700;
+}
+.card-result.won {
+  background: var(--win-bg);
+  color: var(--win);
+}
+.card-result.lost {
+  background: var(--loss-bg);
+  color: var(--loss);
+}
+.card-kda {
+  color: var(--text-2);
+}
+.card-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+.card-teams {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 18px;
+  padding: 8px 16px 12px 92px;
+  background: var(--card-row);
+  border-top: 1px dashed var(--line);
+}
+.card-teams > .muted {
+  grid-column: 1 / -1;
+  font-size: var(--fs-base);
+}
+.card-team h4 {
+  margin: 0 0 4px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+.card-team.own h4 {
+  color: var(--win);
+}
+.card-team.enemy h4 {
+  color: var(--loss);
+}
+.card-team ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.card-team li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: var(--fs-md);
+}
+.card-team li .portrait {
+  width: 40px;
+  flex: none;
+}
+.card-team li small {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.card-team .link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-size: var(--fs-md);
+  text-decoration: underline dotted var(--muted);
+  text-underline-offset: 3px;
+}
+.card-team .link-button:hover {
+  color: var(--accent);
+}
+.card-self span {
+  color: var(--accent);
+  font-weight: 600;
+}
+.card-more {
+  align-self: center;
+  margin: 10px 0 14px;
+}
+.player-note {
+  padding-left: 10px;
+  border-left: 2px solid var(--gold);
+  color: var(--text-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: var(--fs-base);
+}
+
+/* Roles and lanes */
+.role-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.role-label svg {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.role-icon {
+  display: block;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+.role-unknown {
+  color: var(--muted);
+}
+.lane-heading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
