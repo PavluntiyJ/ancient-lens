@@ -101,4 +101,102 @@
   --warn: #facc15;
   --radius: 6px;
   --font: 'Saira Semi Condensed', 'Fira Sans Condensed', 'Segoe UI', system-ui, sans-serif;
+
+  /* A role for every colour the components use. A new colour gets a role here, not a
+     literal in a component rule. */
+  /* Text on colour; black and white overlays for shadows, scrims and hovers. */
+  --on-colour: #fff;
+  --shadow-solid: #000;
+  --shadow-soft: #0006;
+  --shadow: #000a;
+  --scrim-strong: #000c;
+  --scrim: #000000b3;
+  --tile-label-bg: #07101ddd;
+  --scrim-faint: #0000004d;
+  /* Surfaces, rows and lines. */
+  --selected: #13243a;
+  --card-row: #1a2233;
+  --option-hover: #2a2e34;
+  --tooltip-bg: #141c2af7;
+  --preview-bg: #101724fa;
+  --line-faint: #bac5d40f;
+  --overlay-faint: #ffffff08;
+  --stripe-hidden: #bac5d408;
+  --overlay: #ffffff10;
+  /* Accent shades (the accent at reduced opacity). */
+  --accent-a08: #58b4e314;
+  --accent-a15: #58b4e326;
+  --accent-a20: #58b4e333;
+  --accent-a33: #58b4e355;
+  --accent-light-a13: #7dd3fc22;
+  /* Buttons and fields. */
+  --primary-top: #2f8fc9;
+  --primary-bottom: #0284c7;
+  --primary-hover: #38a0dc;
+  --secondary-hover-line: #555b63;
+  --secondary-hover-bg: #262a30;
+  --danger-bg: #4a221d;
+  --danger-text: #f3b3a7;
+  --input-hover-line: #4a5058;
+  --close-hover: #b33a35;
+  /* Results and teams. */
+  --win-soft: #75e69e;
+  --loss-soft: #faa2a2;
+  --win-bg: #4ade8026;
+  --loss-bg: #f8717126;
+  --radiant-bar-top: #74a82a;
+  --radiant-bar-bottom: #598307;
+  --dire-bar-top: #d94a1a;
+  --dire-bar-bottom: #a83806;
+  /* Statistic bands: IMP grades (imp-0 worst … imp-6 best) and profile bands (band-0 … band-6). */
+  --imp-0: #ff2d2d;
+  --imp-1: #ff7468;
+  --imp-2: #ffa24d;
+  --imp-4: #6ee27a;
+  --imp-5: #2fd0c0;
+  --imp-6: #c58cff;
+  --band-0: #ff5a52;
+  --band-2: #d9a0a0;
+  --band-4: #a3d9b1;
+  --band-6: #d1a3ff;
+  --band-low-bg: #ff3b3b24;
+  --band-top-bg: #a855f72e;
+  /* Match table column groups. */
+  --group-period: #c4b5fd;
+  --group-period-bg: #a78bfa14;
+  --group-total: #fde68a;
+  --group-total-bg: #facc1510;
+  /* Hero attributes in the hero picker. */
+  --attr-str: #eaa08c;
+  --attr-str-bg: #43281f;
+  --attr-agi: #a9d39a;
+  --attr-agi-bg: #2f3a2c;
+  --attr-int: #8cc0e6;
+  --attr-int-bg: #1f3241;
+  --attr-all: #cfa6dc;
+  --attr-all-bg: #3d2f43;
+  /* Signals: smurf and counter marks, hero pool outlines, rank, rating and mana. */
+  --signal: #22d3ee;
+  --signal-a40: #22d3ee66;
+  --pool-heavy: #ef4444;
+  --pool-recent: #38bdf8;
+  --medal-rank: #f6dda2;
+  --uncalibrated: #d6b26a;
+  --mmr-line: #fb923c;
+  --mmr-area: #fb923c14;
+  --mana: #6aa3d8;
+
+  /* Type scale: font sizes in use. Rare sizes (half pixels, single titles) stay literal. */
+  --fs-3xs: 9px;
+  --fs-2xs: 10px;
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-base: 13px;
+  --fs-md: 14px;
+  --fs-lg: 15px;
+  --fs-xl: 16px;
+  --fs-2xl: 18px;
+  --fs-3xl: 20px;
+  --fs-4xl: 22px;
+  --fs-5xl: 26px;
 }
