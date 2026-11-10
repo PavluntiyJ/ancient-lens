@@ -123,8 +123,7 @@ Build from source with the [installation guide](docs/guide/install.md). Read
 [contributing](CONTRIBUTING.md) for the workflow and checks, the
 [architecture](docs/dev/architecture.md), [verification](docs/dev/verification.md) and the
 [native reader guide](docs/dev/native-reader.md). Native UI verification runs in CI on
-Windows before packaging; on Linux it needs a local desktop run
-([status](docs/status.md#known-limitations)). Report vulnerabilities as described in
+Windows and on Linux (X11; Wayland is checked locally, see [status](docs/status.md#known-limitations)). Report vulnerabilities as described in
 [SECURITY.md](SECURITY.md).
 
 ## License and attribution

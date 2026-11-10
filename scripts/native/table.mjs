@@ -133,7 +133,17 @@ await scenario(
       const r = el.getBoundingClientRect(); return [r.x + x, r.y + y, r.width, r.height];
     });
   `);
-    const stablePanels = await panelGeometry();
+    // Fitting the canvas and choosing two/three panels use separate ResizeObservers. A
+    // canvas that fits once can still be between those updates; start only after its
+    // complete geometry stays unchanged across consecutive samples.
+    let stablePanels;
+    let stableSamples = 0;
+    await waitFor(async () => {
+      const current = await panelGeometry();
+      stableSamples = JSON.stringify(current) === JSON.stringify(stablePanels) ? stableSamples + 1 : 0;
+      stablePanels = current;
+      return (await matchFits()) && stableSamples >= 2;
+    }, 'Initial match layout did not settle');
     for (const label of ['Left panel', 'Right panel']) {
       for (const direction of ['next', 'previous']) {
         const count = await execute(
@@ -154,7 +164,8 @@ await scenario(
           await assertPanelContentsFit();
           const changed = await panelGeometry();
           assert.ok(
-            changed.every((rect, i) => rect.every((value, j) => Math.abs(value - stablePanels[i][j]) <= 1)),
+            changed.length === stablePanels.length &&
+              changed.every((rect, i) => rect.every((value, j) => Math.abs(value - stablePanels[i][j]) <= 1)),
             `${label} jumps on ${direction}: ${JSON.stringify({ stablePanels, changed })}`,
           );
         }

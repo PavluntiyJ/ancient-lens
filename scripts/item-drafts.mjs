@@ -146,10 +146,11 @@ function draftLive(index, extra = {}) {
 }
 async function emit(index, extra = {}) {
   const live = draftLive(index, extra);
-  await app.execute(
-    'const rows=window.__internal_unstable_listeners_object_id__?.["live:update"]; window.__internal_unstable_listeners_function_id__({event:"live:update",payload:arguments[0]},Object.getOwnPropertyNames(rows??{}));',
+  const listeners = await app.execute(
+    'const rows=window.__internal_unstable_listeners_object_id__?.["live:update"]; const ids=Object.getOwnPropertyNames(rows??{}); window.__internal_unstable_listeners_function_id__({event:"live:update",payload:arguments[0]},ids); return ids.length;',
     [live],
   );
+  assert.ok(listeners > 0, 'Native item live event listener was not registered');
   console.log(`Synthetic draft ${index + 1}: ${fixture.drafts[index].title}`);
 }
 async function selectItems() {
@@ -175,10 +176,6 @@ try {
   app = await nativeDriver(directory, { ANCIENT_STATS_URL: undefined });
   await app.useWindow('main');
   await app.resize(1740, 1100);
-  await waitFor(
-    () => app.execute('return !!window.ancient && !!document.querySelector(".analysis-panel")'),
-    'Match screen did not load',
-  );
   if (!demo) {
     await app.execute(
       'window.itemErrors=[]; addEventListener("error",e=>window.itemErrors.push(e.message)); addEventListener("unhandledrejection",e=>window.itemErrors.push(String(e.reason))); const original=window.ancient.getItemStats;window.itemNativeApi=original;window.itemRequests=[];window.ancient.getItemStats=(hero)=>{window.itemRequests.push(hero);return original(hero)};',
