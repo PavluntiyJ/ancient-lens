@@ -79,6 +79,19 @@ command's own default or error message. A new command goes into its group's modu
 group needs one line in the router. The core pushes `live:update` (GSI plus reader results), `state:update` (saved
 state) and `release:update` (a newer release was found) as events. The page never receives the GSI token, provider tokens or memory addresses.
 
+The saved state is one contract checked from both sides. `src/shared/state-schema.ts` holds
+`zod` schemas for every `state:*`, `note:*` and `mmr:*` result and for the `state:update` and
+`own:update` events; the page's types are inferred from them, and `src/bridge.ts` parses each
+result and event against them, so a mismatch fails loudly instead of reaching a component. The
+Rust test `src-tauri/tests/state_contract.rs` serializes real `Store` output (a fresh state,
+notes, MMR entries, own-account readings and another account's profile) and validates it with
+the same schemas through `scripts/check-state-contract.mjs`, so renaming or retyping a field in
+Rust fails `npm run test:rust` until the page follows. Saved records (notes, entries, MMR,
+rating snapshots) accept unknown fields, which a newer version may have written; the state
+object and the own-account reading do not. Provider-shaped results from `api.rs` (`player:*`,
+`summary:get`, `history:get`, `draft:data`, …) are still `Value` in Rust and are not checked
+yet.
+
 `items:get(heroId)` loads a validated historical purchase sample from OpenDota Explorer.
 Only a bounded integer hero ID enters a fixed read-only query; the page cannot submit SQL.
 Requests use the existing OpenDota limiter and bounded response reader. `items-v4-*.json`

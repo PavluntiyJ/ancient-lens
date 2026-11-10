@@ -45,9 +45,21 @@ later cannot enable a test command. The caller/window check still runs before di
 | First-run dialogs                  | Suppressed unless `ANCIENT_READER_PROMPT=1`.                                                                                                                                    |
 | Windows debugging                  | `ANCIENT_WEBVIEW_DEBUG_PORT` enables debugging only in isolated mode.                                                                                                           |
 
-One scenario, `scripts/smoke-native-scenario.mjs`, runs on both systems through the driver in
+The native scenarios in `scripts/native/` run on both systems through the driver in
 `scripts/native-capture.mjs`: `WebKitWebDriver` on Linux (needs a desktop session), Playwright
-over the WebView2 debugging protocol on Windows. Both give the scenario element references,
+over the WebView2 debugging protocol on Windows. Before returning the driver waits for the
+initial workspace load and live-event subscription, so a synthetic draft cannot be overwritten
+by the initial live snapshot or delivered before its listener exists.
+Each scenario is a file of its own and starts
+the app on fresh isolated data through `scripts/native/harness.mjs`, which holds the startup and
+the shared helpers; `scripts/native/fixtures.mjs` holds the data folder and the fake statistics
+service with the switches a scenario flips (a refused warm-up, slow or malformed draft data, a
+failing or private history). The scenarios: `table`, `draft-panels`, `player-mode`, `settings`
+(with window sizes), `profile`, `anonymous-draft`, `hover-draft`, `reader-player` and
+`release-windows`, then `items`, the Windows `reader` and `onboarding`. A new check goes into
+the scenario of its screen; one that needs another scenario's state sets that state itself.
+`npm run test:native -- profile hover-draft` (or `ANCIENT_NATIVE_ONLY=profile,hover-draft`)
+runs only the named ones. Both drivers give the scenario element references,
 real pointer and keyboard input, and the native window size; on Windows the size comes from an
 isolated-only `window:test-size` command. Build first and close competing Ancient Lens windows.
 The optional `ANCIENT_NATIVE_BINARY` selects an alternate executable.
@@ -59,13 +71,13 @@ driver captures the isolated match and profile windows before cleanup, with
 `application.log`. Geometry records viewport, DPI, window and panel bounds; it
 does not export saved state, local storage or credentials. An unavailable or
 hidden renderer can prevent a screenshot; capture errors are recorded without
-replacing the original failure. The runner stops on the first failed scenario
-and returns a failing exit status, without retrying it.
+replacing the original failure. A failed scenario does not stop the others: the
+runner reports every result and returns a failing exit status, without retrying.
 
 To exercise diagnostics deliberately, run the same built executable with
 `ANCIENT_NATIVE_DIAGNOSTIC_FAILURE=1 npm run test:native` on Linux; on Windows set
 `$env:ANCIENT_NATIVE_DIAGNOSTIC_FAILURE='1'` before the command and remove it
-afterwards. This throws after the synthetic match loads and must fail. Keep the
+afterwards. This throws in the `table` scenario after the synthetic match loads and must fail. Keep the
 failure output before starting another run: the runner clears its own
 `test-results/native/` directory at startup. A normal run against the same
 executable should report the same executable SHA-256. Never set this flag in
@@ -79,8 +91,17 @@ scenario sets the window to that minimum.
 
 Hover checks move the real WebDriver pointer. WebKitWebDriver hangs on pointer
 actions while the window lacks keyboard focus (another application in front), so
-the smoke then dispatches the same pointer events and says so in its log. For a
-run that cannot be disturbed by the desktop, and does not disturb it, use the KDE guard:
+the smoke then dispatches the same pointer events and says so in its log.
+On a private display, `ANCIENT_NATIVE_FOCUS=1` instead gives the target window the
+keyboard before moving the real pointer and fails if it cannot obtain focus.
+Use this only on an isolated display: it deliberately changes the active window.
+On Linux the profile-close check activates the actual close button through a page
+click, since WebKit's native click can wait for input completion after the window
+has hidden. It waits for the WebView to become hidden, then checks from the match
+window that the same profile window can be shown again; this is logged explicitly.
+Windows uses the native click.
+
+For a run that cannot be disturbed by the desktop, and does not disturb it, use the KDE guard:
 
 ```sh
 npm run test:native:kde
@@ -142,7 +163,7 @@ avoid the window-resize edge. A fixture test is not proof that a participating
 Dota client exposes the same fields in every game mode.
 
 On Windows, `scripts/smoke-roster-windows.mjs` adds the memory-reader consent and the isolated
-reader worker after the shared scenario.
+reader worker.
 
 ## Live evidence
 
@@ -174,9 +195,35 @@ on pull requests and main pushes as well as release tags and manual runs.
 
 The Windows native job uses the runner's small desktop. Its summary identifies
 the commit, executable checksum and failed scenario, and links to the diagnostic
-artifact. Diagnostics upload even after test failure. Linux uses the same
-diagnostic capture and runner locally, but Linux native smoke remains a desktop
-check rather than a CI job; ordinary Linux checks and distributions still run.
+artifact. Diagnostics upload even after test failure.
+
+`native-linux` runs the same scenarios on Linux for every pull request and main push. It builds
+the application in a Fedora container and runs it on a virtual X11 screen (Xvfb, 2560×1600) with
+the Openbox window manager and software rendering; GitHub's runners have no GPU, and a Wayland
+compositor (a virtual KWin) stalls frame-dependent driver actions such as pointer moves and
+screenshots without one. Its summary and diagnostic artifact match the Windows job. It is not
+required yet (`continue-on-error`) and becomes required once it has stayed green for a couple
+of weeks.
+
+The CI display runs the X11 side of the checks that differ by session: the windows are shown
+without taking the keyboard (`overlay`), hiding for other programs and the first active window
+are checked, and the scenario reports `Wayland: false`. Hover checks explicitly obtain keyboard
+focus on this private display (`ANCIENT_NATIVE_FOCUS=1`) and use real pointer input.
+Wayland's side (portal shortcuts, focus left to the compositor) is covered only by local runs
+on a Wayland desktop, such as
+`npm run test:native:kde`. No check is skipped on the CI display.
+
+To reproduce the CI job locally without a GPU, build with `npm run build` on Fedora, then run the
+scenarios in the same container image:
+
+```sh
+podman run --rm -v "$PWD:/work:Z" -w /work -e GDK_BACKEND=x11 -e ANCIENT_NATIVE_FOCUS=1 registry.fedoraproject.org/fedora:45 sh -c '
+  dnf install -y --setopt=install_weak_deps=False nodejs npm webkit2gtk4.1 webkitgtk6.0 \
+    libappindicator-gtk3 librsvg2 libxdo xorg-x11-server-Xvfb xorg-x11-xauth openbox \
+    dbus-daemon dbus-tools mesa-dri-drivers which findutils >/dev/null &&
+  export XDG_RUNTIME_DIR=/tmp/xdg && mkdir -m 700 -p $XDG_RUNTIME_DIR &&
+  xvfb-run -a -s "-screen 0 2560x1600x24" dbus-run-session -- sh -c "openbox & sleep 1; npm run test:native"'
+```
 
 For an investigation without compilation or packaging, choose **Run workflow**
 and fill all three native recheck fields with the source run ID, build artifact
