@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { DraftData } from './draft';
 import type { RankBracket } from './rank-bracket';
+import type { LocalState, OwnUpdate } from './state-schema';
 
 const steamBase = 76561197960265728n;
 export function accountId(input: string): string {
@@ -17,19 +18,8 @@ export function accountId(input: string): string {
   return id.toString();
 }
 
-/** One note about a player. A note written from a match card keeps that match, the
- * player's hero in it and their side, so it can be shown once the match is known. */
-export type NoteEntry = {
-  id: string;
-  text: string;
-  at: string;
-  editedAt?: string;
-  matchId?: number;
-  heroId?: number;
-  ally?: boolean;
-};
-/** Every note about one player, newest first; `text` and `updatedAt` repeat the newest. */
-export type Note = { accountId: string; name: string; entries: NoteEntry[]; text: string; updatedAt: string };
+/** The saved state and its events are typed by the schemas the bridge checks them with. */
+export type { NoteEntry, Note, MmrEntry, OwnAccount, RatingSnapshot, LocalState, OwnUpdate } from './state-schema';
 /** A new note: added on top of the player's earlier ones, never in their place. */
 export type NoteInput = {
   accountId: string;
@@ -41,64 +31,9 @@ export type NoteInput = {
   ally?: boolean;
 };
 export const mmrInputSchema = z.object({ value: z.number().int().min(0).max(20000) });
-export type MmrEntry = {
-  id: string;
-  value: number;
-  createdAt: string;
-  accountId?: string;
-  source?: 'manual' | 'dota-memory';
-  confidence?: number;
-};
-export type OwnAccount = {
-  accountId: string | null;
-  status: string;
-  source: string;
-  observedAt: string;
-  mmr: number | null;
-  confidence: number | null;
-  behaviorScore: number | null;
-  communicationScore: number | null;
-};
-/** Last confirmed reading for the current account, shown while Dota is closed. */
-export type RatingSnapshot = {
-  mmr: number | null;
-  confidence: number;
-  behaviorScore: number;
-  communicationScore: number;
-  confirmedAt: string;
-};
-export type LocalState = {
-  revision?: number;
-  ownAccount?: OwnAccount | null;
-  ratingSnapshot?: RatingSnapshot | null;
-  /** Known profile IDs; selecting one never changes the active Steam account. */
-  profileAccounts?: string[];
-  unassignedMmrCount?: number;
-  nativeRosterReader?: 'off' | 'on';
-  closeToTray?: boolean;
-  /** Both windows minimize when another application is activated; absent = on. */
-  autoHide?: boolean;
-  /** The window keys work only over Dota and Ancient Lens; absent = on. */
-  keysOverGame?: boolean;
-  /** Whether the app asks GitHub for new releases; absent = on. */
-  updateCheck?: boolean;
-  /** The release whose notice the user turned away with Skip this version. */
-  skippedVersion?: string | null;
-  /** Stored key bindings; absent in an older state update. */
-  shortcuts?: import('./shortcuts').Shortcuts;
-  /** Matches of the current account in the local match journal. */
-  recordedMatches?: number;
-  /** Changes whenever the match journal does (new match, rating, match details). */
-  journalRevision?: number;
-  accountId: string;
-  notes: Note[];
-  mmr: MmrEntry[];
-};
 export function newerLocalState(current: LocalState, incoming: LocalState): LocalState {
   return (incoming.revision ?? 0) < (current.revision ?? 0) ? current : incoming;
 }
-/** Live rating only; sent instead of the full state when stored data did not change. */
-export type OwnUpdate = { revision: number; ownAccount: OwnAccount | null };
 export function applyStateUpdate(current: LocalState, incoming: LocalState | OwnUpdate): LocalState {
   if ('notes' in incoming) return newerLocalState(current, incoming);
   return incoming.revision < (current.revision ?? 0)
