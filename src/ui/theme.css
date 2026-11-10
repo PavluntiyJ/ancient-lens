@@ -98,6 +98,9 @@
   --neutral-rgb: 250, 204, 21;
   --win: #4ade80;
   --loss: #f87171;
+  /* Hero performance behind a portrait: deeper than win/loss, its alpha follows the strength. */
+  --hero-good-rgb: 34, 197, 94;
+  --hero-bad-rgb: 239, 68, 68;
   --warn: #facc15;
   --radius: 6px;
   --font: 'Saira Semi Condensed', 'Fira Sans Condensed', 'Segoe UI', system-ui, sans-serif;
