@@ -9,18 +9,10 @@ import {
   type Match,
   type ReaderStatus,
   type Note,
-  type PlayerSummary,
   type StatsDays,
 } from '../shared/domain';
 import { api, errorMessage } from './App';
-import {
-  AnalysisCarousel,
-  DraftSuggestions,
-  HeroMatchups,
-  LaneSummaryPanel,
-  shortcutBlocked,
-  type AnalysisPage,
-} from './DraftPanels';
+import { AnalysisCarousel, DraftSuggestions, HeroMatchups, LaneSummaryPanel, type AnalysisPage } from './DraftPanels';
 import { laneSummary, type LaneHero } from '../shared/lane-summary';
 import { slotColour } from '../shared/slot-colour';
 import { hasNativeReader, readerRisk, readerRiskWindows, showReaderNotice } from '../shared/reader-notice';
@@ -32,6 +24,9 @@ import { Portrait } from './Portrait';
 import { useOwnHistory } from './match/useOwnHistory';
 import { usePartyHistory } from './match/usePartyHistory';
 import { useStratzProvider } from './match/useStratzProvider';
+import { useBracketChoice } from './match/useBracketChoice';
+import { useLaneChoice } from './match/useLaneChoice';
+import { usePlayerEntries } from './match/usePlayerEntries';
 import { heroPool, poolExplanation, type PoolTag } from '../shared/hero-pool';
 import { counterPicks } from '../shared/counter-picks';
 import { metaPicks } from '../shared/meta-picks';
@@ -39,16 +34,8 @@ import { periodStatus, type PeriodStatus } from '../shared/period-status';
 import { MetaPicks } from './MetaPicks';
 import { CounterPicks } from './CounterPicks';
 import { heroPerformance } from '../shared/hero-performance';
-import {
-  useSynergyWeight,
-  useMinWinRate,
-  useStatsFilter,
-  useDisplaySettings,
-  useEncounterSound,
-  useRankBracket,
-} from './preferences';
+import { useSynergyWeight, useMinWinRate, useStatsFilter, useDisplaySettings, useEncounterSound } from './preferences';
 import { Announcer, notedPlayers } from '../shared/encounters';
-import { chooseBracket, matchMedalTier, type BracketChoice } from '../shared/rank-bracket';
 import { playChime } from './sound';
 import {
   draftSlotPlayer,
@@ -70,14 +57,10 @@ import { FrequentHeroTip } from './Tips';
 import { StratzPrompt } from './StratzPrompt';
 import { InfoHeader, rosterColumns } from './ColumnInfo';
 import { hide, tip } from './Tooltip';
-import { useShortcuts } from './shortcut-context';
-import { matchesShortcut } from '../shared/shortcuts';
 import { guessTeamRoles, type RoleGuess } from '../shared/role-guess';
 import {
   draftDataNote,
-  draftLanes,
   draftWarmBatches,
-  laneForPosition,
   scorePositions,
   mergeDraft,
   missingDraftIds,
@@ -108,14 +91,6 @@ const rosterMessages: Partial<Record<ReaderStatus, string>> = {
   incomplete: 'Waiting for the full player roster',
   unavailable: 'Updating match roster',
   retrying: 'Retrying roster search',
-};
-type Entry = {
-  result?: PlayerSummary;
-  error?: string;
-  totalsLoading?: boolean;
-  totalsError?: string;
-  loading?: boolean;
-  filterKey?: string;
 };
 /** Matches on a hero below which its numbers are dimmed. */
 const THIN_SAMPLE = 5;
@@ -199,26 +174,11 @@ export function MatchScreen({
     return () => observer.disconnect();
   }, []);
   const filterKey = `${filter.mode}-${filter.rankedOnly}`;
-  const entriesMatch = useRef('');
   const synergyWeight = useSynergyWeight();
   const minWinRate = useMinWinRate();
   const { stratzDraft, stratzConnectable } = useStratzProvider(providerRevision);
   const [selected, setSelected] = useState<string>();
   const [heroes, setHeroes] = useState<Hero[]>([]);
-  const [entries, setEntries] = useState<Record<string, Entry>>({});
-  const [lane, setLaneState] = useState(() => {
-    const saved = Number(localStorage.getItem('preferred-lane'));
-    return Number.isInteger(saved) && saved >= 0 && saved < draftLanes.length ? saved : 0;
-  });
-  // Match whose lane was already chosen (automatically or by the user).
-  const laneDecided = useRef('');
-  const currentMatch = useRef('');
-  currentMatch.current = live.matchId ?? '';
-  const setLane = (index: number) => {
-    laneDecided.current = currentMatch.current;
-    localStorage.setItem('preferred-lane', String(index));
-    setLaneState(index);
-  };
   const [revision, setRevision] = useState(0);
   const [draftStore, setDraftStore] = useState<DraftStore>();
   const draftScopeRef = useRef('');
@@ -257,7 +217,6 @@ export function MatchScreen({
       : [];
   const inTitleBar = (toolbar: ReactNode) => (titleBar ? active && createPortal(toolbar, titleBar) : toolbar);
   const encounterSound = useEncounterSound();
-  const shortcuts = useShortcuts();
   const announcer = useRef(new Announcer());
   useEffect(() => {
     // A match on screen now, played or spectated; not a reconnect wait or the last match.
@@ -266,28 +225,6 @@ export function MatchScreen({
     const kind = announcer.current.next(match, list, notedPlayers(list, ownAccountId, notes));
     if (kind && encounterSound) playChime(kind);
   }, [connectedInput, lingering, match, ids, ownAccountId, notes, encounterSound]);
-  useEffect(() => {
-    if (!active) return;
-    // The stored keys cycle the lane shared by both panels.
-    const keydown = (event: KeyboardEvent) => {
-      if (shortcutBlocked(event)) return;
-      const direction = matchesShortcut(event, shortcuts.laneNext)
-        ? 1
-        : matchesShortcut(event, shortcuts.lanePrevious)
-          ? -1
-          : 0;
-      if (!direction) return;
-      event.preventDefault();
-      laneDecided.current = currentMatch.current;
-      setLaneState((index) => {
-        const next = (index + direction + draftLanes.length) % draftLanes.length;
-        localStorage.setItem('preferred-lane', String(next));
-        return next;
-      });
-    };
-    window.addEventListener('keydown', keydown);
-    return () => window.removeEventListener('keydown', keydown);
-  }, [active, shortcuts.lanePrevious, shortcuts.laneNext]);
   useEffect(() => {
     if (!connected) return;
     let active = true;
@@ -303,58 +240,9 @@ export function MatchScreen({
       active = false;
     };
   }, [connected, revision]);
-  useEffect(() => {
-    let active = true;
-    const sameMatch = entriesMatch.current === `${match}-${providerRevision}`;
-    entriesMatch.current = `${match}-${providerRevision}`;
-    setSelected(undefined);
-    setEntries((previous) =>
-      Object.fromEntries(
-        ids
-          .split(',')
-          .filter(Boolean)
-          .map((id) => [id, { ...(sameMatch ? previous[id] : {}), loading: connected, error: undefined }]),
-      ),
-    );
-    if (!connected || !ids) return;
-    // The main process batches STRATZ lookups; OpenDota keeps its rate-limited queue.
-    for (const id of ids.split(',')) {
-      void api
-        .getSummary(id, days, filter)
-        .then((result) => {
-          if (!active) return;
-          const totalsLoading = result.source === 'STRATZ' && !result.total;
-          setEntries((previous) => ({ ...previous, [id]: { result, totalsLoading, loading: false, filterKey } }));
-          if (totalsLoading)
-            void api
-              .getTotals(id)
-              .then((totals) => {
-                if (active)
-                  setEntries((previous) => ({
-                    ...previous,
-                    [id]: { ...previous[id], result: { ...result, total: totals.total }, totalsLoading: false },
-                  }));
-              })
-              .catch((error) => {
-                if (active)
-                  setEntries((previous) => ({
-                    ...previous,
-                    [id]: { ...previous[id], result, totalsLoading: false, totalsError: errorMessage(error) },
-                  }));
-              });
-        })
-        .catch((error) => {
-          if (active)
-            setEntries((previous) => ({
-              ...previous,
-              [id]: { ...previous[id], loading: false, error: errorMessage(error) },
-            }));
-        });
-    }
-    return () => {
-      active = false;
-    };
-  }, [ids, match, connected, revision, days, providerRevision, filter, filterKey]);
+  // A new roster, match, period, provider or refresh closes the open player card.
+  useEffect(() => setSelected(undefined), [ids, match, connected, revision, days, providerRevision, filter, filterKey]);
+  const entries = usePlayerEntries({ ids, match, connected, revision, days, filter, providerRevision });
   const heroOf = (player: LivePlayer) =>
     heroes.find((hero) => hero.id === player.heroId || (!!player.heroName && hero.name === player.heroName));
   // A note written in a card keeps the live match, the player's hero and side.
@@ -374,11 +262,7 @@ export function MatchScreen({
   // The suggestion lane follows the own assigned role once per match.
   const ownLanes = [...draftSlots.radiant, ...draftSlots.dire].find((row) => row.isSelf)?.lanes ?? [];
   const ownPosition = ownLanes.length === 1 ? ownLanes[0] : undefined;
-  useEffect(() => {
-    if (!match || ownPosition === undefined || laneDecided.current === match) return;
-    laneDecided.current = match;
-    setLaneState(laneForPosition(ownPosition));
-  }, [match, ownPosition]);
+  const { lane, setLane } = useLaneChoice(match, active, ownPosition);
   const banIds = (liveBans ?? []).filter((id) => heroes.some((hero) => hero.id === id)).join(',');
   const picksFor = (team: string) => [
     ...new Set(
@@ -401,24 +285,16 @@ export function MatchScreen({
     [radiantIds, direIds],
   );
   const pickedIds = [...new Set([...picksFor('radiant'), ...picksFor('dire')])].sort((a, b) => a - b).join(',');
-  // Hero statistics for the match's rank bracket. An automatic choice is kept for the match
-  // once it rests on ranks, so profiles loading mid-draft do not refetch every table.
-  const bracketSetting = useRankBracket();
-  const matchTiers = players.map(
-    (player) => player.rankTier ?? (player.accountId ? entries[player.accountId]?.result?.profile.rank_tier : null),
-  );
-  const chosen = chooseBracket(bracketSetting, { matchTiers, ownTier, ownMmr });
-  // The journal keeps the median medal of an own match, so its profile row has a bracket
-  // before STRATZ ranks the match.
-  const medal = live.mode === 'player' ? matchMedalTier(matchTiers) : undefined;
-  useEffect(() => {
-    if (match && medal) void api.setMedalRank(match, medal).catch(() => {});
-  }, [match, medal]);
-  const bracketFor = useRef<{ key: string; choice: BracketChoice }>(undefined);
-  const bracketKey = `${match}-${bracketSetting}`;
-  if (bracketFor.current?.key !== bracketKey || bracketFor.current.choice.source === 'none')
-    bracketFor.current = { key: bracketKey, choice: chosen };
-  const bracket = bracketFor.current.choice.bracket;
+  // Hero statistics for the match's rank bracket.
+  const bracket = useBracketChoice({
+    match,
+    player: live.mode === 'player',
+    matchTiers: players.map(
+      (player) => player.rankTier ?? (player.accountId ? entries[player.accountId]?.result?.profile.rank_tier : null),
+    ),
+    ownTier,
+    ownMmr,
+  });
   const draftScope = `${match}-${providerRevision}-${bracket}`;
   draftScopeRef.current = draftScope;
   // A late reply (warm-up or request) from another match or provider is dropped.
