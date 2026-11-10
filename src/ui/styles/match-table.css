@@ -1,4 +1,4 @@
-/* Match screen: toolbar and the ten-player table. */
+/* Match screen: toolbar (also in the window's title bar) and the ten-player table. */
 
 /* Match screen */
 .match-page,
@@ -155,6 +155,29 @@
 }
 .match-table .column-groups th:first-child {
   border-left: 0;
+}
+/* The match status in the window's title bar: one row less above the table. */
+.titlebar-match {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 0 12px;
+}
+.titlebar-match .match-toolbar {
+  height: 100%;
+  gap: 24px;
+}
+.titlebar-match .match-toolbar strong {
+  font-size: var(--fs-base);
+}
+.titlebar-match .match-toolbar select {
+  padding: 0 6px;
+  font-size: var(--fs-sm);
+}
+.titlebar-match .roster-status,
+.titlebar-match .match-id {
+  font-size: var(--fs-sm);
+  white-space: nowrap;
 }
 /* Three contexts: all-time player, period form, and the current hero. */
 .match-table .column-groups th:nth-child(1) {
@@ -444,10 +467,6 @@
   outline: 1px solid var(--line-strong);
   vertical-align: baseline;
   flex-shrink: 0;
-}
-.note-marker {
-  color: var(--gold);
-  margin-left: 4px;
 }
 .match-player .previous-selection {
   color: var(--warn);

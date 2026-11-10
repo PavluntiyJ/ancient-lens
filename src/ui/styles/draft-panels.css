@@ -26,6 +26,10 @@
      here; otherwise content was cut off at 120% or when the fit grows past 100%.
      The 300px floor stays below what the shortest panel fits: (290 - 110) × 1.7. */
   --content: min(100cqw / var(--zoom, 1) - 84px, max(300px, (100cqh / var(--zoom, 1) - 110px) * 1.7));
+  /* Numbers on portraits grow with them. */
+  --tile-font: clamp(12px, calc(var(--content) / 34), 16px);
+  /* The row width of two pick categories side by side in a wide, short panel. */
+  --wide-row: min((100cqw / var(--zoom, 1) - 84px - 32px) / 2, (100cqh / var(--zoom, 1) - 110px) * 2.2);
   background: linear-gradient(180deg, var(--raised), var(--surface) 70px);
   border: 1px solid var(--line-strong);
   border-radius: 10px;
@@ -303,10 +307,7 @@
   max-width: calc(var(--content) * 0.59);
   margin-inline: auto;
 }
-/* Numbers on portraits grow with them. */
-.analysis-panel {
-  --tile-font: clamp(12px, calc(var(--content) / 34), 16px);
-}
+/* Numbers on portraits grow with them (--tile-font on .analysis-panel). */
 .analysis-panel .suggestion-tile b,
 .analysis-panel .counter-tile b,
 .analysis-panel .meta-tile,
@@ -323,10 +324,8 @@
 }
 /* A wide, short panel (two panels side by side in a typical window) shows the two pick
    categories next to each other: each then has the whole height, so its tiles, numbers and
-   labels are larger without the grid getting wider than the panel. */
-.analysis-panel {
-  --wide-row: min((100cqw / var(--zoom, 1) - 84px - 32px) / 2, (100cqh / var(--zoom, 1) - 110px) * 2.2);
-}
+   labels are larger without the grid getting wider than the panel (--wide-row on
+   .analysis-panel). */
 @container (min-aspect-ratio: 2 / 1) {
   .analysis-content:has(.lane-categories) {
     max-width: none;
@@ -509,13 +508,12 @@
   width: 100%;
   height: 100%;
   border-radius: 0;
-}
-/* Reference-style tint: a greyscale portrait blended over the team colour, which fades to grey
-   near zero (matchupTint). */
-.matchup-cell .portrait {
+  /* Reference-style tint, below. */
   isolation: isolate;
   background: rgb(var(--matchup-tint, 115, 115, 115));
 }
+/* Reference-style tint: a greyscale portrait blended over the team colour, which fades to grey
+   near zero (matchupTint); see .matchup-cell .portrait above. */
 .matchup-cell .portrait img {
   filter: grayscale(90%);
   mix-blend-mode: hard-light;
@@ -722,6 +720,10 @@
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 .lane-arrow {
   width: 22px;
