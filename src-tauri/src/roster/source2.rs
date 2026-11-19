@@ -498,7 +498,9 @@ fn read_draft(
             }
         }
         // The lane lives in the team data row, which every player has; only the own side
-        // has draft data, which here just confirms the layout. Enemies get roles too.
+        // has draft data, which here just confirms the layout. Enemies get roles too; the
+        // game hides them until hero selection ends, so `picks::finish_poll` drops them
+        // before then.
         if let (Some(field), Some(_), true) = (
             layout.draft.as_ref().and_then(|draft| draft.lane),
             index,
@@ -1035,7 +1037,8 @@ mod tests {
     #[test]
     fn reads_enemy_roles_without_their_draft_data() {
         // Live 23.10: only the own side's draft vector exists, but every player's team data
-        // row carries the assigned role-queue lane, enemies included.
+        // row carries the assigned role-queue lane, enemies included. The reader keeps them;
+        // publishing hides enemy lanes during hero selection (see `picks::visible_lanes`).
         let (mut m, l, c, teams) = hover_fixture();
         m.bytes[0x12000 + 96 + 60] = 16;
         let out = read_stable_draft(&m, &l, 0x1000, 0x4000, &c, &teams).unwrap();

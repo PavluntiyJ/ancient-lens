@@ -24,6 +24,9 @@ User-visible changes. Dates are when the change landed; 0.5.0 is the first binar
 ### Fixed
 
 - All Random and Captains Draft matches from STRATZ are named instead of shown without a mode.
+- With memory reading on, the match screen no longer shows the enemy team's roles during
+  hero selection. The game hides them until every hero is picked, and the app now does the
+  same; your own team's roles still appear.
 
 ## 0.9.0 — November 6, 2026
 
