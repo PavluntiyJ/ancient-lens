@@ -157,6 +157,13 @@ async function resource(endpoint, data) {
   await writeFile(join(directory, 'cache', `resource-${key}.json`), JSON.stringify({ endpoint, at: Date.now(), data }));
 }
 await resource('heroes', heroes);
+// Invented patch table; isolated runs never ask OpenDota for the real one.
+const patchDate = (days) => new Date(Date.now() - days * 86_400_000).toISOString();
+await resource('constants/patch', [
+  { id: 1, name: '7.90', date: patchDate(300) },
+  { id: 2, name: '7.91', date: patchDate(180) },
+  { id: 3, name: '7.92', date: patchDate(60) },
+]);
 for (const player of byId.values())
   if (!player.country)
     await resource(`players/${player.id}`, { profile: { account_id: player.id, loccountrycode: null } });

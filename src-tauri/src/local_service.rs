@@ -309,10 +309,9 @@ pub async fn resolve(explicit: Option<String>, isolated: bool) -> Option<String>
     if explicit.is_some() {
         return explicit.filter(|url| !url.is_empty());
     }
-    // Automated service tests opt in explicitly; ordinary fixtures still skip discovery.
-    let test_autostart =
-        isolated && cfg!(windows) && std::env::var_os("ANCIENT_TEST_STATS_SERVICE").is_some();
-    if isolated && !test_autostart {
+    // Isolated runs never discover, start or read the user's service and saved token; a
+    // fixture service is given through ANCIENT_STATS_URL instead.
+    if isolated {
         return None;
     }
     // A service the user already started, on any system. Without one this costs at most

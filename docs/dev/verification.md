@@ -19,7 +19,9 @@ keys, local research archive, or running Dota game.
 | `npm run docs:screenshots`                                                                   | English native screenshots with synthetic players/statistics            |
 
 Native checks use isolated `ANCIENT_TEST_DATA` and loopback fixtures. They do not
-inspect the real game process or call live STRATZ. The release check never asks GitHub in an
+inspect the real game process, call live STRATZ or OpenDota, or read the saved STRATZ token:
+an OpenDota resource missing from the cache folder fails with "No isolated OpenDota fixture"
+instead of reaching the network. The release check never asks GitHub in an
 isolated run; the scenario gives it a fixture list through `ANCIENT_TEST_RELEASES`. The page's local storage stays inside
 that directory too: `XDG_DATA_HOME` on Linux, a WebView2 data folder on Windows.
 

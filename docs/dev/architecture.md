@@ -100,7 +100,7 @@ caches are per hero, fresh for six hours with a labelled seven-day stale fallbac
 picks. Up to three distinct standard equipment sets come from sampled inventories, ranked by
 frequency and ordered by a representative purchase log. Alternative sets need repeated
 observations; one popularity-weighted observed set is the fallback. Isolated native runs read
-invented cache data, mark it as a demonstration and refuse live item-provider requests.
+invented cache data, mark it as a demonstration and refuse live OpenDota requests.
 
 ## Live state
 

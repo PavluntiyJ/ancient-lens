@@ -81,6 +81,13 @@ async function resource(endpoint, data) {
   await writeFile(join(directory, 'cache', `resource-${key}.json`), JSON.stringify({ endpoint, at: Date.now(), data }));
 }
 await resource('heroes', heroes);
+// Invented patch table; isolated runs never ask OpenDota for the real one.
+const daysAgo = (days) => new Date(Date.now() - days * 86_400_000).toISOString();
+await resource('constants/patch', [
+  { id: 1, name: '7.90', date: daysAgo(300) },
+  { id: 2, name: '7.91', date: daysAgo(180) },
+  { id: 3, name: '7.92', date: daysAgo(60) },
+]);
 // The OpenDota country fallback for players without one, cached so it needs no request.
 for (let n = 1; n <= 10; n++)
   if (!countries[n - 1]) await resource(`players/${n}`, { profile: { account_id: n, loccountrycode: null } });
