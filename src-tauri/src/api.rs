@@ -389,6 +389,15 @@ impl Api {
         result
     }
     async fn request_once(&self, endpoint: &str, failure: Failure) -> Result<Value> {
+        // Every live OpenDota request passes here: isolated runs answer from fixtures in the
+        // cache folder only, so a missing fixture is an error, never a live request.
+        if self.isolated {
+            return Err(format!(
+                "No isolated OpenDota fixture for {}",
+                endpoint_shape(endpoint)
+            )
+            .into());
+        }
         for attempt in 0..2 {
             self.opendota_limiter.wait().await?;
             let response = match self
@@ -1745,6 +1754,33 @@ mod partial_tests {
         assert!(*api.opendota_limiter.cooldown.lock().await <= Instant::now());
     }
 
+    #[tokio::test]
+    async fn isolated_cache_miss_never_reaches_opendota() {
+        use axum::{routing::get, Router};
+        let hits = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let seen = hits.clone();
+        let router = Router::new().fallback(get(move || {
+            seen.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            async { axum::Json(json!([])) }
+        }));
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let opendota = format!("http://{}", listener.local_addr().unwrap());
+        tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+        let dir = tempfile::tempdir().unwrap();
+        let isolated = Api::build(dir.path().into(), None, true, &opendota, STEAM).unwrap();
+        for endpoint in ["heroes", "constants/patch", "matches/8012345678"] {
+            let error = isolated.resource(endpoint, 60_000).await.unwrap_err();
+            assert!(
+                error.message().contains("No isolated OpenDota fixture"),
+                "{endpoint}: {error}"
+            );
+        }
+        assert_eq!(hits.load(std::sync::atomic::Ordering::SeqCst), 0);
+        // The same request in a normal run does reach the provider.
+        let normal = Api::build(dir.path().into(), None, false, &opendota, STEAM).unwrap();
+        let _ = normal.resource("heroes", 60_000).await;
+        assert!(hits.load(std::sync::atomic::Ordering::SeqCst) > 0);
+    }
     #[tokio::test]
     async fn isolated_steam_identity_serves_only_labelled_fixtures() {
         let dir = tempfile::tempdir().unwrap();
