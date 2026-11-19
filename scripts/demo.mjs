@@ -594,12 +594,12 @@ const slots = Array.from({ length: 10 }, (_, slot) => ({
   team: slot < 5 ? 'radiant' : 'dire',
   teamSlot: slot % 5,
 }));
-// Lane wishes of the draft: the own seat and two others marked lanes, the rest none.
+// Lane wishes of the draft: the own seat and two teammates marked lanes, the rest none.
+// Enemy lanes are hidden during hero selection, as the game hides them.
 const lanes = [
   { slot: 0, team: 'radiant', flags: 16 },
   { slot: 1, team: 'radiant', flags: 1 | 4 },
   { slot: 4, team: 'radiant', flags: 2 },
-  { slot: 6, team: 'dire', flags: 4 },
 ];
 function frame() {
   const at = Date.now();

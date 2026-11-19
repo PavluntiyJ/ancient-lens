@@ -94,6 +94,8 @@ among the discovered types, no duplicates) is used.
   teams without a local player.
 - **Draft** in Hero Selection: picks, hovers, selected lanes, team slots and bans, without
   names or account IDs. Picks confirmed in a match are kept through short incomplete reads.
+  Memory holds every player's lane, but until hero selection ends `picks::finish_poll`
+  publishes only the local team's lanes, because the game does not show enemy roles yet.
 
 ### Statuses
 

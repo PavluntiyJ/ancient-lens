@@ -18,7 +18,9 @@ anti-cheat treats any tool.
   not take the keyboard from it.
 - It does not reveal what the game hides from you. During hero selection, when names are
   hidden in ranked drafts, the optional reader takes only picks, hovers, lanes and bans; it
-  reads player identities only after hero selection, when the game shows them.
+  reads player identities only after hero selection, when the game shows them. Enemy roles
+  stay hidden until hero selection ends: until then the app shows the lanes of your own team
+  only.
 - It does not show enemy positions, cooldowns, items in the fog, or any other live game state
   that you could not see yourself.
 

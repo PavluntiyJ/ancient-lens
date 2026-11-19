@@ -221,6 +221,16 @@ impl Snapshot {
         checks.iter().find(|(_, ok)| !ok).map(|(name, _)| *name)
     }
 }
+/// Lanes the game itself shows at this phase. Role queue shows the enemies' roles only once
+/// hero selection is over; until then, through loading and hero selection, only the local
+/// player's team keeps its lanes. Memory holds every player's lane, so this is the fair-play
+/// boundary: enemy roles never reach the page before the game reveals them.
+fn visible_lanes<'a>(lanes: &'a [Lane], ctx: &Context) -> impl Iterator<Item = &'a Lane> {
+    let (selecting, team) = (matches!(phase_number(&ctx.phase), Some(1 | 2)), ctx.team);
+    lanes
+        .iter()
+        .filter(move |lane| !selecting || lane.team == team)
+}
 pub(super) fn finish_poll(
     mut current: Value,
     requested: Option<&Context>,
@@ -253,7 +263,7 @@ pub(super) fn finish_poll(
                 "hovers": snapshot.hovers.iter().map(|p| json!({
                     "slot":p.slot, "heroId":p.hero, "team":if p.team==2 {"radiant"} else {"dire"}
                 })).collect::<Vec<_>>(),
-                "lanes": snapshot.lanes.iter().map(|p| json!({
+                "lanes": visible_lanes(&snapshot.lanes, requested).map(|p| json!({
                     "slot":p.slot, "flags":p.flags, "team":if p.team==2 {"radiant"} else {"dire"}
                 })).collect::<Vec<_>>(),
                 "slots": snapshot.slots.iter().map(|p| json!({
@@ -419,6 +429,43 @@ mod tests {
             .contains(&json!(74)));
         for private in ["name", "accountId", "steamid"] {
             assert!(!out["draft"].to_string().contains(private));
+        }
+    }
+    #[test]
+    fn enemy_lanes_stay_hidden_until_hero_selection_ends() {
+        let own = Lane {
+            slot: 6,
+            team: 3,
+            flags: 4,
+        };
+        let enemy = Lane {
+            slot: 1,
+            team: 2,
+            flags: 16,
+        };
+        for (phase, number, enemy_visible) in [
+            ("DOTA_GAMERULES_STATE_WAIT_FOR_PLAYERS_TO_LOAD", 1, false),
+            ("DOTA_GAMERULES_STATE_HERO_SELECTION", 2, false),
+            ("DOTA_GAMERULES_STATE_STRATEGY_TIME", 3, true),
+            ("DOTA_GAMERULES_STATE_GAME_IN_PROGRESS", 5, true),
+        ] {
+            let mut raw = gsi();
+            raw["gameState"] = json!(phase);
+            let ctx = Context::fresh(&raw, 1001).unwrap();
+            let read = Snapshot {
+                phase: number,
+                lanes: vec![enemy.clone(), own.clone()],
+                // The own GSI hero check starts after hero selection; keep it satisfied.
+                picks: vec![],
+                ..snapshot()
+            };
+            let ctx = Context { hero: None, ..ctx };
+            let out = finish_poll(raw, Some(&ctx), Ok(read), 1001);
+            let mut expected = vec![json!({"slot":6,"team":"dire","flags":4})];
+            if enemy_visible {
+                expected.insert(0, json!({"slot":1,"team":"radiant","flags":16}));
+            }
+            assert_eq!(out["draft"]["lanes"], json!(expected), "{phase}");
         }
     }
     #[test]
