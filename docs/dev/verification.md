@@ -189,11 +189,18 @@ ordinary tests.
 
 `.github/workflows/build.yml` checks formatting, frontend, Rust and the
 service on GitHub-hosted Ubuntu and Windows for every code change and pull
-request. After those checks, `native-build` builds the Windows application
+request. Alongside those checks, `native-build` builds the Windows application
 without installers and saves both executables with their source revision and
 SHA-256 checksums. A separate `native-smoke` job downloads that exact artifact,
 verifies its revision and checksums, and runs the native scenarios. This happens
-on pull requests and main pushes as well as release tags and manual runs.
+on pull requests and main pushes as well as release tags and manual runs. Installers and
+packages still wait for the checks.
+
+The Ubuntu jobs install the Tauri build dependencies with apt and cache the downloaded
+packages. GitHub shares a cache saved on `main` with every branch, but a cache saved by a pull
+request only with that pull request, and the Ubuntu mirror sometimes needs twenty minutes for
+the download. `apt-cache.yml` therefore refreshes the cache on `main` every day, so a package
+update is downloaded there and not by the next pull request.
 
 The Windows native job uses the runner's small desktop. Its summary identifies
 the commit, executable checksum and failed scenario, and links to the diagnostic

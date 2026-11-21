@@ -1,0 +1,39 @@
+name: Refresh apt cache
+
+# GitHub shares a cache saved on main with every branch, but a cache saved by a pull request
+# only with that pull request. When Ubuntu updates one of the Tauri build dependencies, this
+# run downloads it on main, so pull requests restore it instead of waiting for the mirror,
+# which has taken over twenty minutes for the download. A cache hit costs only `apt-get update`.
+on:
+  schedule:
+    - cron: '30 4 * * *'
+  push:
+    branches: [main]
+    paths:
+      - '.github/actions/linux-dependencies/**'
+      - '.github/workflows/apt-cache.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  # One run per package set the build workflow installs; the key includes the extra packages.
+  refresh:
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        extra: ['', rpm]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/linux-dependencies
+        with:
+          extra: ${{ matrix.extra }}

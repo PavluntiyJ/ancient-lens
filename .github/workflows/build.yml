@@ -66,8 +66,10 @@ jobs:
         run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings && cargo clippy --manifest-path src-tauri/Cargo.toml --no-default-features --bin stats-service -- -D warnings
 
   # Build once before packaging. A failed smoke job can reuse this exact artifact on rerun.
+  # Starts alongside `check` instead of after it: it uses nothing `check` produces, and the
+  # release build is the longest step on the way to a green pull request.
   native-build:
-    needs: check
+    if: inputs.native-source-run == '' && inputs.native-artifact-id == '' && inputs.native-source-sha == ''
     timeout-minutes: 40
     runs-on: windows-latest
     outputs:
@@ -178,8 +180,9 @@ jobs:
   # has no GPU, and Wayland compositors stall without one). Local KDE runs cover Wayland; see
   # docs/dev/verification.md. Built and tested in one job: a rerun rebuilds, which the Rust
   # cache keeps short. Not blocking until it has been stable for a couple of weeks (#165).
+  # Starts alongside `check`, like native-build.
   native-linux:
-    needs: check
+    if: inputs.native-source-run == '' && inputs.native-artifact-id == '' && inputs.native-source-sha == ''
     continue-on-error: true
     timeout-minutes: 60
     runs-on: ubuntu-latest
