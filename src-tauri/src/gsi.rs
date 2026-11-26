@@ -1,4 +1,5 @@
 mod diagnostics;
+mod packet;
 use crate::error::Error;
 use crate::store::{account_id, Result};
 use axum::{
@@ -245,7 +246,7 @@ async fn receive(
     {
         return StatusCode::UNSUPPORTED_MEDIA_TYPE;
     }
-    let result = serde_json::from_slice(&body)
+    let result = packet::parse(&body)
         .map_err(|_| "Invalid JSON".into())
         .and_then(|v| normalize(&v, &s.token).map(|normalized| (v, normalized)));
     match result {
