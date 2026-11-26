@@ -49,8 +49,8 @@ match, the watched hero and the clock. It is the quickest check that events arri
 
 Replace older configurations: the current version requests the `draft` block.
 The receiver listens only on `127.0.0.1:32123`, checks a random installation
-secret, limits request size, and rejects browser `Origin` headers. The generated
-file contains this secret; do not publish it or copy it between installations.
+secret, rejects browser `Origin` headers, and limits JSON body size, nesting, and value count.
+The generated file contains this secret; do not publish it or copy it between installations.
 Apart from the setup above, the app does not change game files, Steam settings,
 or `coreinit.lua`.
 

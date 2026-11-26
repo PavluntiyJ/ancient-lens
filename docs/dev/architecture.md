@@ -105,8 +105,8 @@ invented cache data, mark it as a demonstration and refuse live OpenDota request
 ## Live state
 
 1. Dota posts GSI to `127.0.0.1:32123/gsi`. The server rejects a wrong token, browser
-   `Origin` headers and oversized bodies, and normalizes the payload (mode, match, players,
-   heroes, phase).
+   `Origin` headers and oversized bodies. The JSON parser limits nesting and the number of
+   values. The server normalizes accepted packets (mode, match, players, heroes, phase).
 2. With memory reading off, the normalized state is published as is. As a participant, GSI
    contains only the local player.
 3. With memory reading on, a worker reads the roster and draft from the game and merges them
